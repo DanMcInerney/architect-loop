@@ -1,7 +1,9 @@
 {
   "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
-  "features": { "ghcr.io/devcontainers/features/python:1": {} },
-  "postCreateCommand": "npm i -g --ignore-scripts @earendil-works/pi-coding-agent && chmod +x install.sh && ./install.sh && curl -fsSL https://claude.ai/install.sh | bash",
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": {}
+  },
+  "postCreateCommand": "npm i -g --ignore-scripts @earendil-works/pi-coding-agent && chmod +x install.sh && ./install.sh && curl -fsSL https://claude.ai/install.sh | bash && curl -fsSL https://rtk.ai/install.sh | sh",
   "remoteEnv": {
     "DEEPSEEK_API_KEY": "${localEnv:DEEPSEEK_API_KEY}",
     "TAVILY_API_KEY": "${localEnv:TAVILY_API_KEY}",
