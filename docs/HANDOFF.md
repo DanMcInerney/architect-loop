@@ -89,6 +89,21 @@
   signal, 800-non-blank-line size guard (at 557 post-change), tier-up-over-
   retry, and the docs-debt convention.
 
+- **Research round 2 COMPLETE 2026-07-02 → `docs/research/agent-pipeline-patterns.md`**
+  (human-directed: agent research-pipeline techniques for a research skill
+  loop; scout + 5 designed lanes + expert wave, codex gpt-5.5; 11 load-bearing
+  sources orchestrator-fetched and verified). Headline: current
+  /architect-research shape IS the field consensus (fan-out for gathering
+  only, single-author synthesis, file artifacts, engineered stop caps —
+  Cognition's Yan now endorses read-side fan-out too). Proposed (awaiting
+  human ruling, nothing built): A1 numeric ≤~1,500-token lane return cap;
+  A2 draft-as-state gap rounds + NOT-FOUND do-not-rechase carry-forward;
+  A3 tool-call-calibrated budgets + published cost envelopes; A4 name the
+  committed report + open questions the research handoff (loop-ification).
+  Rejected with evidence: D1 extra coordination layers (bloat, 58-515%
+  overhead); D2 cache-alignment machinery (harness-owned, preamble below
+  cache minimums).
+
 ## Docs debt
 
 | Slice | Shipped | Product-doc update needed |
