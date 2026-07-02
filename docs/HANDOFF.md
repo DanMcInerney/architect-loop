@@ -80,7 +80,20 @@
   per-worker nor batch), with a ≤~400-changed-lines slice-size discipline;
   adversarial spec review = ONE cold repo-grounded grill of the draft gate
   file BEFORE freeze (CCR: fresh-context beats same-session p=0.008,
-  repeats hurt). Human approved P1–P7 → slice `loop-hardening` frozen 6f64bd1 (post-grill: 5 draft defects caught pre-freeze — P2 validated itself); sonnet lane 01 in flight.
+  repeats hurt). Human approved P1–P7 → **slice `loop-hardening` JUDGED
+  PASS + MERGED TO MAIN 2026-07-02** (freeze 6f64bd1, lane 977c7b6, cold
+  judge LG1–LG9 all PASS with file:line evidence). The pre-freeze grill
+  (P2) validated itself on its first use: 5 draft-gate defects caught
+  before freeze. Skill text now carries: fallback/backcompat ban, grill
+  step + fixed template, ≤~400-line slice discipline, repeat-action stall
+  signal, 800-non-blank-line size guard (at 557 post-change), tier-up-over-
+  retry, and the docs-debt convention.
+
+## Docs debt
+
+| Slice | Shipped | Product-doc update needed |
+|---|---|---|
+| loop-hardening | P1–P7 hardening (grill step, docs-debt convention, fallback ban, size guard) | README: mention the pre-freeze grill + docs-debt flow in the usage section; DESIGN.md: evidence rows for P1–P7 citing docs/research/loop-improvements.md + the grill's first-use result (5 pre-freeze catches) |
 - Historical: v4-core first judgment 2026-07-02: gates-integrity + VG1–VG7 +
   VG9 all PASS; VG8 FAILed 3× on desktop D9 before the re-ruling.
 - **VG8 FAIL root cause (D9):** the desktop harness denies Bash to BOTH
