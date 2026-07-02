@@ -127,6 +127,7 @@ untrusted workspace: "Ignoring 10 permissions.allow entries … has not been tru
 | 2026-07-02 | Gate specs prescribe `UV_CACHE_DIR=.architect/tmp/uv-cache` for sandboxed `uv run` | AppData cache write-denial under workspace-write |
 | 2026-07-02 | `bash -n` architect-run only on this machine — Git Bash dies under codex sandbox (Win32 error 5) | environment limitation |
 | 2026-07-02 | `v3-loop-docs` brawn = codex/tier-down (gpt-5.5 high) | routine, tightly specified doc edits |
+| 2026-07-02 | Allowlist bootstrapped at `.claude/settings.json` permissions.allow (Read/Edit/Write/Glob/Grep, `Bash(uv run:*)`, `bash -n`, powershell, grep, git status/diff/log/show/ls-files/add/commit/merge/checkout/branch) for driver-run loop brains; file left untracked — committing it is a call for a future slice. Workspace trust verified true. | loop.md one-time setup checklist + D7; first driver run on this repo is next |
 
 ## Next slice (builder may propose; architect decides)
 
