@@ -127,6 +127,14 @@ outer driver for Codex loop mode.
 - For Claude Code loop runs, bootstrap `.claude/settings.json`
   `permissions.allow` with the repo's exact gate and git commands, then record
   the allowlist in `docs/HANDOFF.md`.
+- Headless `claude -p` ignores repo `.claude/settings.json`
+  `permissions.allow` in an untrusted workspace ("Ignoring N permissions.allow
+  entries ... this workspace has not been trusted"). Under `--permission-mode
+  dontAsk`, settings-allowed calls are denied and the brain cannot update the
+  handoff. Trust the workspace before first driver launch: run one interactive
+  Claude Code session in the repo and accept the trust dialog, or set
+  `projects["<absolute repo path>"].hasTrustDialogAccepted: true` in
+  `~/.claude.json`.
 - If using `--permissions bypass`, run one interactive
   `claude --dangerously-skip-permissions` session in the isolated environment
   and accept the warning before the driver depends on it.

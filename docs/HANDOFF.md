@@ -18,15 +18,17 @@
   `--verbose` in the claude-backend template, **D7** workspace-trust
   prerequisite undocumented, **D8** lane self-misidentification — no
   lane-identity/self-stream clause). Driver and tests are untouched by them.
-- Fix slice `v3-loop-docs` (D6–D8, doc text only) spec'd this session; gates
-  frozen at `docs/gates/v3-loop-docs.md`; lane 01 dispatched on
-  `slice/v3-loop-docs` (brawn codex/tier-down).
+- Fix slice `v3-loop-docs` (D6–D8, doc text only): gates frozen at
+  `docs/gates/v3-loop-docs.md`; lane 01 (codex/tier-down) COMPLETE and
+  post-flighted clean (boundaries exact ×4, gates diff 0 bytes, PHASE 0
+  evidence-backed, +21/−1 net); committed on `slice/v3-loop-docs`.
+  PENDING JUDGMENT.
 - Next action: fresh /architect session judges HG1–HG5 per
   `docs/gates/v3-loop-docs.md` (report: `docs/lanes/v3-loop-docs-01.md`),
   then merges `slice/v3-loop-docs` → main on PASS. PRD §6 watch items
   (gpt-5.6 alias recheck, billing-pause reversal, GLM recipe) remain open.
 
-LOOP: WAIT 20 (v3-loop-docs lane 01 in flight)
+LOOP: CONTINUE
 
 ## Project goal
 
@@ -138,4 +140,6 @@ after this one.
 | Date | Role | Slice | Commits | Gates P/F | Notes |
 |------|------|-------|---------|-----------|-------|
 | 2026-07-01/02 | Architect + builders | v3-loop / v3-loop-fixes / v3-loop-eol | freezes 77f5037, b1acc42, 1b8ada1; judgments b1acc42, 1b8ada1, this commit | G1–G6 P; FG2–4 P, FG1 F→D5; EG1–4 P | detail in judgment commits |
-| 2026-07-02 | Architect (Claude Fable, fresh session) | v3-loop-eol judgment + G7–G11 live canaries | this commit + merge to main + v3-loop-docs freeze | EG1–4 P; G7–G11 P | 10/10 no-hang launches; 6-iter live loop arc; docs/STOP mid-run kill; cross-family + same-family review canaries; found D6–D8; dispatched v3-loop-docs lane 01 (codex/tier-down) |
+| 2026-07-02 | Architect (Claude Fable, fresh session) | v3-loop-eol judgment + G7–G11 live canaries | 9872d5b judgment+freeze; 9c4aad8 merge to main | EG1–4 P; G7–G11 P | 10/10 no-hang launches; 6-iter live loop arc; docs/STOP mid-run kill; cross-family + same-family review canaries; found D6–D8; dispatched v3-loop-docs lane 01 (codex/tier-down) |
+| 2026-07-02 | Builder (codex exec gpt-5.5 high, thread 019f2195) | v3-loop-docs | lane 01 working tree | — | COMPLETE_WITH_CONCERNS (known sandbox bash -n skip, E_ACCESSDENIED); PHASE 0 verified D6 at dispatch.md:58, checklist at loop.md:123, DESIGN table at :473 before editing |
+| 2026-07-02 | Architect (dispatch session, post-flight only) | v3-loop-docs | lane commit on slice/v3-loop-docs | — | Post-flight clean ×4; judgment deferred to fresh session per hard rule 4 |
