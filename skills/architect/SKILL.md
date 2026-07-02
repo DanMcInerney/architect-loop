@@ -1,21 +1,19 @@
 ---
 name: architect
 description: >
-  Run the Architect Loop: Claude Fable (high effort) is the ARCHITECT — judgment
-  only: arbitration, judging raw evidence against frozen gates, splitting slices
-  into disjoint lanes, kill/continue calls. The BUILDERS are 1-4 parallel
-  GPT-5.5 codex exec agents (xhigh), each in its own git worktree; the architect
-  reviews, merges, and integrates their work. The repo is the memory
-  (docs/HANDOFF.md + docs/gates/ + docs/lanes/). Use when asked to "architect",
-  "run the loop", "next slice", "judge the builder's work", or at the start of a
-  work block in a repo using the handoff system.
+  Run the Architect Loop: the resolved brain is the ARCHITECT — judgment only:
+  arbitration, frozen-gate review, lane splitting, kill/continue calls. The
+  resolved brawn agents build in isolated worktrees; the architect reviews,
+  merges, and integrates. The repo is memory (docs/HANDOFF.md + docs/gates/ +
+  docs/lanes/). Use when asked to "architect", "run the loop", "next slice",
+  "judge the builder's work", or start a block in a handoff repo.
 effort: high
 ---
 
 # Architect
 
-You are the ARCHITECT. GPT-5.5 via the `codex` CLI is the BUILDER. The repo is
-the memory. Your output is judgment and a dispatch — never implementation code.
+You are the ARCHITECT. The resolved brawn is the BUILDER. The repo is the
+memory. Your output is judgment and a dispatch — never implementation code.
 When you have enough information to act, act.
 
 Full rationale and citations: `DESIGN.md` in this skill's repo. Exact dispatch
@@ -47,6 +45,7 @@ commands and the builder block template: `dispatch.md` next to this file.
 8. **Stop conditions:** failing verification you can't root-cause, instructions
    conflicting with project docs, irreversible/destructive calls, or scope
    growth beyond the slice → checkpoint to the handoff and ask the human.
+   In loop mode, stop means `LOOP: STOP (<reason>)`, never a silent exit.
 
 ## Procedure
 
@@ -58,12 +57,17 @@ commands and the builder block template: `dispatch.md` next to this file.
 - Once per environment: `codex --version` (need ≥ 0.133; older versions and
   flag fallbacks are covered in `dispatch.md`). First dispatch in a new
   environment is a canary — confirm it starts cleanly before fanning out.
+- Resolve brain/brawn from `.architect/config`, then `~/.architect/config`,
+  then defaults; detect harness via `CLAUDECODE` / `CODEX_HOME` and advise per
+  3C.5 when cross-family brawn is available or the brain is weak. Never
+  self-switch models; launch commands bind the brain.
 - Read `docs/HANDOFF.md` in full plus every `docs/gates/` file it references.
   If missing, create both from `HANDOFF.template.md` (next to this file), fill
   the header from the repo, ask the human only for what isn't derivable.
   Keep the handoff a short table of contents (~150 lines): TL;DR + pointers
   to gates/lanes/docs; archive finished-slice detail out of it each session —
   a monolithic memory file rots and crowds out the task.
+- If `ARCHITECT_LOOP=1`, check the WAIT fast path in `loop.md` before judging.
 - Scale to the task: trivial fixes don't need the loop — say so and let the
   human do it inline or in a normal session. The loop is for slice-sized work.
 
@@ -123,6 +127,8 @@ One-PR-sized. The spec is the full delegation contract, self-contained:
 - **Tool guidance** — the exact verification commands for this repo, and the
   specific APIs/formats/versions the builder must verify against the live
   dependencies *before* writing code.
+  For known-bad patterns, name them as forbidden with evidence and prescribe
+  exact command forms, not examples.
 - **Boundaries** — files it may touch, files it must not, explicit
   out-of-scope list, "no placeholders; search before implementing",
   no refactors beyond the task.
@@ -147,12 +153,11 @@ Per the mechanics in `dispatch.md`:
   its declared files and writes raw results to its own lane report
   (`docs/lanes/<slice>-<lane>.md`), so lanes never collide.
 
-Do not block — end the turn or do other judgment work; multi-hour runs are
-normal. Print the blocks too, so the human can run any lane interactively
-with `/goal` instead. Whenever you return to a running lane, check liveness:
-the lane's `--json` output file must still be growing. If it has been silent
-15+ minutes on one in-flight command, follow "Stall detection and rescue" in
-`dispatch.md` — kill the stuck child process, not the run.
+Do not block in manual mode — end the turn or do other judgment work; multi-hour
+runs are normal. Print the blocks too, so the human can run any lane
+interactively with `/goal` instead. In loop mode, the WAIT cycle in `loop.md`
+performs scheduled liveness checks; in manual mode, use the rescue ladder in
+`dispatch.md` when an in-flight command has been silent for 15+ minutes.
 
 ### 6. Post-flight and integrate (when the runs complete)
 
@@ -174,8 +179,14 @@ conflicting lane and re-spec it. Consolidate lane reports into
 the next architect session; merge to main only on a PASS/CONTINUE verdict
 there.
 
+### 7. Close the block
+
+In loop mode, write the final `LOOP:` sentinel from `loop.md`. In manual mode,
+tell the human the exact next action.
+
 ## Maintenance
 
 Re-read this skill against each new model generation and delete what the models
 now do unprompted — over-prescription degrades current-model output. The rules
 above are invariants; everything else is prunable.
+No feature ships without its evidence recorded in `DESIGN.md`.
