@@ -85,17 +85,20 @@
   (deferred since v3) remains the right call so future desktop worktrees
   cut from main carry the allowlist — decision goes to the human with the
   re-ruling if needed.
-- **Slice `v4-desktop2` IN FLIGHT** (human directed Sonnet-lane investigation
-  2026-07-02): give subagents `PowerShell` as a second executor the desktop
-  Bash-strip plausibly doesn't filter. Verified basis: tools-reference lists
-  PowerShell as a legal subagent tools entry; sub-agents doc has NO platform
-  carve-out (the strip is undocumented, plausibly desktop's client-side
-  "harbor" gate, issue #73434); a CLI subagent here empirically holds a
-  working PowerShell tool distinct from Bash. Gates XG1–XG6 frozen 588a3e9;
-  XG5 = human desktop canary #4, supersedes VG8/WG5 as the ruling vehicle.
-  Fallback if PowerShell is also stripped: per-agent MCP exec server
-  (documented separate grant path), else human re-rules PRD §6 ruling 5.
-  `.claude/settings.json` allowlist committed a689bc4 (human ruling).
+- **Slice `v4-desktop2` JUDGED 2026-07-02** (cold judge, freeze 588a3e9, lane
+  74f8221): gates-integrity + XG1–XG4 + XG6 all PASS; **XG5 = human desktop
+  canary #4 is the only open gate and supersedes VG8/WG5 as the ruling
+  vehicle.** Both agent defs now carry `PowerShell` as a second executor
+  (interior, Bash kept, full PowerShell deny mirrors both defs per C6-intent
+  ruling, validator guards, settings env knob + 11 permission mirrors,
+  dispatch.md D9 note). **Decisive live evidence: the judging subagent itself
+  held and USED the native PowerShell tool on CLI** (ran XG3/XG6 with it) —
+  both executors work in cold subagents under the new defs. XG6 range note
+  ruled: orchestrator handoff commits (af0ce74) are procedure-mandated and
+  outside lane bounds — VG9 precedent, no downgrade. Fallback if desktop
+  strips PowerShell too: per-agent MCP exec server, else human re-rules PRD
+  §6 ruling 5. `.claude/settings.json` allowlist committed a689bc4 (human
+  ruling).
 - Then v4-codex, v4-cleanup per PRD §4. v3 watch items (gpt-5.6 alias, GLM
   recipe, mapfile/macOS) carry over unchanged.
 
@@ -259,4 +262,5 @@ gate) carry over. `.claude/settings.json` commit decision still deferred.
 | 2026-07-02 | Builder (cold architect-builder subagent, sonnet:high) | v4-desktop lane 01 | working tree → 1d84230 | — | COMPLETE. PHASE 0 flagged branch-name mismatch (slice/v4-core, HEAD=freeze — accepted). Post-flight found D11 (its own spawn ran unisolated in main checkout; overclaim "both CLI and desktop" in its D10 text) → within-lane follow-up applied after one nudge: auto-worktree scoped to desktop, D11 + CLI cautions documented. Discovery: CLI spawn of a def with `isolation: worktree` did NOT create a worktree (D11) |
 | 2026-07-02 | Judge (cold architect-judge subagent, padded defs) + architect recording | v4-desktop judgment | 2a66076 | integrity+WG1–WG4+WG6 P; WG5 INVALID pending | Judge ran WG1 both shells itself, verified check_tools_pad wiring, read defs/dispatch.md against D9/D10 contracts, flagged that post-update spawn behavior is only testable by WG5. Slice verdict INVALID until human records VG8 re-run. Judge's own Bash-capable run under padded defs = live CLI no-regression evidence. Slice call: CONTINUE contingent on WG5 |
 | 2026-07-02 | Human + desktop orchestrator (Claude Code desktop app) | WG5 = VG8 re-run (toy3 `hi`) | toy3 fddcec6 freeze, e0fbfdb lane (inside `.claude/worktrees/dreamy-curie-b2d326`) | WG5/VG8 F | Padded defs did NOT restore Bash on desktop: builder tool set Glob,Read,Edit,Write,Grep (BLOCKED, honest); judge tool set Glob,Read,Grep (INVALID all gates, honest); pads survived, only Bash stripped → #60237 positional pattern falsified for desktop, #18749 Bash-specific variant matches. Desktop session followed the full loop discipline: post-flight, orchestrator commit, C5 verbatim, no merge on non-PASS, diagnostic run separated artifact-soundness (all 3 gates pass) from loop-self-verification (impossible). Architect audited toy3 evidence on disk before recording |
+| 2026-07-02 | Builder (cold architect-builder, sonnet) + Judge (cold architect-judge, new defs) | v4-desktop2 lane+judgment | freeze 588a3e9; lane 74f8221; judgment this commit | integrity+XG1–XG4+XG6 P; XG5 pending human | Builder COMPLETE after two in-lane follow-ups (deny mirrors per C6-intent ruling; report status-line fix). Judge PASS all executable gates AND ran gate commands via its native PowerShell tool — first live proof both executors work in cold subagents. XG5 = desktop canary #4 next |
 | 2026-07-02 | Human + desktop orchestrator (Claude Code desktop app) | VG8 3rd run, FOREGROUND variant (toy4 `yo`) | toy4 c694398 freeze, 0c7e1e3 lane, finding 79d5755 (inside `.claude/worktrees/cranky-elgamal-03c9d9`; copy at `.architect/tmp/v4-canary/VG8-FINDING-foreground.md`) | VG8 F (3rd) | FOREGROUND FALSIFIED: judge ran truly synchronous and STILL had no Bash (Glob,Read,Grep) — strip is at the function-set level, before the permission layer; no prompt can ever surface. Builder run_in_background:false was coerced async by the harness; harness also auto-worktreed the spawn keyed off shell cwd (nested toy4/.claude/worktrees). Artifact again sound (orchestrator diagnostic TG1 `yo v4` exit 0). Both dispatch modes now eliminated → VG8 as frozen is UNSATISFIABLE on current desktop; escalated to human for PRD §6 ruling 5 re-ruling |
