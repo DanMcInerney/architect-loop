@@ -12,6 +12,9 @@
 - Goal: [one sentence]
 - Last slice: [name] — [PASS/FAIL/pending judgment]
 - Next action: [exact command or decision needed]
+- LOOP: [`LOOP: CONTINUE` | `LOOP: WAIT <minutes>` |
+  `LOOP: WAIT <minutes> (<note>)` | `LOOP: STOP (<reason>)`] — if missing,
+  unparseable, or untouched since the prior iteration, the driver stops
 
 ## Project goal
 
@@ -60,5 +63,5 @@ freeze — for everyone, including the builder.]
 
 ## Session log
 
-| Date | Role | Slice | Commits | Gates P/F | Notes |
-|------|------|-------|---------|-----------|-------|
+| Date | Role | Brain | Brawn | Slice | Commits | Gates P/F | Notes |
+|------|------|-------|-------|-------|---------|-----------|-------|
