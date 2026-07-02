@@ -180,18 +180,20 @@ review time. Full evidence: `docs/research/skill-prompt-patterns.md`.
   parallel subagents; the brain picks with recorded rationale, judged on
   depth-as-leverage (small interface hiding real complexity), the deletion
   test, and misuse-resistance. Leaf code never triggers this.
-- **Scope challenge before cutting issues**: what existing code already
-  solves each sub-problem; minimum change set; complexity smell at >8 files
-  or >2 new classes/services per issue; search for built-ins before
-  building; boring by default; essential vs accidental complexity.
 - **Interface handoff blocks**: any issue producing a surface another issue
   consumes states that interface verbatim (names, parameters, return types)
   in its body; the consumer references it. Disjoint files keep lanes from
   colliding; interface blocks make them compose.
-- **Evidence over trust**: when tests are in scope, lane reports carry TDD
-  evidence — RED command + failing output + why expected, GREEN command +
-  passing output. Tracer-bullet vertical slices; never all-tests-then-all-
-  code; never refactor while RED; tests through public interfaces only.
+- **TDD discipline (per Pocock's tdd skill)**: no test is written at an
+  unconfirmed seam — the spec's Testing-seams section and the issue body
+  confirm seams upfront, so brawn never stops to ask mid-lane. Tests
+  describe behavior through public interfaces only and must survive an
+  internal refactor. Tracer-bullet vertical slices: one test → one
+  implementation, never all-tests-then-all-code (the horizontal-slice
+  anti-pattern produces tests of imagined behavior). Never refactor while
+  RED; refactoring happens on green — and structural work belongs in
+  structural issues (tidy-first, above), not inline. You can't test
+  everything: each issue names the behaviors that matter most.
 - **Codify (compound) step**: nontrivial diagnoses — a blocker the brain
   solved, an oddity ruling, a what-didn't-work — become
   `docs/solutions/<slug>.md` (Problem / What Didn't Work / Why This Works /
@@ -231,8 +233,8 @@ issue; scope growth beyond the approved spec stops the factory.
 1. `skills/architect/SKILL.md` — rewritten: v5 procedure (intake → gate →
    decompose → factory loop), hard rules retargeted to issues, D9
    design-quality doctrine embedded in the spec/decompose steps (oddity
-   rule, tidy-first issue splitting, design-it-twice trigger, scope
-   challenge, interface handoff blocks, codify step to `docs/solutions/`).
+   rule, tidy-first issue splitting, design-it-twice trigger, interface
+   handoff blocks, codify step to `docs/solutions/`).
 2. `skills/architect/loop.md` — rewritten as the factory-loop reference:
    event-driven block procedure, monitor protocol, failure/blocker ladders,
    digest format; judgment ledger becomes issue verdict comments; slice
@@ -307,3 +309,10 @@ issue; scope growth beyond the approved spec stops the factory.
 - Q: brain/brawn split? → A: brain = spec, decomposition, review, problem
   solving; brawn = all coding. Frontier brain, configurable brawn,
   same-family tier-down default (non-negotiable).
+- Q: scope-challenge rubric in D9? → A: **removed** (human ruling
+  2026-07-02).
+- Q: TDD lesson source? → A: **Pocock's tdd skill, not superpowers**
+  (human ruling 2026-07-02). Superpowers' RED/GREEN evidence artifact
+  dropped; its enforcement role is covered by seams-confirmed-in-spec,
+  the judge's assertion scrutiny of brawn-authored tests, and gates rerun
+  cold at judgment.
