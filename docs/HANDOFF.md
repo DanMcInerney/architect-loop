@@ -139,6 +139,17 @@
   (C5, brain tier) → merge on PASS. Docs-debt on CONTINUE: README's
   research-skill description will need the A1-A4 mechanics reflected.
 
+- **Slice `research-loop-docs` IN FLIGHT 2026-07-02**: P7 docs lane consuming
+  the research-loop debt row. Spec `docs/spec/research-loop-docs.md`; gates
+  `docs/gates/research-loop-docs.md` frozen @ **ded508c** (grill: no
+  FALSIFIED clause; 1 ambiguity tightened — spec touch set now names the
+  lane report; grill spawn itself tool-stripped again, D12). Lane 01: cold
+  architect-builder (sonnet), background, branch slice/research-loop-docs,
+  touch set README.md + DESIGN.md (+ lane report), QG1-QG5, size cap 200.
+  Next block: post-flight → lane commit → cold judge (D12 fallback ready:
+  codex judge + headless claude -p for QG1) → merge on PASS → then main is
+  PR-ready (docs debt consumed).
+
 ## Docs debt
 
 | Slice | Shipped | Product-doc update needed |
