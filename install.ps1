@@ -15,6 +15,23 @@ foreach ($skill in Get-ChildItem -Directory $srcRoot) {
     Write-Host "Installed /$($skill.Name) to $dest"
 }
 
+# Codex reads skills from $CWD\.agents\skills (repo) or $HOME\.agents\skills
+# (user) - developers.openai.com/codex/skills. Same source tree, no committed
+# duplicate.
+if ($Project) {
+    $codexDestRoot = Join-Path (Get-Location) ".agents\skills"
+} else {
+    $codexDestRoot = Join-Path $env:USERPROFILE ".agents\skills"
+}
+
+New-Item -ItemType Directory -Force $codexDestRoot | Out-Null
+foreach ($skill in Get-ChildItem -Directory $srcRoot) {
+    $codexDest = Join-Path $codexDestRoot $skill.Name
+    if (Test-Path $codexDest) { Remove-Item -Recurse -Force $codexDest }
+    Copy-Item -Recurse $skill.FullName $codexDest
+    Write-Host "Installed Codex skill $($skill.Name) to $codexDest"
+}
+
 $driverSrc = Join-Path $PSScriptRoot "bin\architect-loop.ps1"
 $driverRoot = Join-Path $env:USERPROFILE ".local\bin"
 $driverDest = Join-Path $driverRoot "architect-loop.ps1"

@@ -303,6 +303,22 @@ def check_agent_definitions() -> None:
         check_tools_pad(".claude/agents/architect-judge.md", split_csv(fm.get("tools", "")))
 
 
+def check_codex_install_step() -> None:
+    """Both installers must copy skills/ to a Codex .agents/skills location,
+    single-source (no committed .agents/ duplicate) - v4-codex fix contract."""
+    checks = {
+        ROOT / "install.sh": ".agents/skills",
+        ROOT / "install.ps1": ".agents\\skills",
+    }
+    for path, needle in checks.items():
+        if not path.exists():
+            errors.append(f"{path.name}: missing")
+            continue
+        text = read_text(path)
+        if needle not in text or "codex" not in text.lower():
+            errors.append(f"{path.name}: missing Codex skills copy step ({needle})")
+
+
 def check_retired_loop_terms() -> None:
     for path in SKILLS.rglob("*.md"):
         text = read_text(path)
@@ -332,6 +348,7 @@ def main() -> int:
     check_config_example()
     check_judge_template()
     check_agent_definitions()
+    check_codex_install_step()
     check_retired_loop_terms()
     if errors:
         print(f"FAIL - {len(errors)} problem(s):")
