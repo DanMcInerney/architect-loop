@@ -29,6 +29,57 @@ plan and the Codex CLI signed into a ChatGPT plan.
 dispatch builders. `/architect-research` is for when you're still deciding
 *what* to build — its cited report feeds the build loop's PRD.
 
+## Run it as a loop
+
+From a repo, run:
+
+```bash
+architect-loop
+```
+
+Each iteration starts a fresh architect session, grounds in the repo, reads the
+handoff, then either judges completed lanes, dispatches the next slice, or runs
+the WAIT fast path while builders are still in flight. The driver's terminal is
+the visible surface; per-iteration logs live under `.architect/loop/`.
+
+Stop mechanisms:
+
+- `docs/STOP` stops before the next invocation.
+- `LOOP: STOP (<reason>)` in `docs/HANDOFF.md` stops after the current
+  iteration.
+- The circuit breaker stops after 3 no-progress iterations or 5 nonzero exits.
+- `--max-iters` defaults to 50; WAIT iterations count.
+- `--max-hours` adds a wall-clock bound.
+
+Quota note: loop cost is `N` iterations times grounding cost. WAIT fast-path
+iterations run automatically on the tier-down brain and never judge, but they
+still consume quota.
+
+## Choosing your models
+
+Zero-config defaults:
+
+| Harness you launched | Brain | Brawn |
+|---|---|---|
+| Claude Code | the Claude session you launched | `claude/sonnet` |
+| Codex | the Codex session you launched | `gpt-5.5` at `high` effort |
+
+To override, add flat `key = value` lines to `.architect/config` in the repo or
+`~/.architect/config` for the user. Repo config wins; first hit wins per key.
+
+```ini
+brawn = codex/best
+```
+
+The review gate spends cross-family diversity by default: if the other supported
+CLI is on PATH for a high-stakes slice, review runs there; otherwise it logs a
+same-family caveat and proceeds.
+
+UNVERIFIED gray-zone recipe: Claude Code can be pointed at z.ai's
+Anthropic-compatible GLM endpoint with `ANTHROPIC_BASE_URL` and
+`ANTHROPIC_AUTH_TOKEN`. z.ai supports the route; Anthropic does not bless
+non-Claude routing. Canary it with your own key before relying on it.
+
 ## /architect
 
 ![/architect flow](assets/architect-flow.png)
@@ -105,10 +156,12 @@ Each design choice is source-backed (full citations in
 | [DESIGN.md](DESIGN.md) | The design document — 12 enforced rules, failure-mode table, cited sources |
 | [skills/architect/SKILL.md](skills/architect/SKILL.md) | The architect role: hard rules + procedure |
 | [skills/architect/dispatch.md](skills/architect/dispatch.md) | Verified `codex exec` commands, builder block, worktree fan-out, stall triage |
+| [skills/architect/loop.md](skills/architect/loop.md) | Loop contract, sentinel protocol, WAIT fast path, driver behavior |
 | [skills/architect/research.md](skills/architect/research.md) | Slice-scale inline fact-check fan-out |
 | [skills/architect/HANDOFF.template.md](skills/architect/HANDOFF.template.md) | The repo-memory file |
 | [skills/architect-research/SKILL.md](skills/architect-research/SKILL.md) | Research orchestration: scout → design → fan out → verify → write |
 | [skills/architect-research/lanes.md](skills/architect-research/lanes.md) | Scout block + source-class tactics library with verified endpoints |
+| [bin/architect-loop.sh](bin/architect-loop.sh) / `bin/architect-loop.ps1` | Cross-platform loop drivers |
 | [tests/validate_skills.py](tests/validate_skills.py) | Repo sanity checks (frontmatter limits, links, fences) |
 
 ## FAQ
