@@ -21,14 +21,18 @@
   checkout gives the sh driver CRLF; strict-LF WSL bash correctly fails
   `bash -n` from PowerShell). D1–D4 fixes themselves verified sound.
   Slice verdict: **CONTINUE.**
-- Micro fix slice `v3-loop-eol` (D5 only) spec'd, gates frozen at
-  `docs/gates/v3-loop-eol.md`, one codex tier-down lane dispatched.
+- Micro fix slice `v3-loop-eol` (D5 only) built same day: lane 01
+  COMPLETE_WITH_CONCERNS (concern = porcelain `M` on `*.sh` after eol
+  rewrite; resolved at integration — `git add` staged nothing, content
+  byte-identical), post-flighted clean, integrated on `slice/v3-loop`
+  (654b809). Suite smoke exit 0 from BOTH shells post-integration.
+  PENDING JUDGMENT.
 - Next action: fresh /architect session judges EG1–EG4 per
   `docs/gates/v3-loop-eol.md` (report: `docs/lanes/v3-loop-eol-01.md`),
   then runs the parent G7–G11 canaries against the fixed driver;
   merge `slice/v3-loop` → main only after those PASS.
 
-LOOP: WAIT 15 (v3-loop-eol lane in flight; fresh session judges EG1–EG4 on return)
+LOOP: CONTINUE
 
 ## Project goal
 
@@ -172,4 +176,6 @@ environment enters scope.
 | 2026-07-02 | Architect (Claude Fable, fresh session) | v3-loop → v3-loop-fixes | freeze b1acc42 + dispatch | G1–G6 P, G9 P, G10 partial, G7/G8/G11 deferred | Found D1–D4 via stub-brain driver canaries; CONTINUE; brawn codex/gpt-5.5:xhigh, 1 lane |
 | 2026-07-02 | Builder (codex exec gpt-5.5 xhigh) | v3-loop-fixes | lane 01 working tree | — | COMPLETE_WITH_CONCERNS (bash sandbox skip); PHASE 0 raised implement-skill-vs-no-commit conflict (ACCEPTED: spec controls); D3 reproduced by live probe pre-code; canary FG2 asserts all PASS in-lane (raw, not verdicts) |
 | 2026-07-02 | Architect (dispatch session, post-flight only) | v3-loop-fixes | lane commit on slice/v3-loop | — | Post-flight clean: boundaries exact, gates diff empty, raw-only report; judgment deferred to fresh session per hard rule 4 |
-| 2026-07-02 | Architect (Claude Fable, fresh session) | v3-loop-fixes → v3-loop-eol | freeze + dispatch | FG2/FG3/FG4 P, FG1 F | Judged FG1–FG4 by re-running gates; found D5 (missing .gitattributes, autocrlf CRLF checkout vs strict-LF WSL bash); CONTINUE; dispatched v3-loop-eol, brawn codex/gpt-5.5:high |
+| 2026-07-02 | Architect (Claude Fable, fresh session) | v3-loop-fixes → v3-loop-eol | freeze 1b8ada1 + dispatch | FG2/FG3/FG4 P, FG1 F | Judged FG1–FG4 by re-running gates; found D5 (missing .gitattributes, autocrlf CRLF checkout vs strict-LF WSL bash); CONTINUE; dispatched v3-loop-eol, brawn codex/gpt-5.5:high |
+| 2026-07-02 | Builder (codex exec gpt-5.5 high) | v3-loop-eol | lane 01 working tree | — | COMPLETE_WITH_CONCERNS (porcelain M artifact, diff empty); PHASE 0 evidence-backed no-disagreement + re-raised implement-skill no-commit conflict (standing ruling held); pre-fix state verified before coding |
+| 2026-07-02 | Architect (dispatch session, post-flight only) | v3-loop-eol | 654b809 on slice/v3-loop | smoke green both shells | Post-flight clean ×4; concern resolved (add staged nothing → artifact confirmed); judgment deferred to fresh session per hard rule 4 |
