@@ -52,7 +52,9 @@ reason in the handoff.
 Configured brawn CLI absent at preflight -> fall back to the tier-down default
 and write one handoff line naming requested vs substituted. Cross-family review
 backend absent -> run review in a fresh same-CLI context and log the
-same-family bias caveat. Never hard-fail on model availability alone.
+same-family bias caveat. Never hard-fail on model availability alone. When a
+lane fails once, prefer raising its model tier over re-running it at the same
+tier.
 
 ## Per-harness delegation
 
@@ -94,6 +96,30 @@ Verdict format:
   Decisive reason: <one sentence tied to raw evidence>
 ```
 <!-- architect-judge-template:end -->
+
+## Grill delegation template
+
+The orchestrator must send this template as-is except for replacing the two
+placeholder values. It must not add slice-specific prose, encouragement,
+summaries, or interpretation.
+
+<!-- architect-grill-template:start -->
+```text
+Draft gate file path: <docs/gates/<slice>.md>
+Branch: <branch>
+
+Task: try to falsify this draft. Execute each gate command against the
+current tree, verify every referenced path/SHA/pointer resolves, attack each
+acceptance criterion for non-falsifiability and for patterns that collide
+with repo realities (e.g. a grep pattern matching the repo's own name), and
+flag any assumption not evidenced in the repo.
+
+Defect report format:
+- <gate id or clause>: FALSIFIED | HOLDS
+  Evidence: <command run and verbatim output, or file:line>
+- Assumptions not evidenced in the repo: <list or none>
+```
+<!-- architect-grill-template:end -->
 
 ## Codex backend from a Claude orchestrator
 
@@ -178,7 +204,9 @@ is explicit command ceilings plus heartbeat liveness.
 A lane is STALLED when its event/report file has not grown past its ceiling and
 the last observed work is still in progress. Silent gaps between events are
 normal model thinking. A low context reading is not wedging; harnesses
-auto-compact and keep going.
+auto-compact and keep going. A lane repeatedly issuing the same command or
+query with identical arguments is stalled even if its event/report file is
+still growing.
 
 On Windows PowerShell 5.1, `>`, `*>`, and `Tee-Object` write UTF-16. Liveness
 and rescue checks over event files must read encoding-aware (`Get-Content`, or
@@ -265,7 +293,11 @@ shape is ship|scout. Lane identity: you are lane <slice>-<lane>; if the spec
 says you are the only builder, no other lane exists. Files outside your lane
 belong outside your authority - touching them fails your lane. No placeholder
 implementations - search the codebase before implementing; full
-implementations only. Verify your work by running the lane's gate commands and
+implementations only. No silent fallbacks or success-shaped defaults - never
+swallow an error to make output look right. No unrequested backwards-
+compatibility shims or dead compatibility code. Fail loudly, with context.
+Exception: fallbacks or compat code are allowed only when the spec explicitly
+requests them. Verify your work by running the lane's gate commands and
 record the verbatim output. Do NOT commit - the sandbox protects .git by
 design; the architect commits and merges after verification. Do NOT delete lock
 files or escalate privileges if a git command fails; record the exact error and

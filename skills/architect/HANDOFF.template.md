@@ -75,6 +75,17 @@ freeze for everyone.]
 |---|---|---|---|---|
 | | | | | ACCEPT/REJECT/MODIFY - why |
 
+## Docs debt
+
+One pointer line per shipped slice, appended on each CONTINUE verdict.
+Consumed by one dedicated docs lane at the next milestone/PR boundary; product
+docs (README, DESIGN.md, guides) are never edited by build lanes or the
+orchestrator directly.
+
+| Slice | What shipped | Product doc update needed | Consumed by lane |
+|---|---|---|---|
+| | | | |
+
 ## Escalation digest
 
 Batch ask-the-human items here when multiple lanes resolve away from the

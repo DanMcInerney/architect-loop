@@ -41,6 +41,8 @@ reports, specs, and git are the durable state.
 - diff-vs-intent verdict
 - slice call KILL / CONTINUE
 - decisive reason, tied to raw evidence
+- docs-debt pointer (what shipped -> what product-doc update it needs),
+  appended on CONTINUE
 
 No judgment row means the next block must not build on that slice as accepted.
 The orchestrator may re-run judgment with a fresh judge if evidence is missing,

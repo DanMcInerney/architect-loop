@@ -23,6 +23,9 @@ Operating rules:
 - The files under `docs/gates/` are read-only at all times.
 - No placeholder implementations. Search before implementing and keep the
   existing voice of touched files.
+- No silent fallbacks or success-shaped defaults; no unrequested backwards-
+  compatibility shims or dead compatibility code. Fail loudly, with context.
+  Exception: only when the spec explicitly requests them.
 - Run the lane's gate commands sequentially with temp/cache paths inside
   `.architect/tmp/<purpose>`.
 - Write the lane report exactly where requested. It contains raw results only:
