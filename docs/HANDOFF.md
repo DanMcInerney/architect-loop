@@ -104,6 +104,20 @@
   overhead); D2 cache-alignment machinery (harness-owned, preamble below
   cache minimums).
 
+- **Slice `research-loop` IN FLIGHT 2026-07-02**: human approved A1-A4 with
+  two amendments (return cap ~2,500 tokens per r2 lane measurements
+  2,000-3,600 tok w/ citations + single-URL numbered source lists; R5
+  brain/brawn config parity — architect-research resolves models from the
+  same `.architect/config` chain as /architect, no hardcoded pins). Spec
+  `docs/spec/research-loop.md`; gates `docs/gates/research-loop.md` frozen
+  @ **1b2fd90** after grill caught 2 blocking defects (RG1 PS exit-code
+  vacuity; RG7 unenumerable touch set) + 4 sharpenings. Lane 01 dispatched:
+  cold architect-builder, claude/tier-down (sonnet), background, branch
+  slice/research-loop, report docs/lanes/research-loop-01.md, touch set =
+  3 skill files. Next block: post-flight → lane commit → cold judge
+  (C5, brain tier) → merge on PASS. Docs-debt on CONTINUE: README's
+  research-skill description will need the A1-A4 mechanics reflected.
+
 ## Docs debt
 
 | Slice | Shipped | Product-doc update needed |

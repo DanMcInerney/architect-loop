@@ -21,12 +21,17 @@ tactics library (search mechanics + verified endpoints per source class) is in
 
 ## Scale before anything
 
-- **Simple fact-find** → answer directly or 1 researcher (3–10 searches).
+A tool call is one search OR one page fetch.
+
+- **Simple fact-find** → answer directly or 1 researcher, 3-10 tool calls.
   Don't run a harness on a question one search answers.
 - **Comparison / focused question** → 2–4 researchers on distinct
-  perspectives, no scout — you already know the terrain.
+  perspectives, 10-15 tool calls each, no scout — you already know the
+  terrain.
 - **Brainstorm / SOTA survey / technology choice** → scout first, then a
-  designed fan-out of 4–6 researchers.
+  designed fan-out of 4–6 researchers, 15-25 tool calls each. Google's
+  published research envelope brackets this tier: ~80 searches ≈ $1–3/task
+  standard, ~160 ≈ $3–7 max.
 
 ## Procedure
 
@@ -68,7 +73,11 @@ dispatch. State the plan in a few lines; proceed unless the user redirects.
 
 ### 3. Fan out
 
-One fresh researcher per lane, all parallel, in the background:
+Resolve the researcher model as brawn, same order as `/architect`: repo
+`.architect/config`, then user `~/.architect/config`, then the tier-down
+defaults in `skills/architect/dispatch.md`. One fresh researcher per lane,
+all parallel, in the background — this is the default-brawn example
+(codex/tier-down):
 
 ```bash
 codex exec --sandbox read-only -c web_search="live" \
@@ -83,9 +92,9 @@ never as a shell argument; quote-mangling shells make codex hang on stdin.
 (Web search is on by default in current Codex; `"live"` forces fresh results.
 Older CLIs: `--enable web_search` (0.13x) or `-c tools.web_search=true`
 (< 0.133); `--search` is TUI-only — exec rejects it. Launch ONE canary lane
-and confirm it starts cleanly before fanning out. If Codex is unavailable,
-run lanes as read-only Claude subagents with web search — the lane blocks
-work verbatim.)
+and confirm it starts cleanly before fanning out. If resolved brawn is a
+claude row, or Codex is unavailable, run lanes as read-only Claude subagents
+with web search — the lane blocks work verbatim.)
 
 Every lane block carries the full contract — objective, output format, source
 guidance, boundaries — plus:
@@ -93,20 +102,29 @@ guidance, boundaries — plus:
 - **Search budget** by tier: simple 5, standard 15, deep 25 searches.
 - **Saturation rule**: two consecutive searches yielding no new load-bearing
   facts → return what you have.
-- **Findings discipline**: every finding has URL + date + exact figure or
-  short quote + confidence tag (high = primary source / med = reputable
-  secondary / low = single blog or forum). NOT FOUND beats inference.
-  Disagreements between sources are reported, never resolved. No
-  recommendations — judgment is the orchestrator's.
+- **Findings discipline**: every finding has a source tag + date + exact
+  figure or short quote + confidence tag (high = primary source / med =
+  reputable secondary / low = single blog or forum). NOT FOUND beats
+  inference. Disagreements between sources are reported, never resolved. No
+  recommendations — judgment is the orchestrator's. The findings file is
+  capped at ≤ ~2,500 tokens (~10 KB): every source URL appears EXACTLY ONCE,
+  in a numbered source list at the end of the file, and findings cite
+  sources by tag (e.g. `[S3]`).
 
 ### 4. Gap round (max 2 extra rounds, usually 1)
 
-Read all findings. Score coverage against the brief: which sub-questions have
-supported answers? Spawn targeted gap-fill researchers **only** for the
-unanswered ones. This is also where the **expert-opinion lane** dispatches:
-extract the expert roster from the first wave (survey authors, maintainers,
-recurring names) and send the lane-6 researcher after them. Hard stop after
-two refinement rounds — past that you're chasing nonexistent information.
+After reading wave-1 findings, write (or update, on round 2) a skeleton draft
+of the final report at `.architect/research/<topic>.draft.md` (gitignored
+working state) — an answer-first outline where every section carries a
+**SUPPORTED / THIN / EMPTY** status against the brief. Gap lanes are designed
+from the THIN/EMPTY sections — the holes in the draft generate the queries,
+not a coverage score kept in your head. Every NOT FOUND from prior lanes
+carries forward into a **do-not-rechase list** that every gap-lane block must
+include, so gap researchers don't re-spend budget chasing a dead end. This is
+also where the **expert-opinion lane** dispatches: extract the expert roster
+from the first wave (survey authors, maintainers, recurring names) and send
+the lane-6 researcher after them. Hard stop after two refinement rounds —
+past that you're chasing nonexistent information.
 
 ### 5. Verify (your work, against raw sources)
 
@@ -150,10 +168,14 @@ Parallelize gathering, never synthesis. Write `docs/research/<topic>.md`:
   or experiment that would resolve it (this doubles as the next round's input).
 - Citations dated and tier-labeled: `[primary, 2026-04]`.
 
-Commit the report. Raw findings stay in `.architect/research/` (gitignored).
+Commit the report — this is the **research handoff**: its Open-questions
+section is the next round's input, and the repo is the memory. Raw findings
+stay in `.architect/research/` (gitignored).
 
 ### 7. Hand off
 
-If this feeds the build loop: distill the report into `docs/spec/<slice>.md`
-per `/architect` and continue there. The builder's PHASE 0 will challenge the
-spec's claims — that's a feature.
+A later session resumes work by reading the committed research handoff and
+dispatching gap lanes against its Open-questions section instead of
+restarting the harness. If this feeds the build loop: distill the report
+into `docs/spec/<slice>.md` per `/architect` and continue there. The
+builder's PHASE 0 will challenge the spec's claims — that's a feature.

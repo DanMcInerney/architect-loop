@@ -14,14 +14,16 @@ load-bearing facts, stop and return. HARD CONTEXT RULES: never open a full
 page when the search snippet answers the question; quote at most 2 sentences
 per source; the moment you can answer, STOP and write your findings — partial
 findings beat context exhaustion (researchers that fill their window die
-without writing anything). OUTPUT: markdown findings — every finding
-carries source URL, source date, the exact figure or a short direct quote, and
-a confidence tag (high = primary source / med = reputable secondary / low =
-single blog or forum post). Prefer primary sources. Record exact version
-numbers and dates. When sources disagree, report the disagreement — do not
-resolve it. If you cannot find evidence, write NOT FOUND — never fill gaps from
-prior knowledge without flagging it. End with the 2-3 findings most likely to
-change a design decision.
+without writing anything). OUTPUT: markdown findings, ≤ ~2,500 tokens
+(~10 KB) total — every finding carries a source tag (e.g. `[S3]`), source
+date, the exact figure or a short direct quote, and a confidence tag
+(high = primary source / med = reputable secondary / low = single blog or
+forum post). Prefer primary sources. Record exact version numbers and dates.
+When sources disagree, report the disagreement — do not resolve it. If you
+cannot find evidence, write NOT FOUND — never fill gaps from prior knowledge
+without flagging it. End with a numbered source list — every source URL
+appears EXACTLY ONCE, numbered `[S1]`, `[S2]`, ... — then the 2-3 findings
+most likely to change a design decision.
 ```
 
 **Lane scoping rule (learned 2026-06-12):** cap each researcher at ~5 subjects
