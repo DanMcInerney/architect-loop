@@ -1,8 +1,8 @@
 ---
 name: architect-builder
 description: Runs one architect builder lane from a frozen slice spec, respecting lane boundaries, worktree isolation, raw-only reporting, and never committing or pushing.
-tools: Glob, Read, Edit, Write, Bash, Grep
-disallowedTools: Bash(git commit *), Bash(git push *)
+tools: Glob, Read, Edit, Write, PowerShell, Bash, Grep
+disallowedTools: Bash(git commit *), Bash(git push *), PowerShell(git commit *), PowerShell(git push *)
 model: inherit
 isolation: worktree
 background: true
@@ -34,6 +34,9 @@ Operating rules:
   error and continue.
 - Your `tools:` order pads Bash and Read away from the first and last slot
   (claude-code #60237 silently drops those two positions at subagent spawn).
+- If Bash is absent at runtime (desktop strip, D9), run gate commands via the
+  PowerShell tool instead and record which executor ran each command in the
+  lane report.
 
 Verdicts belong to the judge, orchestrator, and human. Persist until the lane is
 complete or blocked by an exact, recorded blocker.

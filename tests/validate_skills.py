@@ -234,16 +234,21 @@ def check_judge_template() -> None:
         errors.append("skills/architect/dispatch.md: C5 template does not forbid slice-specific prose")
 
 
+PADDED_TOOLS = ("Bash", "Read", "PowerShell")
+
+
 def check_tools_pad(rel_path: str, tools_list: list[str]) -> None:
     """D9 regression guard: claude-code #60237 drops the first and last
-    `tools:` entries at subagent spawn; Bash and Read must sit elsewhere."""
-    if "Bash" not in tools_list or "Read" not in tools_list:
-        errors.append(f"{rel_path}: tools must include Bash and Read")
+    `tools:` entries at subagent spawn; Bash, Read, and PowerShell (the
+    desktop Bash-strip fallback executor) must sit elsewhere."""
+    missing = [t for t in PADDED_TOOLS if t not in tools_list]
+    if missing:
+        errors.append(f"{rel_path}: tools must include {', '.join(missing)}")
         return
-    if tools_list[0] in ("Bash", "Read") or tools_list[-1] in ("Bash", "Read"):
+    if tools_list[0] in PADDED_TOOLS or tools_list[-1] in PADDED_TOOLS:
         errors.append(
-            f"{rel_path}: Bash and Read must not be first or last in tools "
-            "(D9, claude-code #60237)"
+            f"{rel_path}: Bash, Read, and PowerShell must not be first or "
+            "last in tools (D9, claude-code #60237)"
         )
 
 
@@ -268,6 +273,10 @@ def check_agent_definitions() -> None:
             errors.append(".claude/agents/architect-builder.md: missing disallowedTools Bash(git commit *)")
         if "Bash(git push *)" not in disallowed:
             errors.append(".claude/agents/architect-builder.md: missing disallowedTools Bash(git push *)")
+        if "PowerShell(git commit *)" not in disallowed:
+            errors.append(".claude/agents/architect-builder.md: missing disallowedTools PowerShell(git commit *)")
+        if "PowerShell(git push *)" not in disallowed:
+            errors.append(".claude/agents/architect-builder.md: missing disallowedTools PowerShell(git push *)")
         if fm.get("isolation") != "worktree":
             errors.append(".claude/agents/architect-builder.md: isolation must be worktree")
         if fm.get("model") != "inherit":
@@ -281,6 +290,14 @@ def check_agent_definitions() -> None:
             errors.append(".claude/agents/architect-judge.md: tools must not include Edit or Write")
         if "Edit" not in disallowed or "Write" not in disallowed:
             errors.append(".claude/agents/architect-judge.md: disallowedTools must include Edit and Write")
+        for mirror in (
+            "PowerShell(git commit *)",
+            "PowerShell(git push *)",
+            "PowerShell(Remove-Item *)",
+            "PowerShell(rm *)",
+        ):
+            if mirror not in disallowed:
+                errors.append(f".claude/agents/architect-judge.md: missing disallowedTools {mirror}")
         if fm.get("model") != "inherit":
             errors.append(".claude/agents/architect-judge.md: model must be inherit")
         check_tools_pad(".claude/agents/architect-judge.md", split_csv(fm.get("tools", "")))

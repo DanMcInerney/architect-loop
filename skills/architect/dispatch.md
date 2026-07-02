@@ -64,6 +64,11 @@ same-family bias caveat. Never hard-fail on model availability alone.
 | Review (high-stakes) | `codex review --base` when Codex is installed; otherwise a fresh same-CLI subagent with bias caveat. | `/review` / `review_model`; Claude reviewer when installed. |
 | Skill packaging | `skills/architect/` plus Claude skill install locations. | `.agents/skills/architect/SKILL.md` in the later packaging slice; same source text copied by installer. |
 
+D9 note: the desktop harness strips the Bash tool from spawned subagents by
+name; both agent defs now carry `PowerShell` as the desktop-safe executor
+(still padded interior per the position guard above). Lane and judge reports
+must name which executor — Bash or PowerShell — ran each gate command.
+
 ## C5 judge delegation template
 
 The orchestrator must send this template as-is except for replacing the three
