@@ -80,6 +80,56 @@ buy. The architect downgrades to `high` for routine, well-specified slices where
 the data shows high is equal on test-pass — this is a per-slice judgment call
 the spec records explicitly.
 
+Codex `workspace-write` is the only builder backend with verified sandbox
+`.git` write protection; that guarantee is specific to Codex under
+workspace-write, not a general property of every harness. Claude builders use
+permission-deny rules plus a post-flight branch and commit check instead
+(F8/F12/F13; developers.openai.com/codex/agent-approvals-security,
+code.claude.com/docs/en/headless).
+
+## Model roles
+
+The loop now treats **brain** and **brawn** as configurable roles, not fixed
+brand names. Brain is the judgment session the human launched or the loop driver
+starts; brawn is the unattended builder CLI/model selected for lane execution.
+The skill detects the harness and advises, but it does not self-switch the brain
+mid-session because no supported harness exposes a reliable live model signal to
+subprocesses (F6; code.claude.com/docs/en/cli-reference).
+
+Zero-config defaults optimize for one installed subscription and low setup:
+brain inherits the current session, and brawn defaults to the same family one
+step down. That mirrors the `opusplan` precedent and other inherit-by-default
+systems while avoiding a config matrix: Claude Code brain routes to
+`claude/sonnet`; Codex brain routes to `gpt-5.5` at `high` effort. The trade is
+explicit: builder hours concentrate on the same subscription as judgment, and
+brain and brawn share a model family unless the user opts out (F9; aider issues
+#3087/#3085/#3287/#3543, block/goose#4036, Claude Code `opusplan` docs).
+
+Cross-family diversity is spent first at the review gate, not the build default.
+Same-family judge bias is measured at the model-family level, with mitigation
+coming from a cross-family judge or ensemble; this design uses the other
+supported CLI for high-stakes review when it is on PATH, and otherwise logs the
+same-family caveat instead of blocking work (F10; arXiv:2410.21819,
+NeurIPS 2024 SafeGenAI, Panickssery et al. 2024).
+
+Configuration is one flat two-key file: `brain = <cli>/<model-spec>[:<effort>]`
+and `brawn = <cli>/<model-spec>[:<effort>]`. Repo `.architect/config` wins over
+user `~/.architect/config`; unknown keys warn. A configured but unavailable
+brawn degrades to the tier-down default with a requested-vs-substituted warning,
+and an unavailable cross-family reviewer degrades to a fresh same-CLI review
+with the F10 caveat. The single alias table is the owned rot point: it maps
+`codex/best`, `claude/best`, `codex/tier-down`, and `claude/tier-down` to
+current CLI flags, so model churn is reviewed in one place rather than scattered
+through specs (F9/F11; superpowers audit-trail precedent).
+
+Cross-vendor model mixing is documented as asymmetric. Claude Code can point at
+Anthropic-compatible gateways via `ANTHROPIC_BASE_URL` and
+`ANTHROPIC_AUTH_TOKEN`; z.ai documents a GLM endpoint for Claude Code, but the
+specific GLM 5.2 recipe remains unverified here and Anthropic does not bless
+non-Claude routing. Codex accepts Responses-API providers, so raw Anthropic or
+chat-completions endpoints need a translating gateway (F7; docs.z.ai,
+Anthropic gateway docs).
+
 ---
 
 ## 3. The twelve design rules
@@ -431,9 +481,11 @@ became a tactics library the orchestrator draws from when designing lanes:
 | Placeholder implementations | Gate commands are end-to-end and executable; "search before implementing; no placeholder code" in the builder block (R4) |
 | Broken repo after a long run | One slice per iteration; commit per lane; `git reset` + re-dispatch over rescue prompting (R7) |
 | Fabricated status reports | Every status claim audited against a tool result, both sides (R10) |
+| Builder self-misidentification | Lane identity clause tells Claude Code lanes their redirected event stream is their own and whether they are the only builder; prevents a lane from reading its own stream, inferring a duplicate worker, and aborting with zero artifacts (2026-07-02 live loop canary, this repo) |
 | Gate-passing but unmergeable work | Judge reads the diff against spec intent, not gate output alone — METR: 38% test-pass, 0 mergeable as-is; cross-model review for high-stakes (R3, R4) |
 | Builder gaming visible gates | Gates frozen + read-only; architect-run verification; no builder iterate-against-gate feedback loops (ImpossibleBench: visible-test loops raised cheating 33%→38%) (R2, R3) |
-| Stalled unattended runs | Liveness checks on the output stream; diagnose child process tree; kill narrowest first; explicit timeouts on every long command (dispatch.md) |
+| Stalled unattended runs | The driver WAIT cycle schedules liveness by construction: if lanes are still in flight, the next loop iteration runs the fast path, checks event-file growth, and applies the rescue ladder. The root cause chain it prevents is out-of-workspace temp/cache paths (`C:\tmp`), parallel gate execution, missing timeout ceilings, and no scheduled return (Part A; `docs/prd/v3-loop-stall-prevention.md`). |
+| Runaway loop | Fail-safe sentinel parsing treats missing, unparseable, or untouched `LOOP:` state as STOP; `--max-iters` defaults to 50, optional `--max-hours` bounds wall time, the circuit breaker stops after 3 no-progress iterations or 5 nonzero exits, and `docs/STOP` is checked before every invocation (F5; docs/gates/v3-loop.md C1/C4). |
 | Researcher context exhaustion | ≤5 subjects per lane; hard context rules in the preamble; bisect-and-redispatch dead lanes (lanes.md) |
 | Harness bloat / obsolescence | Thin declarative skill; per-model-generation pruning review (R12) |
 
@@ -441,19 +493,48 @@ became a tactics library the orchestrator draws from when designing lanes:
 
 ## 7. What this deliberately is not
 
+- **Not context reuse disguised as automation.** Loop mode is an outer driver
+  that starts a fresh one-shot agent session per iteration because in-harness
+  self-continuation is the documented anti-pattern: Ralph-style same-session
+  loops accumulate context into the "dumb zone," and Claude Code `/loop`,
+  `--continue`, `--resume`, and `--fork-session` all reuse conversation context
+  (F1/F2; aihero.dev/why-the-anthropic-ralph-plugin-sucks, ghuntley.com/ralph,
+  humanlayer.dev/blog/brief-history-of-ralph,
+  code.claude.com/docs/en/cli-reference).
+- **Not a GUI-terminal spawner.** The productized loop keeps one persistent
+  visible surface: the driver's terminal plus logs. Spawning new visible
+  terminals from inside agent sandboxes is the highest-friction path across
+  Windows, macOS, and headless Linux; detached process plus logfile is the
+  reliable primitive (F3; developers.openai.com/codex/concepts/sandboxing,
+  codex.danielvaughan.com Windows sandbox analysis).
 - **Not a general-purpose orchestrator.** Your `/orchestrator` skill covers
   single-model plan→delegate→review inside Claude Code. This skill is the
   cross-vendor loop; it imports `/orchestrator`'s grounding, delegation-contract,
   and verify-it-yourself rules rather than duplicating the whole pipeline.
 - **Not an autonomous infinite loop.** The human sits between work blocks by
   design — that's where kill/continue authority lives. If you want unattended
-  multi-block runs, the dispatch step composes with `claude -p` / scheduled
-  jobs, but that's an extension, not the default (and note `claude -p` draws on
-  separate Agent SDK credits from June 15, 2026).
+  multi-block runs, loop mode is the productized extension: it keeps a single
+  driver terminal visible, starts fresh one-shot sessions, and reads `LOOP:`
+  sentinels between iterations. It is still not the default (and note `claude -p` draws on
+  normal subscription quota while the June 2026 Agent SDK credits split is
+  paused; recheck support.claude.com/en/articles/15036540 before relying on a
+  different billing split, F4d).
+  The autonomy trade is explicit: loop mode removes the human from between
+  blocks, so arbitration defaults to the architect unless the spec marks a
+  decision human-only; `LOOP: STOP` is the guard for completion, hard-rule
+  stops, and human-only arbitration (F4/F5; code.claude.com/docs/en/agent-view,
+  code.claude.com/docs/en/headless, PRD section 6).
 - **Not just Goal Mode.** Codex's Goal Mode already loops
   plan→act→test→review against a stopping condition. This design adds extra
   separation around Goal Mode: cross-model judgment, frozen external
   gates, arbitration, and repo-resident memory across runs.
+
+---
+
+## Standing evidence rule
+
+No feature ships without its evidence recorded in DESIGN.md - a PR adding
+behavior without a DESIGN.md entry is incomplete by definition.
 
 ---
 
