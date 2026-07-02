@@ -43,11 +43,21 @@
 - VG7 bonus evidence: the cold judge correctly FAILed its first invocation
   (lane branch had gate-passing but UNCOMMITTED files) — fail-safe works.
   Lesson: orchestrator commits the lane BEFORE dispatching the judge.
-- Next action: root-cause D9 (research in flight: is it cowork-mode, a
-  fail-closed pattern-disallowedTools on desktop, or a desktop subagent
-  limitation?), spec fix slice `v4-desktop`, re-run VG8. Then v4-codex,
-  v4-cleanup per PRD §4. v3 watch items (gpt-5.6 alias, GLM recipe,
-  mapfile/macOS) carry over unchanged.
+- **D9 root cause VERIFIED** (architect fetched sources 2026-07-02):
+  anthropics/claude-code **#60237** — subagent `tools:` array silently drops
+  FIRST and LAST positions at spawn ("tool exists but is not enabled in this
+  context"), documented workaround = pad both ends; our defs had `Read` first
+  and `Bash` last, matching the desktop symptom exactly (Write, a middle
+  item, still worked). **#18749** shows a Bash-specific variant (closed
+  not-planned), so the human VG8 re-run remains the true test.
+- Fix slice **`v4-desktop` IN FLIGHT**: gates frozen `docs/gates/v4-desktop.md`
+  (WG1–WG6) at 7d85899 on slice/v4-core; lane 01 dispatched as cold
+  architect-builder subagent, claude/tier-down (sonnet:high — routine,
+  tightly specified). Fix: pad/reorder tools (D9) + validator positional
+  regression guard + dispatch.md Claude-backend auto-worktree doc (D10).
+  WG5 = human VG8 re-run, still the merge gate for everything.
+- Then v4-codex, v4-cleanup per PRD §4. v3 watch items (gpt-5.6 alias, GLM
+  recipe, mapfile/macOS) carry over unchanged.
 
 ## Project goal
 
@@ -204,4 +214,5 @@ gate) carry over. `.claude/settings.json` commit decision still deferred.
 | 2026-07-02 | Architect (dispatch session, post-flight only) | v4-core | beb4d83 on slice/v4-core | — | Post-flight clean: touch set exactly 8 declared files, gates diff 0 bytes, out-of-scope diff empty, raw-only report, judge def hardens beyond C6 minimum. Judgment (VG1–VG7) deferred to fresh session; VG8 awaits human desktop canary |
 | 2026-07-02 | Architect (Claude Fable, fresh judgment session) | v4-core judgment | 57dc420 on slice/v4-core; toy commits 000c043/76b6358/e711423 | integrity+VG1–VG7+VG9 P; VG8 pending | All gates run/read this session. VG7 in-session canary: cold builder subagent (commit-denied) + cold judge subagents via shipped agent defs; judge #1 correctly FAILed uncommitted lane; judge #2 PASS after orchestrator commit; integrated + smoked. Lesson: commit lane before judging. Awaiting human VG8 before merge to main |
 | 2026-07-02 | Human + desktop orchestrator (Claude Code desktop app) | VG8 canary (toy2 `bye`) | toy2 effc321 freeze, 15433ed lane (inside `.claude/worktrees/goofy-kalam-d02c1f`) | VG8 F | Desktop session ran full loop; both architect subagents denied Bash at runtime → judge INVALID → no merge (correct). Defects D9 (desktop subagent Bash denial) + D10 (harness auto-worktree ignores pre-made lane worktree). Finding preserved at `.architect/tmp/v4-canary/VG8-FINDING.md` |
-| 2026-07-02 | Architect (same Fable session, VG8 recording) | v4-core VG8 verdict | this commit | VG8 F recorded | Audited toy2 evidence on disk (freeze/lane SHAs, clean gates diff, byte-exact artifact) before recording. Slice call: CONTINUE via fix slice `v4-desktop`; no merge. claude-code-guide research dispatched on D9 root cause |
+| 2026-07-02 | Architect (same Fable session, VG8 recording) | v4-core VG8 verdict | 2004ee4 | VG8 F recorded | Audited toy2 evidence on disk (freeze/lane SHAs, clean gates diff, byte-exact artifact) before recording. Slice call: CONTINUE via fix slice `v4-desktop`; no merge. claude-code-guide research dispatched on D9 root cause |
+| 2026-07-02 | Architect (same Fable session) | v4-desktop spec+freeze+dispatch | freeze 7d85899; this commit | — | Research verified against live GitHub (#60237 confirmed: first+last tools dropped, pad workaround; #18749 Bash-variant). WG1–WG6 frozen; lane 01 dispatched cold architect-builder (sonnet tier-down) in background; WG4 is self-evidencing (builder's own Bash output = the gate). Judgment goes to a cold judge subagent after post-flight + lane commit |
