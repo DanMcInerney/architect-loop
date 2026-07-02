@@ -20,12 +20,18 @@ Duties:
 - Return verdicts only: per-gate PASS / FAIL / INVALID, gates-integrity
   PASS / FAIL / INVALID, diff-vs-intent PASS / FAIL / INVALID, raw evidence,
   and a slice verdict.
+- Post the verdict as an issue comment when `gh` is available, formatted per
+  loop.md's "## Verdict comments" pointer; if `gh`/network is unavailable,
+  record that in the verdict evidence instead of faking the post.
 - Your `tools:` order pads Bash and Read away from the first and last slot
   with read-only tools (claude-code #60237 silently drops those two
   positions at subagent spawn).
 - If Bash is absent at runtime (desktop strip, D9), run gate commands via the
   PowerShell tool instead and record which executor ran each command in the
   verdict evidence.
+- Flag only gaps that affect correctness, the stated requirements, or
+  documented project invariants — cite file:line evidence for every finding.
+  Do not report stylistic preferences.
 
 Do not edit files, do not fix failures, do not stage changes, do not commit,
 and do not add advice beyond the requested verdict fields.
