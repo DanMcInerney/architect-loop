@@ -31,10 +31,20 @@
   All architect-runnable gates across the three slices PASSED (VG1–VG7+VG9;
   WG1–WG4+WG6; XG1–XG4+XG6); the desktop canaries (VG8 ×3) documented the
   upstream subagent shell-strip (D9) that motivated the re-ruling.
-- Remaining v4 slices: `v4-codex` (.agents/skills packaging, spawn_agent
-  guidance, live codex canary), then `v4-cleanup` (delete bin/** drivers +
-  driver canary + sentinel remnants, DESIGN.md v4 evidence, README rewrite
-  incl. the desktop caveat, validate_skills.py Pyright nit at line ~49).
+- **`v4-codex` JUDGED PASS + MERGED TO MAIN 2026-07-02** (freeze ea66143,
+  lane 9de27c2, cold judge all gates PASS): installers ship the single-source
+  Codex skill copy (`.agents/skills`, live-doc verified, `git ls-files
+  .agents` empty), dispatch.md carries all four delegation items incl.
+  max_depth 1, and the live codex 0.139.0 canary proved the native
+  spawn_agent round-trip (child "PONG" surfaced to parent; judge re-ran it
+  independently). G12 (v3 watch: timeout ceilings on a real dispatch)
+  satisfied by this slice's declared-ceiling dispatch. Nomenclature note for
+  v4-cleanup: live collab stream names the wait tool `wait`, docs/PRD say
+  `wait_agent` — add parenthetical in dispatch.md.
+- Remaining: `v4-cleanup` (delete bin/** drivers + driver canary + installer
+  driver lines, DESIGN.md v4 evidence, README rewrite incl. the desktop
+  caveat, validate_skills.py Pyright nit at line ~49, wait/wait_agent
+  parenthetical).
 - Historical: v4-core first judgment 2026-07-02: gates-integrity + VG1–VG7 +
   VG9 all PASS; VG8 FAILed 3× on desktop D9 before the re-ruling.
 - **VG8 FAIL root cause (D9):** the desktop harness denies Bash to BOTH
