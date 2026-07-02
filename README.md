@@ -35,7 +35,7 @@ the loop. There is no separate driver process: the orchestrator session
 grounds in the repo, reads the handoff, arbitrates open disagreements, judges
 completed lanes, and specs + dispatches the next slice, all inside that one
 conversation. `/architect-research` is for when you're still deciding *what*
-to build — its cited report feeds the build loop's PRD.
+to build — its cited report feeds the build loop's spec.
 
 Three roles, one session:
 

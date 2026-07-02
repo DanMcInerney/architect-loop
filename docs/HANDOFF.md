@@ -9,7 +9,7 @@
 
 ## TL;DR (keep current — next session must grok this in under a minute)
 
-- Goal: implement the v3 plan (`docs/prd/v3-loop.md`). **DONE and merged to
+- Goal: implement the v3 plan (`docs/spec/v3-loop.md`). **DONE and merged to
   main** 2026-07-02: G1–G6 PASS, EG1–EG4 PASS (D5 eol fix), paid live canaries
   **G7–G11 all PASS**, and the doc-defect cleanup slice **`v3-loop-docs`
   (D6–D8) judged HG1–HG5 all PASS and merged to main** 2026-07-02. G12 stays
@@ -22,7 +22,7 @@
 - **v4 REFACTOR UNDERWAY** (human-approved via grilled PRD, 2026-07-02):
   the loop moves in-session — orchestrator brain + cold-context builder and
   judge subagents, no external drivers, works in Claude Code & Codex, CLI &
-  desktop apps. PRD: `docs/prd/v4-orchestrator-loop.md` (§6 rulings binding);
+  desktop apps. PRD: `docs/spec/v4-orchestrator-loop.md` (§6 rulings binding);
   ADR 0001; glossary: `CONTEXT.md`. PR #8 (all of v3) merged to origin/main
   first per ruling 6 (merge commit fe5462f).
 - **v4-core + v4-desktop + v4-desktop2 MERGED TO MAIN 2026-07-02** under the
@@ -65,6 +65,21 @@
   Remaining watch items only: gpt-5.6 alias recheck, GLM recipe canary,
   mapfile bash≥4/no-macOS note, optional upstream filing of the desktop
   subagent shell-strip (evidence: DESIGN.md §9, VG8-FINDING files).
+- **PR #9 open** (pr/v4-loop → main on origin): all of v4 + spec-rename.
+  **Slice `spec-rename` JUDGED PASS + MERGED TO MAIN 2026-07-02** (freeze
+  865f330, lane ae4747b, cold judge RG1–RG6 all PASS): docs/prd → docs/spec
+  (3× R100 renames), PRD term purged from current usage, judge-context
+  convention codified in SKILL.md's freeze step (gate file = purpose + spec
+  pointer + fix contract = judge's ENTIRE intent context; C5 stays
+  pointer-only). History immutable: frozen gates/lanes keep old docs/prd
+  references byte-identical.
+- **Research fan-out IN FLIGHT** (human-directed, /architect-research, 5
+  sonnet lanes → .architect/research/01-05): review cadence
+  (incremental-vs-batch judging), adversarial-spec-review placement, system
+  teardowns (firstmate/Gas Town/Ralph/labs/discovery), SOTA lab practices,
+  fallback/backcompat ban evidence. Output: docs/research/loop-improvements.md
+  (cited decision report). NO code changes from research without human
+  review of the report.
 - Historical: v4-core first judgment 2026-07-02: gates-integrity + VG1–VG7 +
   VG9 all PASS; VG8 FAILed 3× on desktop D9 before the re-ruling.
 - **VG8 FAIL root cause (D9):** the desktop harness denies Bash to BOTH
@@ -168,9 +183,9 @@ PowerShell 5.1 `>`/`*>`/`Tee-Object` write UTF-16; read logs encoding-aware
 - `docs/gates/v3-loop-eol.md` — EG1–EG4 + D5.
 - `docs/gates/v3-loop-docs.md` — HG1–HG5 + D6–D8 (closed).
 - `docs/gates/v4-core.md` — VG1–VG9 + contracts C2'/C5/C6 (CURRENT slice).
-- `docs/prd/v4-orchestrator-loop.md` — the v4 plan (wins all conflicts;
+- `docs/spec/v4-orchestrator-loop.md` — the v4 plan (wins all conflicts;
   §6 grill rulings binding); ADR 0001; `CONTEXT.md` glossary.
-- v3 history: `docs/prd/v3-loop.md` + `docs/prd/v3-loop-stall-prevention.md`.
+- v3 history: `docs/spec/v3-loop.md` + `docs/spec/v3-loop-stall-prevention.md`.
 
 ## Closed slices (detail lives in the judgment commits)
 

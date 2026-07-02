@@ -3,7 +3,7 @@
 The loop is one orchestrator conversation. A block is one pass over one slice:
 ground -> arbitrate -> judge -> integrate -> spec -> freeze -> dispatch -> next
 block. Repo memory makes the conversation disposable; the handoff, gates, lane
-reports, PRDs, and git are the durable state.
+reports, specs, and git are the durable state.
 
 ## Block procedure
 
@@ -118,7 +118,7 @@ immediate stop.
 - Compact proactively when the harness supports it.
 - Ending a degraded session is free because the handoff is the memory.
 - Do not leave important state in chat. If the next orchestrator needs it,
-  write it to the handoff, a gate, a PRD, or a lane report.
+  write it to the handoff, a gate, a spec, or a lane report.
 
 ## Unattended
 

@@ -119,7 +119,7 @@ Two scales, two routes:
 - **Discovery scale** - brainstorming what to build, technology selection, or
   state-of-the-art surveys -> invoke the `/architect-research` skill. Scout
   lanes gather; the orchestrator verifies load-bearing claims and writes the
-  PRD.
+  spec.
 - **Slice scale** - use inline scout lanes only when at least one trigger
   holds: the slice depends on external APIs, libraries, or versions not
   already used in this repo; a narrow approach choice needs facts neither you
@@ -127,13 +127,13 @@ Two scales, two routes:
   facts belong to the builder's verify-against-reality duty.
 
 When a trigger fires, read `research.md` next to this file and follow it.
-Findings without a source URL do not enter the PRD.
+Findings without a source URL do not enter the spec.
 
 ### 5. Spec the next slice
 
 One slice is one PR-sized unit. The spec is the full delegation contract:
 
-- **Objective** - what to build and why. If a PRD exists, cite it rather than
+- **Objective** - what to build and why. If a spec exists, cite it rather than
   restating it.
 - **Output format** - what the builder reports: raw tables, numbers, commit
   SHAs, command output, and exact status line.
@@ -154,6 +154,12 @@ One slice is one PR-sized unit. The spec is the full delegation contract:
 Write the gate file, verify it is inside `docs/gates/`, commit the freeze, and
 record the freeze SHA in the handoff. The files under `docs/gates/` are
 read-only after this point for everyone.
+
+Every gate file carries a short purpose paragraph, a pointer to
+`docs/spec/<slice>.md` when one exists, and the frozen fix contract — together
+these are the judge's ENTIRE intent context. Do not restate or supplement
+intent anywhere else: the C5 judge template in `dispatch.md` stays
+pointer-only, and the orchestrator may not add slice-specific prose to it.
 
 ### 7. Dispatch
 

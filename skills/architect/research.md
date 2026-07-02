@@ -3,7 +3,7 @@
 Read this only when a research trigger fires (see SKILL.md step 3). The fan-out
 uses Codex as parallel web-research subagents — read-only, live search, on the
 flat-rate subscription — and the architect keeps all judgment: it verifies the
-load-bearing claims and writes the PRD itself.
+load-bearing claims and writes the spec itself.
 
 ## Fan out
 
@@ -71,10 +71,10 @@ OUTPUT FORMAT — a markdown report:
    verify each: cross-check against a second independent source or the live
    dependency itself. Discard single-source low-confidence claims or mark them
    as open questions.
-3. Write `docs/prd/<slice>.md`: problem, decision + why, requirements,
+3. Write `docs/spec/<slice>.md`: problem, decision + why, requirements,
    non-goals, verified facts **with citations**, open questions for the human.
    You write it — researchers gather, the architect judges and decides.
-4. Commit the PRD. Raw findings stay in `.architect/research/` (gitignored) —
-   only the distilled, cited PRD is repo memory.
-5. The slice spec references the PRD instead of restating it; the builder's
-   PHASE 0 is expected to challenge the PRD's claims like anything else.
+4. Commit the spec. Raw findings stay in `.architect/research/` (gitignored) —
+   only the distilled, cited spec is repo memory.
+5. The slice spec references this spec instead of restating it; the builder's
+   PHASE 0 is expected to challenge the spec's claims like anything else.
