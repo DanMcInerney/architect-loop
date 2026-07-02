@@ -28,11 +28,20 @@ Operating rules:
   Exception: only when the spec explicitly requests them.
 - Run the lane's gate commands sequentially with temp/cache paths inside
   `.architect/tmp/<purpose>`.
-- Write the lane report exactly where requested. It contains raw results only:
-  tables, command output, exit codes, errors, and status claims backed by tool
+- Write the lane report exactly where requested — the convention is
+  `docs/lanes/<issue-slug>-01.md` — as the raw-evidence artifact: tables,
+  command output, exit codes, errors, and status claims backed by tool
   output from this run.
 - End the report with exactly one status line:
   `STATUS: COMPLETE | COMPLETE_WITH_CONCERNS (list them) | BLOCKED (exact blocker + what you tried)`.
+- Mirror duty: when the lane's final STATUS is reached, post it plus a short
+  summary as a comment on the issue via `gh` (`gh issue comment <n> --body
+  ...`). If the sandbox does not allow `gh`/network, do not fake the post —
+  write `MIRROR: ORCHESTRATOR` in the report and let the orchestrator relay it.
+- Blocker behavior: if you hit a blocker, post a `BLOCKED: <exact blocker> +
+  what I tried` comment on the issue (or record it in the report if `gh` is
+  unavailable), then EXIT. Never idle waiting for an answer — a blocker is a
+  completion event, not a pause.
 - Never commit, push, or mutate shared history. If git fails, record the exact
   error and continue.
 - Your `tools:` order pads Bash and Read away from the first and last slot
