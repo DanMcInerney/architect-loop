@@ -51,6 +51,22 @@ Three roles, one session:
 
 `docs/STOP` stops the loop before the next dispatch.
 
+**Pre-freeze grill:** before a slice's gates freeze, a cold, read-only
+subagent grills the draft gate file — it runs the actual gate commands
+against the current tree, checks that every path the spec assumes actually
+exists, and attacks the acceptance criteria for anything unfalsifiable. On by
+default for the first slice in an unfamiliar repo and for high-stakes slices,
+skippable for routine ones. A defect the grill catches is nearly free; the
+same defect surviving to a builder lane costs a full judge round-trip.
+
+**Docs debt:** product docs (this README, `DESIGN.md`) are never touched
+mid-slice by a build lane or by the orchestrator — one shared file edited by
+two things at once is the highest-contention failure mode in the loop.
+Instead, each slice that ships user-facing behavior appends one line to the
+Docs debt table in `docs/HANDOFF.md`. Those lines queue up until a dedicated
+docs lane, like the one that wrote this paragraph, consumes the whole list in
+one pass at a milestone/PR boundary.
+
 **Desktop caveat:** the Claude Code desktop app currently strips shell tools
 (Bash) from subagent spawns — an undocumented app behavior, not something
 this skill controls — so builder and judge subagents cannot run tests or
