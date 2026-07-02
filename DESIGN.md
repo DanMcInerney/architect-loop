@@ -597,3 +597,80 @@ behavior without a DESIGN.md entry is incomplete by definition.
 [Reward hacking in self-improvement](https://openreview.net/forum?id=ikrQWGgxYg) ·
 [Obfuscated reward hacking](https://arxiv.org/pdf/2503.11926) ·
 [Worktrees for parallel agents](https://engineering.intility.com/article/agent-teams-or-how-i-learned-to-stop-worrying-about-merge-conflicts-and-love-git-worktrees)
+
+---
+
+## 9. v4 evidence (in-session loop, verified 2026-07-02)
+
+Per the standing evidence rule, this section records the five load-bearing
+facts behind the v4 refactor (ADR 0001) that were not yet in the evidence
+ledger.
+
+**In-session three-role design basis.** Fresh context per unit of work, not a
+fresh OS process, is the invariant Anthropic's own harness guidance treats as
+load-bearing: fresh-context agent invocations are "equivalent to separate
+sessions" ([Effective Harnesses](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)),
+and Claude Code subagents start genuinely cold — "no parent conversation, no
+parent file reads" ([Subagents](https://code.claude.com/docs/en/sub-agents)).
+Both harnesses now productize that cold-context delegation natively: Claude
+Code's Agent tool plus custom agent definitions (`model`, `tools`,
+`disallowedTools`, `permissionMode`, `isolation: worktree`, `background`,
+working in CLI **and** Desktop), and Codex's native subagents (`spawn_agent`,
+`send_input`, `resume_agent`, `wait_agent`, `close_agent`, `max_threads` 6,
+`max_depth` 1 — [Codex Subagents](https://developers.openai.com/codex/subagents)).
+Full source list: `docs/prd/v4-orchestrator-loop.md` §2 items 1 and 4.
+
+**D9 — desktop subagent Bash strip.** Three independent human-run desktop
+canaries falsified the initial hypothesis and narrowed the root cause. VG8
+run 1 (toy2, freeze `effc321`, lane `15433ed`): both subagents denied Bash at
+spawn. WG5 = VG8 re-run after padding tools per the (falsified) positional
+theory (toy3, freeze `fddcec6`, lane `e0fbfdb`): padding did not restore
+Bash — builder kept `Glob,Read,Edit,Write,Grep`, judge kept `Glob,Read,Grep`,
+proving the strip targets Bash by name, not position. VG8 run 3, foreground
+dispatch variant (toy4, freeze `c694398`, lane `0c7e1e3`, finding `79d5755`):
+still no Bash even fully synchronous, proving the strip happens before any
+permission-prompt layer could apply. Upstream sources:
+[claude-code#60237](https://github.com/anthropics/claude-code/issues/60237)
+(first/last `tools:` entries dropped at spawn — the pattern this repo's own
+canaries falsified for desktop),
+[claude-code#18749](https://github.com/anthropics/claude-code/issues/18749)
+(Bash-specific variant, closed not-planned, matches the observed desktop
+behavior), and
+[Permission modes](https://code.claude.com/docs/en/permission-modes)
+(non-prompting contexts auto-deny tool calls that aren't pre-allowed —
+background subagents can't prompt). Session-log anchors:
+`docs/HANDOFF.md` rows dated 2026-07-02 for the VG8 (×2) and WG5 desktop-canary
+entries.
+
+**PowerShell second-executor fix + live judge usage.** Slice `v4-desktop2`
+(freeze `588a3e9`, lane `74f8221`) added `PowerShell` as a second, interior
+(padded) executor to both agent definitions with matching deny mirrors, to
+route around the Bash-specific strip. Decisive evidence: the judging
+subagent itself held and used the native PowerShell tool on the CLI to run
+gates XG3/XG6 — first live proof either executor works in a cold subagent
+under the new defs. Anchor: `docs/HANDOFF.md` v4-desktop2 lane+judgment row,
+2026-07-02; gate IDs XG2/XG3/XG6 in `docs/gates/v4-desktop2.md`.
+
+**D11 — CLI subagent spawns unisolated despite `isolation: worktree`.**
+Discovered live during the `v4-desktop` builder lane (cold architect-builder
+subagent, sonnet:high, working tree → commit `1d84230`): a Claude Code CLI
+spawn of an agent definition carrying `isolation: worktree` frontmatter did
+not create a worktree, contradicting the frontmatter's documented guarantee.
+`skills/architect/dispatch.md`'s per-harness delegation table now tells
+Claude-backend lanes to verify with `git worktree list` after spawn rather
+than assume isolation. Anchor: `docs/HANDOFF.md` v4-desktop lane row,
+2026-07-02.
+
+**Codex 0.139 native `spawn_agent` round-trip canary.** One codex 0.139.0
+thread spawned exactly one child agent instructed to reply `PONG`; the parent
+surfaced `SPAWN_RESULT: PONG` after `wait`ing on it — proving the native
+collab-tool round trip end to end. Raw evidence:
+`.architect/tmp/codex-spawn-canary/events.jsonl` (architect-run, this
+machine; `item.completed` records `"tool":"spawn_agent"` then
+`"tool":"wait"` with `"message":"PONG"`, followed by the parent's
+`agent_message` item `"SPAWN_RESULT: PONG"`) and `prompt.md` in the same
+directory. Judged independently: slice `v4-codex` judgment (commit `ca78b71`)
+re-ran the canary and recorded gate CG4 PASS in `docs/gates/v4-codex.md`.
+This canary is also the source of the `wait` vs `wait_agent` naming note in
+`skills/architect/dispatch.md` — the collab event stream names the tool
+`wait`, while the docs and PRD call it `wait_agent`.

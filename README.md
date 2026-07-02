@@ -1,59 +1,65 @@
 # architect-loop
 
-**Claude Fable handles planning and review; GPT-5.5 Codex handles
-implementation and research.** Two Claude Code skills wire that split into a
-repo-centered loop: specs and gates are written first, Codex works in fresh
-contexts, and Fable reviews the evidence before anything is integrated. It runs
-on the subscriptions you already have — no API keys required by default.
+**Claude Fable handles planning and review; a cold builder subagent handles
+implementation.** Two Claude Code (and Codex) skills wire that split into a
+repo-centered loop: specs and gates are written first, builders work in fresh
+cold-context subagents, and Fable reviews the evidence before anything is
+integrated. It runs on the subscriptions you already have — no API keys
+required by default.
 
 ## Install (30 seconds)
 
 ```bash
 git clone https://github.com/DanMcInerney/architect-loop
 cd architect-loop && ./install.sh        # Windows: .\install.ps1
-npm i -g @openai/codex@latest            # the builder (Codex CLI >= 0.133)
+npm i -g @openai/codex@latest            # optional: the Codex builder/CLI (>= 0.133)
 ```
 
-`./install.sh --project` installs to the current repo only instead of
+The installer copies the skills to both Claude Code's skill directory and
+Codex's `.agents/skills` directory from the same source tree, so `/architect`
+works whichever CLI or app you open. `./install.sh --project` (or
+`.\install.ps1 -Project`) installs to the current repo only instead of
 globally. You need [Claude Code](https://claude.com/claude-code) on any paid
-plan and the Codex CLI signed into a ChatGPT plan.
+plan; the Codex CLI signed into a ChatGPT plan is optional, for when you want
+Codex as the builder backend.
 
-## Use (two commands)
+## Use (one interactive session)
 
 ```
 /architect                                      # the build loop
 /architect-research <what you're considering>   # the research loop
 ```
 
-`/architect` runs one work block: judge the last run, spec the next slice,
-dispatch builders. `/architect-research` is for when you're still deciding
-*what* to build — its cited report feeds the build loop's PRD.
+Open Claude Code (terminal or desktop) or Codex, type `/architect` — that's
+the loop. There is no separate driver process: the orchestrator session
+grounds in the repo, reads the handoff, arbitrates open disagreements, judges
+completed lanes, and specs + dispatches the next slice, all inside that one
+conversation. `/architect-research` is for when you're still deciding *what*
+to build — its cited report feeds the build loop's PRD.
 
-## Run it as a loop
+Three roles, one session:
 
-From a repo, run:
+- **Orchestrator judgment** — the session you're in. Grounds, arbitrates,
+  specs and freezes slices, dispatches, integrates. Never writes
+  implementation code, never judges its own gates.
+- **Cold builder subagents** — one fresh, isolated-context subagent per lane
+  (Claude Code's Agent tool in a worktree, or Codex's native `spawn_agent`),
+  implementing exactly the lane's declared files and reporting raw results.
+- **Cold judge** — a fresh, read-only subagent at brain tier that runs the
+  slice's frozen gates and returns PASS/FAIL/INVALID verdicts with evidence;
+  the orchestrator can't overrule a FAIL into a merge.
 
-```bash
-architect-loop
-```
+`docs/STOP` stops the loop before the next dispatch.
 
-Each iteration starts a fresh architect session, grounds in the repo, reads the
-handoff, then either judges completed lanes, dispatches the next slice, or runs
-the WAIT fast path while builders are still in flight. The driver's terminal is
-the visible surface; per-iteration logs live under `.architect/loop/`.
-
-Stop mechanisms:
-
-- `docs/STOP` stops before the next invocation.
-- `LOOP: STOP (<reason>)` in `docs/HANDOFF.md` stops after the current
-  iteration.
-- The circuit breaker stops after 3 no-progress iterations or 5 nonzero exits.
-- `--max-iters` defaults to 50; WAIT iterations count.
-- `--max-hours` adds a wall-clock bound.
-
-Quota note: loop cost is `N` iterations times grounding cost. WAIT fast-path
-iterations run automatically on the tier-down brain and never judge, but they
-still consume quota.
+**Desktop caveat:** the Claude Code desktop app currently strips shell tools
+(Bash) from subagent spawns — an undocumented app behavior, not something
+this skill controls — so builder and judge subagents cannot run tests or
+gates there. Desktop works fine for orchestration and review (grounding,
+arbitration, specing, reading diffs); the full loop, where subagents actually
+execute gates, needs Claude Code from the terminal. The shipped agent
+definitions already carry PowerShell alongside Bash and matching deny
+mirrors, so desktop lights up automatically once the app stops stripping
+subagent tool grants.
 
 ## Choosing your models
 
@@ -90,14 +96,16 @@ One short Fable session per work block — judgment only, it never writes code:
   lanes whose file sets are checked for overlap, and commits the acceptance gates to
   `docs/gates/` *before* any builder starts. Gates are read-only; a builder
   edit to a gate file fails the slice automatically.
-- **Parallel isolated builders.** One fresh `codex exec` (xhigh) per lane,
-  each in its own git worktree. Builders must argue with the spec before
+- **Parallel isolated builders.** One fresh cold-context subagent per lane —
+  Claude Code's Agent tool in a git worktree, or Codex's native
+  `spawn_agent`/`codex exec`. Builders must argue with the spec before
   building (silent compliance = defect), build only their declared files,
-  and report raw results — they do not have commit access in the sandbox.
-- **Fable judges and integrates.** It runs the gate commands itself (builder
-  claims are hearsay), reads the diff against the spec's intent (passing
-  tests ≠ mergeable work), then commits and merges passing lanes. Judgment
-  happens in a fresh session because the cited evidence favors fresh-context
+  and report raw results — they never have commit access.
+- **A cold judge, not Fable itself, verifies.** A fresh, read-only subagent
+  at brain tier runs the gate commands itself (builder claims are hearsay)
+  and reads the diff against the spec's intent (passing tests ≠ mergeable
+  work); the orchestrator can't overrule a FAIL into a merge. Judgment
+  happens in a cold context because the cited evidence favors fresh-context
   review.
 - **The repo is the only memory.** `docs/HANDOFF.md` (a short table of
   contents, pruned every session), `docs/gates/`, `docs/lanes/`, git
@@ -155,30 +163,36 @@ Each design choice is source-backed (full citations in
 |---|---|
 | [DESIGN.md](DESIGN.md) | The design document — 12 enforced rules, failure-mode table, cited sources |
 | [skills/architect/SKILL.md](skills/architect/SKILL.md) | The architect role: hard rules + procedure |
-| [skills/architect/dispatch.md](skills/architect/dispatch.md) | Verified `codex exec` commands, builder block, worktree fan-out, stall triage |
-| [skills/architect/loop.md](skills/architect/loop.md) | Loop contract, sentinel protocol, WAIT fast path, driver behavior |
+| [skills/architect/dispatch.md](skills/architect/dispatch.md) | Delegation contract, builder block, judge template, alias table, stall triage |
+| [skills/architect/loop.md](skills/architect/loop.md) | Loop-block procedure, judgment ledger, heartbeat fallback, safety rails |
 | [skills/architect/research.md](skills/architect/research.md) | Slice-scale inline fact-check fan-out |
 | [skills/architect/HANDOFF.template.md](skills/architect/HANDOFF.template.md) | The repo-memory file |
 | [skills/architect-research/SKILL.md](skills/architect-research/SKILL.md) | Research orchestration: scout → design → fan out → verify → write |
 | [skills/architect-research/lanes.md](skills/architect-research/lanes.md) | Scout block + source-class tactics library with verified endpoints |
-| [bin/architect-loop.sh](bin/architect-loop.sh) / `bin/architect-loop.ps1` | Cross-platform loop drivers |
-| [tests/validate_skills.py](tests/validate_skills.py) | Repo sanity checks (frontmatter limits, links, fences) |
+| `.claude/agents/architect-builder.md` / `architect-judge.md` | Shipped Claude Code agent definitions for the cold builder and judge subagents |
+| [tests/validate_skills.py](tests/validate_skills.py) | Repo sanity checks (frontmatter limits, links, fences, v4 contracts) |
 
 ## FAQ
 
 **Do I need API keys?** No. Claude Code runs on your Claude plan; Codex CLI
 on your ChatGPT plan.
 
-**What does a run cost?** Builder/researcher runs draw on your ChatGPT
-plan's 5-hour and weekly quotas; a multi-hour run is a meaningful fraction
-of a weekly window. Fable's architect sessions are minutes, not hours.
+**What does a run cost?** Builder/researcher runs draw on whichever plan's
+quotas the builder backend uses — the ChatGPT plan's 5-hour and weekly
+quotas for Codex, or the Claude plan's quotas for a Claude-backend builder
+subagent; a multi-hour run is a meaningful fraction of a weekly window.
+Fable's own architect judgment is minutes, not hours.
 
 **What if a builder wrecks things?** Nothing reaches a branch until the
-architect's tamper, boundary, and gate checks pass — worktrees are
-discarded and re-dispatched from the freeze commit.
+orchestrator's tamper, boundary, and gate checks (backed by a cold judge
+subagent's own verdict) pass — worktrees are discarded and re-dispatched
+from the freeze commit.
 
-**Can I watch a run?** Yes — every dispatch prints the builder block, so you
-can paste it into an interactive `codex` session with `/goal` instead.
+**Can I watch a run?** Yes — the builder dispatch happens inside your open
+session, so a Claude Code Agent-tool subagent's progress is visible in that
+same transcript. For a Codex-backend builder, every dispatch also prints the
+builder block, so you can paste it into an interactive `codex` session with
+`/goal` instead.
 
 **Why two skills?** Research-grade fan-out costs ~15× chat-level tokens — it
 should be a deliberate act, not a side-effect of the build loop.
