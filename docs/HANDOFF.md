@@ -10,23 +10,21 @@
 ## TL;DR (keep current — next session must grok this in under a minute)
 
 - Goal: implement the v3 plan (`docs/prd/v3-loop.md`). **DONE and merged to
-  main** 2026-07-02: G1–G6 PASS (earlier sessions), EG1–EG4 PASS (D5 eol fix),
-  and the paid live canaries **G7, G8, G9, G10, G11 all PASS** against the
-  fixed driver (raw evidence below). G12 stays open by design — confirmed
-  against the next real dispatch.
-- Live canaries surfaced three NEW doc-level defects (**D6** missing
-  `--verbose` in the claude-backend template, **D7** workspace-trust
-  prerequisite undocumented, **D8** lane self-misidentification — no
-  lane-identity/self-stream clause). Driver and tests are untouched by them.
-- Fix slice `v3-loop-docs` (D6–D8, doc text only): gates frozen at
-  `docs/gates/v3-loop-docs.md`; lane 01 (codex/tier-down) COMPLETE and
-  post-flighted clean (boundaries exact ×4, gates diff 0 bytes, PHASE 0
-  evidence-backed, +21/−1 net); committed on `slice/v3-loop-docs`.
-  PENDING JUDGMENT.
-- Next action: fresh /architect session judges HG1–HG5 per
-  `docs/gates/v3-loop-docs.md` (report: `docs/lanes/v3-loop-docs-01.md`),
-  then merges `slice/v3-loop-docs` → main on PASS. PRD §6 watch items
-  (gpt-5.6 alias recheck, billing-pause reversal, GLM recipe) remain open.
+  main** 2026-07-02: G1–G6 PASS, EG1–EG4 PASS (D5 eol fix), paid live canaries
+  **G7–G11 all PASS**, and the doc-defect cleanup slice **`v3-loop-docs`
+  (D6–D8) judged HG1–HG5 all PASS and merged to main** 2026-07-02. G12 stays
+  open by design — confirmed against the next real dispatch.
+- The three doc defects are closed: **D6** `--verbose` now in the claude
+  backend template (`dispatch.md:58`); **D7** workspace-trust step + both
+  remedies in `loop.md`'s checklist; **D8** lane-identity/self-stream rule +
+  PS 5.1 UTF-16 note in `dispatch.md`, evidence row in `DESIGN.md`. Driver and
+  tests untouched (HG5b/HG5e diffs empty).
+- Next action: no open slice. Remaining work is PRD §6 watch items (gpt-5.6
+  alias recheck, billing-pause reversal note, GLM recipe canary), the standing
+  `mapfile` bash≥4 / no-macOS-gate watch, and G12 (confirm per-command timeout
+  ceilings against the first real post-merge dispatch). Also unlanded: whether
+  to commit the untracked `.claude/settings.json` loop allowlist (deferred to a
+  future slice by decision).
 
 LOOP: CONTINUE
 
@@ -66,7 +64,8 @@ PowerShell 5.1 `>`/`*>`/`Tee-Object` write UTF-16; read logs encoding-aware
 |-------|---------|-----------------|
 | `v3-loop` (3 lanes) | G1–G6 PASS, G9 PASS, G10 partial; D1–D4 found via stub-brain canaries | b1acc42 |
 | `v3-loop-fixes` | FG2–FG4 PASS; FG1 FAIL → D5 | 1b8ada1 |
-| `v3-loop-eol` | gates-integrity + EG1–EG4 all PASS | this commit |
+| `v3-loop-eol` | gates-integrity + EG1–EG4 all PASS | 9872d5b |
+| `v3-loop-docs` | HG1–HG5 all PASS (D6–D8 doc fixes); merged to main | this commit |
 
 ## Gate verdicts — parent `v3-loop` G7–G12 (architect, 2026-07-02, fresh session, this machine)
 
@@ -117,6 +116,7 @@ untrusted workspace: "Ignoring 10 permissions.allow entries … has not been tru
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-07-02 | `v3-loop-docs` judged HG1–HG5 all PASS by fresh architect session → merged to main (no-ff); doc defects D6–D8 closed | gates run and read verbatim this session; diff matches spec intent; doc-only, no code/gate surface |
 | 2026-07-02 | G7–G11 measured on live paid sessions this session; toy-repo evidence archived under `.architect/tmp/loop-canary/` (git-ignored, local) | handoff records the evidence; toys are throwaway |
 | 2026-07-02 | Workspace trust for headless loop brains set via `projects[<path>].hasTrustDialogAccepted` in `~/.claude.json` (toy repos only; entries removed after) | claude -p ignores repo allowlist in untrusted workspaces (D7); the error message itself names this workaround |
 | 2026-07-02 | D6–D8 fixed via builder slice `v3-loop-docs`, not architect hand-edit | hard rule 1 |
@@ -144,3 +144,4 @@ after this one.
 | 2026-07-02 | Architect (Claude Fable, fresh session) | v3-loop-eol judgment + G7–G11 live canaries | 9872d5b judgment+freeze; 9c4aad8 merge to main | EG1–4 P; G7–G11 P | 10/10 no-hang launches; 6-iter live loop arc; docs/STOP mid-run kill; cross-family + same-family review canaries; found D6–D8; dispatched v3-loop-docs lane 01 (codex/tier-down) |
 | 2026-07-02 | Builder (codex exec gpt-5.5 high, thread 019f2195) | v3-loop-docs | lane 01 working tree | — | COMPLETE_WITH_CONCERNS (known sandbox bash -n skip, E_ACCESSDENIED); PHASE 0 verified D6 at dispatch.md:58, checklist at loop.md:123, DESIGN table at :473 before editing |
 | 2026-07-02 | Architect (dispatch session, post-flight only) | v3-loop-docs | lane commit on slice/v3-loop-docs | — | Post-flight clean ×4; judgment deferred to fresh session per hard rule 4 |
+| 2026-07-02 | Architect (Claude Opus 4.8, fresh session) | v3-loop-docs judgment | merge slice/v3-loop-docs → main (no-ff) | HG1–HG5 P | Gates run this session: --verbose grep non-empty; loop.md/dispatch.md/DESIGN.md text read verbatim vs gate; validator exit 0 Git Bash AND PowerShell; bin/tests + gates diffs empty; builder touch set = 4 files; net +20 ≤ 45. Diff-vs-intent clean (doc-only). Post-merge smoke: validator PASS on main. LOOP: CONTINUE |
