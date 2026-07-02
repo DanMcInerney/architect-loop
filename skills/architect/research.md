@@ -7,13 +7,17 @@ load-bearing claims and writes the spec itself.
 
 ## Fan out
 
+Resolve the researcher model as brawn, same order as `/architect`: repo
+`.architect/config`, then user `~/.architect/config`, then the tier-down
+defaults in `skills/architect/dispatch.md`.
+
 Decompose the question into 3–5 narrow, NON-OVERLAPPING research questions.
 Cover different angles, not the same angle five times — typical split:
 official docs/reference, changelog/breaking changes, community failure reports,
 alternatives/comparisons, security/operational constraints.
 
 One fresh `codex exec` per question, all launched in parallel, in the
-background:
+background — this is the default-brawn example (codex/tier-down):
 
 ```bash
 codex exec -C <repo-root> --sandbox read-only -c web_search="live" \
@@ -33,6 +37,9 @@ stdin otherwise.
   `-c tools.web_search=true` (< 0.133). `--search` is TUI-only — exec rejects
   it. Launch ONE canary researcher and confirm it starts cleanly before
   fanning out — these flags have churned three times in 2026 alone.
+- If resolved brawn is a claude row, or Codex is unavailable, run the
+  fan-out as read-only Claude subagents with web search — the research
+  block template below works verbatim.
 - Effort `high`, not `xhigh` — research is coverage work; xhigh buys nothing
   here. Synthesis happens on the architect's side.
 - Scope each researcher to ≤5 subjects and put hard context rules in the
@@ -50,17 +57,19 @@ make recommendations — judgment belongs to the architect who reads your output
 
 QUESTION: <one narrow question>
 
-OUTPUT FORMAT — a markdown report:
-- Findings as bullets. EVERY finding carries: source URL, source date (if
-  shown), the exact figure or a short direct quote, and a confidence tag
-  (high = primary source / med = reputable secondary / low = single blog or
-  forum post).
+OUTPUT FORMAT — a markdown report, ≤ ~2,500 tokens (~10 KB) total:
+- Findings as bullets. EVERY finding carries: a source tag (e.g. `[S3]`),
+  source date (if shown), the exact figure or a short direct quote, and a
+  confidence tag (high = primary source / med = reputable secondary / low =
+  single blog or forum post).
 - Prefer primary sources (official docs, changelogs, release notes, source
   code) over blog posts. Record exact version numbers and dates.
 - When sources disagree, report the disagreement — do not resolve it.
 - If you cannot find evidence for something, write NOT FOUND — never infer or
   fill gaps from prior knowledge without flagging it as such.
-- End with: the 2-3 findings most likely to change an implementation decision.
+- End with a numbered source list — every source URL appears EXACTLY ONCE,
+  numbered `[S1]`, `[S2]`, ... — then the 2-3 findings most likely to change
+  an implementation decision.
 ```
 
 ## Gather (architect — this is your work, not another agent's)
