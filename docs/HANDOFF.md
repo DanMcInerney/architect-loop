@@ -104,7 +104,28 @@
   overhead); D2 cache-alignment machinery (harness-owned, preamble below
   cache minimums).
 
-- **Slice `research-loop` IN FLIGHT 2026-07-02**: human approved A1-A4 with
+- **Slice `research-loop` JUDGED PASS + MERGED TO MAIN 2026-07-02 (merge
+  e39d0f4; freeze 1b2fd90; lane 3f46f09; 107 changed lines).** Composite
+  cold judgment across three contexts: codex/best judge (gpt-5.5 xhigh,
+  workspace-write, tree audited untouched after) PASSed gates-integrity +
+  diff-vs-intent + RG2-RG8 with raw git evidence (touch set exactly the
+  enumerated paths; shortstat 70+/37-); RG1 measured PASS by a cold
+  headless `claude -p --model opus` session (both shells exit 0, verbatim
+  output recorded) after Git Bash proved unable to start under the codex
+  sandbox (known Win32 error 5). Two prior Claude architect-judge spawns
+  were tool-stripped (see D12 below) and correctly returned INVALID; their
+  RG2-RG6 ripgrep+read checks PASSed independently ×2. Slice call:
+  CONTINUE. Post-merge smoke: validator green on main. Docs debt appended.
+  **D12 (new watch item): CLI-side subagent tool strip is INTERMITTENT and
+  def-asymmetric** — same session, same day: architect-builder spawn held
+  working Bash AND PowerShell (ran RG1 both shells), while two consecutive
+  architect-judge spawns got only Glob/Read/Grep (BOTH shell tools
+  stripped — not Bash-only like desktop D9, and #60237's first/last
+  positional pattern doesn't match either: Glob first and Grep last both
+  survived). Judge INVALID fail-safe held both times. Mitigation that
+  worked and is now precedent: codex-backend judge for shell-dependent
+  gates + cold headless claude -p for gates the codex sandbox can't run.
+- Slice `research-loop` dispatch record (historical): human approved A1-A4 with
   two amendments (return cap ~2,500 tokens per r2 lane measurements
   2,000-3,600 tok w/ citations + single-URL numbered source lists; R5
   brain/brawn config parity — architect-research resolves models from the
@@ -122,6 +143,7 @@
 
 | Slice | Shipped | Product-doc update needed |
 |---|---|---|
+| research-loop | A1-A4 research calibrations + brain/brawn config parity (merge e39d0f4) | README's research-skill description (return contract, draft-as-state gap round, tool-call budgets, research handoff, config chain); DESIGN.md evidence row (r2 research b2a7766 + grill catch + D12 + composite-judgment precedent) |
 | loop-hardening | P1–P7 hardening | CONSUMED by slice v4-docs 2026-07-02 (README 
 - Historical: v4-core first judgment 2026-07-02: gates-integrity + VG1–VG7 +
   VG9 all PASS; VG8 FAILed 3× on desktop D9 before the re-ruling.
