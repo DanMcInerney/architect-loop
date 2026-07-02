@@ -1,19 +1,26 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { width:1500px; height:460px; background:#0d1117; font-family:"Cascadia Code",Consolas,monospace; color:#e6edf3; padding:60px 40px; }
+  body { width:1500px; height:560px; background:#0d1117; font-family:"Cascadia Code",Consolas,monospace; color:#e6edf3; padding:44px 40px 0; }
   .row { display:flex; align-items:center; justify-content:center; gap:14px; }
-  .box { border-radius:16px; padding:24px 22px; text-align:center; }
-  .fable { background:#1c1410; border:3px solid #d97757; width:280px; }
-  .agent { background:#0e1a16; border:3px solid #10a37f; width:280px; }
-  .who { font-size:25px; font-weight:700; }
+  .box { border-radius:16px; padding:22px 18px; text-align:center; }
+  .fable { background:#1c1410; border:3px solid #d97757; width:262px; }
+  .agent { background:#0e1a16; border:3px solid #10a37f; width:282px; }
+  .who { font-size:24px; font-weight:700; }
   .fable .who { color:#d97757; } .agent .who { color:#3fd0a4; }
-  .does { font-size:19px; color:#c9d1d9; margin-top:8px; line-height:1.45; }
-  .arrow { font-size:38px; color:#6e7681; }
+  .does { font-size:17px; color:#c9d1d9; margin-top:8px; line-height:1.45; }
+  .arrow { font-size:38px; color:#6e7681; align-self:center; }
   .lanes { display:flex; flex-direction:column; gap:6px; margin-top:10px; }
-  .lane { border:1.5px solid #1f6f58; border-radius:8px; padding:3px 8px; font-size:15px; color:#7ee2c3; background:#0a221b; }
-  .out { background:#1a1607; border:3px solid #e3b341; width:250px; }
-  .out .who { color:#e3b341; font-size:22px; }
+  .lane { border:1.5px solid #1f6f58; border-radius:8px; padding:3px 8px; font-size:14px; color:#7ee2c3; background:#0a221b; }
+  .out { background:#1a1607; border:3px solid #e3b341; width:262px; }
+  .out .who { color:#e3b341; font-size:21px; }
+  .loopwrap { width:360px; margin:14px 0 0 660px; }
+  .loopline { height:26px; border:2px solid #6e7681; border-top:none; border-radius:0 0 14px 14px; }
+  .loopback { color:#6e7681; font-size:24px; text-align:left; margin-left:6px; margin-top:-38px; }
+  .looplabel { width:100%; text-align:center; color:#8b949e; font-size:16px; margin-top:10px; }
+  .looplabel b { color:#c9d1d9; }
+  .legend { text-align:center; color:#8b949e; font-size:16px; margin-top:22px; }
+  .legend .snow { color:#79b8ff; }
 </style></head><body>
   <div class="row">
     <div class="box agent">
@@ -23,12 +30,12 @@
     <div class="arrow">⟶</div>
     <div class="box fable">
       <div class="who">FABLE</div>
-      <div class="does">designs the lanes</div>
+      <div class="does">designs the lanes<br>sets tool-call budgets</div>
     </div>
     <div class="arrow">⟶</div>
     <div class="box agent">
       <div class="who">RESEARCHERS ×3–6 ❄</div>
-      <div class="does">gather evidence, in parallel<br>URL + date + quote required</div>
+      <div class="does">gather in parallel<br>URL + date + quote required<br>return ≤~2,500 tokens<br>+ numbered source list</div>
       <div class="lanes">
         <div class="lane">lane 1</div>
         <div class="lane">lane N</div>
@@ -37,12 +44,18 @@
     <div class="arrow">⟶</div>
     <div class="box fable">
       <div class="who">FABLE</div>
-      <div class="does">verifies claims<br>writes the report</div>
+      <div class="does">sketches skeleton draft<br>verifies claims<br>writes the report</div>
     </div>
     <div class="arrow">⟶</div>
     <div class="box out">
       <div class="who">CITED REPORT</div>
-      <div class="does">feeds the build loop</div>
+      <div class="does">the research handoff —<br>feeds the build loop;<br>a later session resumes<br>from its open questions</div>
     </div>
   </div>
+  <div class="loopwrap">
+    <div class="loopline"></div>
+    <div class="loopback">⇡</div>
+  </div>
+  <div class="looplabel">gap round, <b>max 2</b> — the draft's <b>THIN / EMPTY</b> sections send a targeted second wave; NOT FOUNDs are never re-chased</div>
+  <div class="legend"><span class="snow">❄</span> = a fresh agent with no memory of the conversation · researchers use the same brain/brawn config as the build loop</div>
 </body></html>
