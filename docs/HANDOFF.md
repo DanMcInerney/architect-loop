@@ -50,12 +50,18 @@
   and `Bash` last, matching the desktop symptom exactly (Write, a middle
   item, still worked). **#18749** shows a Bash-specific variant (closed
   not-planned), so the human VG8 re-run remains the true test.
-- Fix slice **`v4-desktop` IN FLIGHT**: gates frozen `docs/gates/v4-desktop.md`
-  (WG1–WG6) at 7d85899 on slice/v4-core; lane 01 dispatched as cold
-  architect-builder subagent, claude/tier-down (sonnet:high — routine,
-  tightly specified). Fix: pad/reorder tools (D9) + validator positional
-  regression guard + dispatch.md Claude-backend auto-worktree doc (D10).
-  WG5 = human VG8 re-run, still the merge gate for everything.
+- Fix slice **`v4-desktop` JUDGED 2026-07-02** (cold judge subagent, freeze
+  7d85899, lane commit 1d84230 on slice/v4-core): gates-integrity + WG1–WG4 +
+  WG6 all PASS; **WG5 (= human VG8 re-run) INVALID pending — the only open
+  gate and the merge gate for everything.** Fix shipped: tools padded per
+  #60237 (Bash/Read interior in both defs), validator positional guard
+  (`check_tools_pad`), dispatch.md desktop/CLI worktree scoping. New defect
+  **D11** found and documented in-lane: CLI Agent spawns run UNISOLATED in
+  the orchestrator's checkout despite `isolation: worktree` frontmatter
+  (desktop DOES auto-worktree) — until fixed upstream, pass isolation
+  explicitly per invocation and never run concurrent Claude-backend lanes
+  unverified. Bonus evidence: the judging subagent itself ran under the
+  padded defs on CLI with fully working Bash.
 - Then v4-codex, v4-cleanup per PRD §4. v3 watch items (gpt-5.6 alias, GLM
   recipe, mapfile/macOS) carry over unchanged.
 
@@ -215,4 +221,6 @@ gate) carry over. `.claude/settings.json` commit decision still deferred.
 | 2026-07-02 | Architect (Claude Fable, fresh judgment session) | v4-core judgment | 57dc420 on slice/v4-core; toy commits 000c043/76b6358/e711423 | integrity+VG1–VG7+VG9 P; VG8 pending | All gates run/read this session. VG7 in-session canary: cold builder subagent (commit-denied) + cold judge subagents via shipped agent defs; judge #1 correctly FAILed uncommitted lane; judge #2 PASS after orchestrator commit; integrated + smoked. Lesson: commit lane before judging. Awaiting human VG8 before merge to main |
 | 2026-07-02 | Human + desktop orchestrator (Claude Code desktop app) | VG8 canary (toy2 `bye`) | toy2 effc321 freeze, 15433ed lane (inside `.claude/worktrees/goofy-kalam-d02c1f`) | VG8 F | Desktop session ran full loop; both architect subagents denied Bash at runtime → judge INVALID → no merge (correct). Defects D9 (desktop subagent Bash denial) + D10 (harness auto-worktree ignores pre-made lane worktree). Finding preserved at `.architect/tmp/v4-canary/VG8-FINDING.md` |
 | 2026-07-02 | Architect (same Fable session, VG8 recording) | v4-core VG8 verdict | 2004ee4 | VG8 F recorded | Audited toy2 evidence on disk (freeze/lane SHAs, clean gates diff, byte-exact artifact) before recording. Slice call: CONTINUE via fix slice `v4-desktop`; no merge. claude-code-guide research dispatched on D9 root cause |
-| 2026-07-02 | Architect (same Fable session) | v4-desktop spec+freeze+dispatch | freeze 7d85899; this commit | — | Research verified against live GitHub (#60237 confirmed: first+last tools dropped, pad workaround; #18749 Bash-variant). WG1–WG6 frozen; lane 01 dispatched cold architect-builder (sonnet tier-down) in background; WG4 is self-evidencing (builder's own Bash output = the gate). Judgment goes to a cold judge subagent after post-flight + lane commit |
+| 2026-07-02 | Architect (same Fable session) | v4-desktop spec+freeze+dispatch | freeze 7d85899; 028147c | — | Research verified against live GitHub (#60237 confirmed: first+last tools dropped, pad workaround; #18749 Bash-variant). WG1–WG6 frozen; lane 01 dispatched cold architect-builder (sonnet tier-down) in background; WG4 is self-evidencing (builder's own Bash output = the gate). Judgment goes to a cold judge subagent after post-flight + lane commit |
+| 2026-07-02 | Builder (cold architect-builder subagent, sonnet:high) | v4-desktop lane 01 | working tree → 1d84230 | — | COMPLETE. PHASE 0 flagged branch-name mismatch (slice/v4-core, HEAD=freeze — accepted). Post-flight found D11 (its own spawn ran unisolated in main checkout; overclaim "both CLI and desktop" in its D10 text) → within-lane follow-up applied after one nudge: auto-worktree scoped to desktop, D11 + CLI cautions documented. Discovery: CLI spawn of a def with `isolation: worktree` did NOT create a worktree (D11) |
+| 2026-07-02 | Judge (cold architect-judge subagent, padded defs) + architect recording | v4-desktop judgment | this commit | integrity+WG1–WG4+WG6 P; WG5 INVALID pending | Judge ran WG1 both shells itself, verified check_tools_pad wiring, read defs/dispatch.md against D9/D10 contracts, flagged that post-update spawn behavior is only testable by WG5. Slice verdict INVALID until human records VG8 re-run. Judge's own Bash-capable run under padded defs = live CLI no-regression evidence. Slice call: CONTINUE contingent on WG5 |
