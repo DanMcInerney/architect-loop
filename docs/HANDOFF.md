@@ -93,7 +93,7 @@
 
 | Slice | Shipped | Product-doc update needed |
 |---|---|---|
-| loop-hardening | P1–P7 hardening (grill step, docs-debt convention, fallback ban, size guard) | README: mention the pre-freeze grill + docs-debt flow in the usage section; DESIGN.md: evidence rows for P1–P7 citing docs/research/loop-improvements.md + the grill's first-use result (5 pre-freeze catches) |
+| loop-hardening | P1–P7 hardening | CONSUMED by slice v4-docs 2026-07-02 (README 
 - Historical: v4-core first judgment 2026-07-02: gates-integrity + VG1–VG7 +
   VG9 all PASS; VG8 FAILed 3× on desktop D9 before the re-ruling.
 - **VG8 FAIL root cause (D9):** the desktop harness denies Bash to BOTH

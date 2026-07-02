@@ -674,3 +674,94 @@ re-ran the canary and recorded gate CG4 PASS in `docs/gates/v4-codex.md`.
 This canary is also the source of the `wait` vs `wait_agent` naming note in
 `skills/architect/dispatch.md` — the collab event stream names the tool
 `wait`, while the docs and PRD call it `wait_agent`.
+
+---
+
+## 10. Loop-hardening evidence (P1–P7, verified 2026-07-02)
+
+Human-approved research-driven hardening (`docs/HANDOFF.md` Decisions log,
+2026-07-02, "Human APPROVED P1–P7" row), shipped in slice `loop-hardening`
+(freeze `6f64bd1`, lane `977c7b6`, cold judge LG1–LG9 all PASS). P1–P6 are
+argued in `docs/research/loop-improvements.md`; P7 is not — its rationale
+lives only in the Decisions-log row cited above.
+
+**P1 — ban silent fallbacks and unrequested backcompat shims.** The builder
+block and `architect-builder` agent definition now forbid success-shaped
+defaults and unrequested backwards-compatibility code, fail loudly by
+default, with the sole exception of explicitly-specced resilience fallbacks.
+Primary-source language: OpenAI's
+[Codex Prompting Guide](https://developers.openai.com/cookbook/examples/gpt-5/codex_prompting_guide)
+bans "broad catches or silent defaults... no silent failures"; practitioner
+precedent in
+[claude-code#21027](https://github.com/anthropics/claude-code/issues/21027)
+("NEVER use fallback values - they hide errors and mask problems"). The
+gate-gaming mechanism (a silent fallback can fake passing output while the
+primary path is broken) and Fowler's YAGNI four-cost framework for
+unrequested compat code have no citable primary URL; see
+`docs/research/loop-improvements.md` Q5.
+
+**P2 — pre-freeze spec grill.** One cold, read-only subagent falsifies the
+draft gate file before it freezes — running each gate command against the
+current tree, verifying referenced paths exist, and attacking acceptance
+criteria for non-falsifiability. Default on for the first slice in a repo and
+for high-stakes slices. Evidence:
+[Cross-Context Review](https://arxiv.org/abs/2603.12123) (fresh-session
+review F1 28.6% vs same-session self-review 24.6%, p=0.008; reviewing twice
+in the same session did not beat once); the
+[20,574-session misalignment study](https://arxiv.org/abs/2605.29442) (41%
+of Wrong-Project-Diagnosis failures stem from Premature Action — the
+first-time-unfamiliar-repo case); CRITIC's tool-grounded-critique result
+(+7.7 F1), uncited by URL in `docs/research/loop-improvements.md` Q2. The
+research doc's own proposal figure was this repo's pre-P2 history: 2 spec
+defects that shipped past PHASE 0 into frozen gates (repo-name grep
+collision; bookkeeping-commit enumeration). The as-shipped, first-use result
+differs: slice `loop-hardening`'s own grill caught 5 draft-gate defects
+before freeze (`docs/HANDOFF.md` TL;DR, 2026-07-02 loop-hardening bullet:
+"The pre-freeze grill (P2) validated itself on its first use: 5 draft-gate
+defects caught before freeze").
+
+**P3 — slice-size discipline.** Judged diffs target ≤~400 changed lines;
+a spec whose diff will exceed that should be split into more lanes or more
+slices. Evidence: batch/position-bias degradation literature and human
+code-review effectiveness falling off past ~200–400 LOC per pass (SmartBear/
+Cisco, no citable primary URL) plus
+[Chroma's Context Rot](https://www.trychroma.com/research/context-rot)
+(degradation "at every increment, not just near the limit," across 18
+models); see `docs/research/loop-improvements.md` Q1.
+
+**P4 — repeated-identical-action stall signal.** The stall doctrine now
+names a repeated identical action/query as a stuck signal, not just silence
+or missing artifacts. Evidence: OpenHands SDK's same-action-repeated stuck
+detector (no citable primary URL) and
+[SWE-Marathon](https://arxiv.org/abs/2606.07682), where the worst scaffold
+repeated 32% of tool calls and produced 63/83 timeouts; see
+`docs/research/loop-improvements.md` Q3.
+
+**P5 — skill-text instruction-budget guard.** The validator now warns when
+total skill-text imperative-instruction count crosses a ceiling. The
+research doc's proposal figure was ~150–200 imperative instructions total
+(HumanLayer/RPI: models "silently skip" steps past that range — direct
+quote, no citable primary URL in `docs/research/loop-improvements.md` Q3).
+The as-shipped guard differs: the validator's threshold is 800 non-blank
+lines, measured at 557 post-change (`docs/HANDOFF.md` TL;DR, 2026-07-02
+loop-hardening bullet: "800-non-blank-line size guard (at 557
+post-change)").
+
+**P6 — tier-up over retry.** The alias-table note now says: when a lane fails
+once, prefer raising its model tier over re-running the same tier. Evidence:
+Anthropic's
+[Multi-Agent Research System](https://www.anthropic.com/engineering/multi-agent-research-system)
+post — "upgrading [the subagent model] is a larger performance gain than
+doubling the token budget"; see `docs/research/loop-improvements.md` Q4.
+
+**P7 — docs-debt convention.** Memory docs (`docs/HANDOFF.md`) update
+continuously per block; product docs (`README.md`, `DESIGN.md`) are never
+edited by build lanes or the orchestrator mid-slice — they batch into one
+dedicated docs lane at the milestone/PR boundary, fed by a running docs-debt
+list in the handoff (one pointer line appended per CONTINUE verdict). Not
+in `docs/research/loop-improvements.md` — the rationale (disjoint lane
+file-sets, README as the highest-contention file, evidence rows needing
+post-judgment information, product text never brain-written) is recorded
+only in `docs/HANDOFF.md`'s Decisions log, 2026-07-02, "Human APPROVED P1–P7"
+row. This lane (`v4-docs`) is the convention's first dedicated-docs-lane
+consumption of the Docs debt table.
