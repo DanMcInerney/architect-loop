@@ -765,3 +765,50 @@ post-judgment information, product text never brain-written) is recorded
 only in `docs/HANDOFF.md`'s Decisions log, 2026-07-02, "Human APPROVED P1–P7"
 row. This lane (`v4-docs`) is the convention's first dedicated-docs-lane
 consumption of the Docs debt table.
+
+---
+
+## 11. Research-loop evidence (A1-A4 + config parity, verified 2026-07-02)
+
+Slice `research-loop` (freeze `1b2fd90`, lane `3f46f09`, merge `e39d0f4`)
+implemented calibrations A1–A4 from the r2 research report
+`docs/research/agent-pipeline-patterns.md` (commit `b2a7766`), plus
+brain/brawn config parity with `/architect`.
+
+**Evidence base and verdicts.** The r2 report's own table: KEEP the current
+orchestrator-plus-parallel-researchers shape (K1–K4, independently
+converged on by Anthropic, Google, LangChain, and Cognition — "writes stay
+single-threaded"); ADD four calibrations (A1 numeric return cap, A2
+draft-as-state gap round, A3 tool-call-calibrated budgets, A4 name the
+research handoff); DON'T ADD two rejected proposals — D1 extra
+coordination layers (architectural bloat, 58–515% overhead) and D2
+cache-alignment machinery (harness-owned; our ~250-token preamble sits
+below OpenAI's 1024-token cache minimum). Field-consensus finding: no
+simpler industry-standard pipeline exists — the available improvements are
+calibrations, not restructurings.
+
+**The 2,500-token cap.** A1 shipped at ~2,500 tokens, not the report's
+proposed ~1,500 — a human amendment measured on this repo's own r2 lanes
+(2,000–3,600 tokens per lane with citations; URLs alone cost 138–966
+tokens; the worst lane double-cited every URL). Findings now cite sources
+by tag against a single numbered source list per lane, removing that
+double-citation waste.
+
+**Grill's third consecutive catch.** The pre-freeze grill (P2, §10) caught
+2 blocking gate defects before `research-loop`'s gates froze: a vacuous
+PowerShell exit-code check (RG1) and an unenumerable touch set (RG7), plus
+4 non-blocking sharpenings. This is the mechanism's third consecutive
+catch, after `loop-hardening`'s first use (5 defects) and `v4-docs`'s
+second (8 defects) — the grill has found real defects on every use so far.
+
+**D12 — intermittent, def-asymmetric CLI subagent tool strip.** Same
+session, same day: a cold architect-builder spawn held both Bash and
+PowerShell, while two consecutive architect-judge spawns lost both shell
+tools (Glob/Read/Grep only) — not Bash-only like desktop's D9 (§9), and
+not the first/last positional pattern of claude-code#60237 (Glob first and
+Grep last both survived). Both judge spawns correctly returned INVALID.
+The precedent that resolved it: composite judgment across a cross-family
+codex judge (gpt-5.5 xhigh, workspace-write, tree audited untouched after)
+for the shell-dependent gates, plus a cold headless `claude -p` session for
+the one gate the codex sandbox cannot run at all — Git Bash dies with
+Win32 error 5 under the codex sandbox on this machine.

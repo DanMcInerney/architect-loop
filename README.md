@@ -147,11 +147,16 @@ non-Claude routing. Canary it with your own key before relying on it.
 
 For when you're still deciding *what* to build. A cheap scout maps the
 topic; Fable designs 3–6 research lanes along the topic's own fault lines;
-parallel researchers gather evidence under hard budgets (every finding needs
-a URL, a date, and a quote — "NOT FOUND" beats a guess); then Fable
-adversarially verifies the load-bearing claims against the primary sources
-and writes one cited, decision-oriented report. That report feeds the build
-loop's specs.
+parallel researchers — resolved from the same brain/brawn config as the
+build loop, no hardcoded model — gather evidence under explicit tool-call
+budgets (every finding needs a URL, a date, and a quote — "NOT FOUND" beats
+a guess) and return compact findings, capped around 2,500 tokens, with every
+claim cited and each source listed once in a numbered source list. After the
+first wave, Fable sketches a skeleton draft; its thin or empty sections
+steer the follow-up round instead of re-covering ground already found. The
+committed report is the research handoff — a later session resumes from its
+open questions instead of starting the research over. That report feeds the
+build loop's specs.
 
 ## What's in the box
 
