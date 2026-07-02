@@ -25,10 +25,18 @@
   desktop apps. PRD: `docs/prd/v4-orchestrator-loop.md` (§6 rulings binding);
   ADR 0001; glossary: `CONTEXT.md`. PR #8 (all of v3) merged to origin/main
   first per ruling 6 (merge commit fe5462f).
-- Current slice `v4-core` (1 of 3): **JUDGED 2026-07-02: gates-integrity +
-  VG1–VG7 + VG9 all PASS; VG8 (HUMAN desktop canary) = FAIL → NO MERGE.**
-  Slice call: CONTINUE via a fix slice; slice/v4-core stays unmerged until
-  VG8 passes on re-run.
+- **v4-core + v4-desktop + v4-desktop2 MERGED TO MAIN 2026-07-02** under the
+  human re-ruling of PRD §6 ruling 5 (see Decisions log): desktop
+  test-execution dropped as a merge gate; README caveat lands in v4-cleanup.
+  All architect-runnable gates across the three slices PASSED (VG1–VG7+VG9;
+  WG1–WG4+WG6; XG1–XG4+XG6); the desktop canaries (VG8 ×3) documented the
+  upstream subagent shell-strip (D9) that motivated the re-ruling.
+- Remaining v4 slices: `v4-codex` (.agents/skills packaging, spawn_agent
+  guidance, live codex canary), then `v4-cleanup` (delete bin/** drivers +
+  driver canary + sentinel remnants, DESIGN.md v4 evidence, README rewrite
+  incl. the desktop caveat, validate_skills.py Pyright nit at line ~49).
+- Historical: v4-core first judgment 2026-07-02: gates-integrity + VG1–VG7 +
+  VG9 all PASS; VG8 FAILed 3× on desktop D9 before the re-ruling.
 - **VG8 FAIL root cause (D9):** the desktop harness denies Bash to BOTH
   architect subagents at runtime ("No such tool available: Bash. Bash exists
   but is not enabled in this context") even though both defs list Bash —
@@ -218,6 +226,7 @@ VG8 re-runs (human) before any merge to main.
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-07-02 | **HUMAN RE-RULING of PRD §6 ruling 5 (supersedes VG8/WG5/XG5 as merge gates):** desktop test-execution is NOT a merge requirement. Claude Code desktop currently strips shell tools (Bash; PowerShell untested) from subagent spawns — undocumented app behavior, 3 failed canaries + docs/issue research. v4 ships with the caveat, to be recorded in README (v4-cleanup): full loop (subagents run tests/gates) requires Claude Code from the terminal; desktop drives orchestration/review. Merge of slice/v4-core authorized per XG5's re-ruling clause | chasing an upstream app bug is not our product; CLI loop fully verified; desktop lights up when Anthropic fixes subagent tool grants (defs already carry PowerShell + deny mirrors, ready) |
 | 2026-07-02 | v4 direction approved by human through a 6-question grill; rulings recorded in PRD §6 (judge=brain tier no new key; delete all v3 loop machinery; unattended=pointer-only; dispatch rules optional; VG8 desktop canary HUMAN-RUN merge gate; PR #8 merged first) | grilled plan > open-ended plan; rulings are binding |
 | 2026-07-02 | ADR 0001 records why the externally-verified v3 driver is deleted hours after shipping | hard-to-reverse + surprising + real trade-off |
 | 2026-07-02 | `v4-core` brawn = codex/best (gpt-5.5 xhigh), 1 lane, main checkout on slice/v4-core | large interlocking skill-text rewrite; not routine, no disjoint split |
