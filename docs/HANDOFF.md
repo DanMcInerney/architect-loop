@@ -85,6 +85,17 @@
   (deferred since v3) remains the right call so future desktop worktrees
   cut from main carry the allowlist — decision goes to the human with the
   re-ruling if needed.
+- **Slice `v4-desktop2` IN FLIGHT** (human directed Sonnet-lane investigation
+  2026-07-02): give subagents `PowerShell` as a second executor the desktop
+  Bash-strip plausibly doesn't filter. Verified basis: tools-reference lists
+  PowerShell as a legal subagent tools entry; sub-agents doc has NO platform
+  carve-out (the strip is undocumented, plausibly desktop's client-side
+  "harbor" gate, issue #73434); a CLI subagent here empirically holds a
+  working PowerShell tool distinct from Bash. Gates XG1–XG6 frozen 588a3e9;
+  XG5 = human desktop canary #4, supersedes VG8/WG5 as the ruling vehicle.
+  Fallback if PowerShell is also stripped: per-agent MCP exec server
+  (documented separate grant path), else human re-rules PRD §6 ruling 5.
+  `.claude/settings.json` allowlist committed a689bc4 (human ruling).
 - Then v4-codex, v4-cleanup per PRD §4. v3 watch items (gpt-5.6 alias, GLM
   recipe, mapfile/macOS) carry over unchanged.
 
