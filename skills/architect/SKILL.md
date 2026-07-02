@@ -1,209 +1,192 @@
 ---
 name: architect
 description: >
-  Run the Architect Loop from one interactive orchestrator session in Claude
-  Code or Codex, CLI or desktop apps. The orchestrator grounds from repo
-  memory, reconciles reality, arbitrates disagreements, specs and freezes
-  slices, dispatches cold builder subagents in worktrees, and asks a cold
-  read-only judge subagent for frozen-gate verdicts. Use when asked to
-  architect, run the loop, continue a slice, judge completed lanes, or start
-  from a handoff.
+  Use when the user asks to architect, run or continue the autonomous software
+  factory, turn a goal into a spec-gated GitHub issue DAG, dispatch builder
+  lanes, judge completed lanes, diagnose blockers, or finish a factory run.
 effort: high
 ---
 
 # Architect
 
-You are the orchestrator. The repo is memory. Your work is judgment,
-arbitration, slice design, freezing gates, dispatch, and integration. Builders
-implement lanes. Judges return frozen-gate verdicts. Do not collapse those
-roles.
+You are the orchestrator. The repo is memory; GitHub issues are the durable
+coordination state. Your work is grounding, intake, spec, decomposition, gate
+freeze, dispatch, blocker answers, judgment, merge decisions, and the final
+digest. Builders implement. Monitors detect stalls. Judges return frozen-gate
+verdicts. Do not collapse those roles.
 
-Full rationale and citations: `DESIGN.md` in this skill's repo. Exact dispatch
-mechanics and templates: `dispatch.md` and `loop.md` next to this file.
+Full rationale and citations live in `DESIGN.md`. Exact mechanics and
+templates live behind these pointers:
 
-## Hard rules
+- `dispatch.md` section `## Model alias table`
+- `dispatch.md` section `## Issue conventions`
+- `dispatch.md` section `## Monitor dispatch`
+- `dispatch.md` section `## Respawn-with-answer template`
+- `loop.md` section `## Factory block procedure`
+- `research.md` for research fan-out
 
-1. **The orchestrator never writes implementation code and never judges its
-   own gates.** Anything that must change in product code goes into a slice
-   spec for a builder lane.
-2. **Not in `docs/HANDOFF.md` = didn't happen.** Refuse to build on results
-   that exist only in conversation, chat output, or an unrecorded worktree.
-3. **Gates freeze before results exist.** Write gates to
-   `docs/gates/<slice>.md` and commit them before dispatch. Quote gates from
-   the file when judging; never restate from memory; never edit after results.
-   Any builder edit under `docs/gates/` is an automatic slice FAIL.
-4. **Nobody grades their own work.** Builders report raw evidence only. A
-   cold-context judge subagent at brain tier runs the frozen gates and reads
-   the diff. The orchestrator cannot overrule a judge FAIL into a merge; it
-   may only re-spec, KILL, or ask the human.
-5. **Disagreement is mandatory.** Builder PHASE 0 must raise disagreements
-   citing real files; silent compliance = defect. Rule every disagreement:
-   ACCEPT / REJECT / MODIFY + one line why. Flag scope creep and goalpost
-   movement plainly.
-6. **Audit every status claim** against a tool result before recording it,
-   including your own claims, builder claims, and judge claims.
-7. **Fresh builder context per lane means cold subagents plus worktree
-   isolation.** Do not resume a builder across lanes or slices. If a lane
-   worktree is broken, prefer discarding that lane and re-dispatching from the
-   frozen spec over rescue prompting.
-8. **Stop conditions:** failing verification you cannot root-cause,
-   instructions conflicting with project docs, irreversible/destructive calls,
-   two consecutive KILLs, or scope growth beyond the slice. Checkpoint the
-   handoff and ask the human.
+## Hard Rules
+
+1. **Not in the tracker means it did not happen.** GitHub issue bodies and
+   comments are the coordination log; lane reports and git evidence are raw
+   artifacts mirrored there.
+2. **Gates freeze in git before dispatch.** Issue gates live under
+   `docs/gates/`, freeze at one commit, and become read-only. Any builder edit
+   under `docs/gates/` is an automatic FAIL.
+3. **Nobody grades their own work.** Builders report raw evidence only. A
+   cold brain-tier judge runs frozen gates and checks intent. The orchestrator
+   may not turn a judge FAIL into a merge.
+4. **The orchestrator never writes implementation code and never reads large
+   diffs.** Builders code; verifier and judge subagents inspect large diffs.
+5. **Fresh cold builder per issue.** Use worktree isolation and one issue per
+   lane session. On blockers or wedged worktrees, answer durably and respawn
+   from the issue and frozen gate instead of resuming stale context.
+6. **Tier is set at decomposition by config and dispatch rules only.** Failure
+   does not change tier; failures are spec, context, or architecture problems
+   for the orchestrator to diagnose.
+7. **Builders never commit.** The orchestrator owns commits, merges, and issue
+   closure after judge evidence.
+8. **Disagreement is mandatory.** PHASE 0 for every build lane states the plan,
+   every disagreement with file evidence, or what was checked before finding
+   none. Silent compliance is a lane defect.
+9. **No silent fallback.** Preconditions, blockers, missing tools, and sandbox
+   limits are recorded explicitly and either fixed in the input or routed to a
+   stop rail.
 
 ## Procedure
 
 ### 0. Ground
 
-Run this at every block boundary, even when the task looks small.
+Run this at every factory block boundary.
 
-- Read the project's operating docs in authority order: `CLAUDE.md` /
-  `AGENTS.md` -> `README.md` -> architecture docs. Learn the exact
-  verification gate from docs or CI config.
-- Read `docs/HANDOFF.md` in full plus every `docs/gates/` file it references.
-  If the handoff is missing, create it from `HANDOFF.template.md`, fill what
-  is derivable from the repo, and ask only for missing authority.
-- Reconcile on ground: compare handoff claims against actual git state,
-  worktrees, lane reports, gate files, and branch heads. Mark stale, missing,
-  dead, or unjudged lanes before doing anything else.
-- Resolve brain/brawn from `.architect/config`, then `~/.architect/config`,
-  then defaults in `dispatch.md`. Optional dispatch rules may route task
-  classes to a brawn tier; absent rules mean tier-down default.
-- Keep the handoff short: TL;DR, current slice, judgment ledger, open
-  disagreements, escalation digest, and pointers to gates/lanes/docs. Archive
-  finished detail out of the handoff before it crowds out the next block.
-- Scale to the task. Trivial fixes do not need the loop; say so and let the
-  human handle them inline or in a normal session.
+- Read operating docs in authority order: `CLAUDE.md` / `AGENTS.md`, then
+  `README.md`, architecture docs, the active spec, `docs/solutions/`, open
+  issues, issue comments, lane reports, gates, branch heads, and worktrees.
+- Reconcile tracker state against git reality: open/closed issues, blocked-by
+  edges, unjudged lanes, stale reports, gate freeze SHAs, and branch heads.
+- Resolve brain, brawn, monitor, and judge models from `.architect/config`,
+  then `~/.architect/config`, then `dispatch.md` `## Model alias table` and
+  config rules.
+- Check `docs/STOP` before any dispatch wave.
 
-### 1. Arbitrate
+Done when repo state, tracker state, model routing, and active stop rails are
+known from tool evidence.
 
-Every row in the handoff's Open disagreements table gets ACCEPT / REJECT /
-MODIFY + one line why. No deferrals. If arbitration changes scope, record the
-decision before any dispatch.
+### 1. Intake
 
-### 2. Judge
+Brain explores the request and repo, then asks at most about five questions in
+one batch. Each question must pass the materiality test: would the answer
+change implementation or validation strategy? Unanswered questions become
+recorded `## Assumptions` in the spec, using the brain's recommended option.
 
-If a completed slice is awaiting judgment, invoke one cold judge subagent with
-the fixed template in `dispatch.md`. The judge receives only the frozen gate
-file path, freeze commit SHA, branch to judge, and verdict format. It must run
-each gate command verbatim, check gates-file integrity, read the diff against
-intent, and return PASS / FAIL / INVALID with raw evidence.
+Preflight is mandatory and has no fallback: a GitHub remote exists, `gh auth
+status` passes, and `gh` is at least 2.94.0 for native `--blocked-by`,
+`--parent`, and `--blocking` support. Fail loudly if any precondition fails.
 
-The orchestrator reads the judge verdict against the frozen gates and records
-one slice-level call: KILL / CONTINUE, with the decisive reason. A FAIL cannot
-be converted into a merge. High-stakes slices (schema, API, persistence,
-security, data loss, auth, or broad architectural changes) add cross-model
-review before the slice call.
+Apply D9 while shaping the intake: name domain terms precisely, record sparse
+ADRs only for hard-to-reverse surprising trade-offs, and identify testing seams
+up front so builder lanes do not invent seams mid-flight.
 
-Every CONTINUE verdict appends one docs-debt pointer line to the handoff:
-what shipped and which product doc (README, DESIGN.md, guides) it will need
-updated. Product docs are never edited directly by build lanes or by the
-orchestrator.
+Done when the spec contains goal, non-goals, assumptions, validation strategy,
+domain language, preflight evidence, and any open human decisions.
 
-### 3. Integrate
+### 2. Spec Gate
 
-For each completed builder lane, perform post-flight before integration:
+This is the one human step. The human reviews `docs/spec/<project>.md`, edits
+or vetoes assumptions, and approves or rejects the plan. Approval authorizes
+the whole issue DAG; after approval, contact the human only through the epic
+digest or stop rails.
 
-- The lane report exists in `docs/lanes/` and contains raw evidence only.
-- PHASE 0 disagreements were recorded; silent compliance is a lane defect.
-- `git diff <freeze-sha>..HEAD -- docs/gates/` is clean for that lane.
-- `git status` shows only files inside the lane's declared touch set.
-- The lane's status line is exactly one of the allowed forms.
+Done when the approved spec and assumption rulings are committed or rejection
+is recorded.
 
-Integrate only passing lanes, sequentially, into the slice branch. Builders
-never commit; the orchestrator owns commits and merges. A merge conflict means
-the lane plan was not disjoint: KILL the conflicting lane and re-spec it
-instead of hand-resolving builder conflicts.
+### 3. Decompose
 
-### 4. Research fan-out
+Compile the approved spec into GitHub issues:
 
-Most slices skip this.
+- One epic issue is the dashboard and digest target.
+- Each sub-issue is one vertical slice with acceptance criteria, boundaries,
+  may-touch and must-not-touch sets, gate path, raw-report path, and native
+  parent plus blocked-by edges.
+- Gates per issue live in `docs/gates/` and freeze in git before dispatch.
+- Run one cold read-only grill pass over the whole decomposition, not per
+  issue. It attacks the DAG, gates, file-touch sets, dependency edges, missing
+  context, non-falsifiable checks, and repo-name grep collisions.
+- Design parallelism at this point: concurrently schedulable issues must not
+  share files, migrations, lockfiles, generated artifacts, config, schemas,
+  dev servers, databases, or other mutable runtime state.
 
-Two scales, two routes:
+Embed D9 in the issue graph:
 
-- **Discovery scale** - brainstorming what to build, technology selection, or
-  state-of-the-art surveys -> invoke the `/architect-research` skill. Scout
-  lanes gather; the orchestrator verifies load-bearing claims and writes the
-  spec.
-- **Slice scale** - use inline scout lanes only when at least one trigger
-  holds: the slice depends on external APIs, libraries, or versions not
-  already used in this repo; a narrow approach choice needs facts neither you
-  nor the repo has; or the human asked for research. Routine implementation
-  facts belong to the builder's verify-against-reality duty.
+- Oddity rule: when reality resists the plan, classify before dispatch. A
+  local wart gets a local patch and issue note. A recurring variation gets a
+  structural issue that blocks the behavioral issue. One adapter is a
+  hypothetical seam; two is real. Three failed fixes on the same point means
+  stop and question the architecture.
+- Structural and behavioral changes are separate issues with a blocking edge.
+  Structural gates prove existing behavior remains green.
+- Run design-it-twice only for new load-bearing abstractions. Use two or three
+  cheap interface sketches, then record the chosen interface and rationale.
+- Issues that produce a surface another issue consumes must include an
+  interface contract block with names, parameters, return types, and behavior.
+  Consumers reference that block.
+- TDD: testing seams are confirmed in the spec and issue body; tests describe
+  behavior through public interfaces; tracer-bullet slices pair one test with
+  one implementation path; never refactor while RED; each issue names the
+  behaviors that matter most.
 
-When a trigger fires, read `research.md` next to this file and follow it.
-Findings without a source URL do not enter the spec.
+Done when the approved issue DAG, frozen gates, freeze SHA, grill result, and
+dispatch-ready frontier are recorded on the epic and issues.
 
-### 5. Spec the next slice
+### 4. Factory Loop
 
-One slice is one PR-sized unit. The spec is the full delegation contract:
+Use `loop.md` `## Factory block procedure` for the detailed event loop.
 
-- **Objective** - what to build and why. If a spec exists, cite it rather than
-  restating it.
-- **Output format** - what the builder reports: raw tables, numbers, commit
-  SHAs, command output, and exact status line.
-- **Tool guidance** - exact verification commands, timeout ceilings, temp/cache
-  paths, and APIs/formats/versions the builder must verify before coding.
-- **Boundaries** - files the lane may touch, files it must not touch,
-  out-of-scope list, no placeholders, no unrelated refactors.
-- **Lane plan** - 1-4 lanes with shape `ship` or `scout`. File-touch sets must
-  be disjoint; any overlap means those lanes are one lane. Most slices are one
-  lane.
-- **Gates** - exact commands and thresholds in `docs/gates/<slice>.md`, frozen
-  and committed before dispatch.
-- **Effort call** - choose the brawn tier from defaults plus optional dispatch
-  rules, and record which rule or judgment applied.
-- **Slice size** - target judged diffs ≤~400 changed lines; a spec whose diff
-  will clearly exceed that should be split into smaller slices.
+- Dispatch the unblocked frontier, up to five build lanes, plus one
+  detection-only monitor from `dispatch.md` `## Monitor dispatch`.
+- Sleep between events. Wake only when a lane reports DONE, BLOCKED, stalled,
+  or killed evidence; when the monitor exits with anomaly evidence; or when
+  the frontier needs recomputation.
+- On DONE, send a cold brain-tier judge to run frozen gates and inspect intent.
+  Merge only after a passing verdict and clean touch-set evidence.
+- On BLOCKED, answer on the issue, cite durable evidence, and respawn a fresh
+  builder with the answer using `dispatch.md` `## Respawn-with-answer template`.
+- On gate failure, diagnose from judge evidence, not a large direct diff. Fix
+  the input, re-decompose, or stop; do not change tier because of failure.
+- On merge conflict, treat it as decomposition failure: kill the conflicting
+  lane and re-spec the graph instead of hand-resolving builder work.
+- Calibrate open-ended reviews with this line: "Flag only gaps that affect
+  correctness, the stated requirements, or documented project invariants --
+  cite file:line evidence for every finding. Do not report stylistic
+  preferences."
+- Record docs debt for the finish lane. Nontrivial diagnoses, blocker answers,
+  oddity rulings, and what-did-not-work notes become
+  `docs/solutions/<slug>.md` through that lane.
 
-### 6. Freeze
+Done when every issue is closed, blocked behind a stop rail, or waiting on a
+human digest item.
 
-Before freezing, grill the draft gate file: dispatch one cold, read-only
-subagent with the fixed template in `dispatch.md`. It must try to falsify the
-draft - run each gate command against the current tree, verify referenced
-paths/SHAs/pointers resolve, attack acceptance criteria for non-falsifiability
-and for patterns that collide with repo realities (e.g. a grep pattern
-matching the repo's own name), and flag assumptions not evidenced in the
-repo. Default ON for the first slice in a repo and for high-stakes slices;
-skippable for trivial slices (scale-to-task). Fix the draft from the grill
-report, then freeze.
+### 5. Finish
 
-Write the gate file, verify it is inside `docs/gates/`, commit the freeze, and
-record the freeze SHA in the handoff. The files under `docs/gates/` are
-read-only after this point for everyone.
+Dispatch one dedicated docs lane before the PR boundary. It consumes docs debt,
+updates product docs, writes any `docs/solutions/<slug>.md` entries, and
+codifies changed domain language or sparse ADRs. Then prepare the PR and write
+the final digest on the epic with shipped issues, skipped work, residual risks,
+and verification evidence.
 
-Every gate file carries a short purpose paragraph, a pointer to
-`docs/spec/<slice>.md` when one exists, and the frozen fix contract — together
-these are the judge's ENTIRE intent context. Do not restate or supplement
-intent anywhere else: the C5 judge template in `dispatch.md` stays
-pointer-only, and the orchestrator may not add slice-specific prose to it.
+Done when docs debt is consumed, the PR is ready, the epic digest is posted,
+and no issue remains silently unresolved.
 
-### 7. Dispatch
+## Stop Rails
 
-Check `docs/STOP` immediately before dispatch. If it exists, stop and ask the
-human.
+Stop and ask the human when any rail fires:
 
-Dispatch cold builder subagents in the background, one per lane, with worktree
-isolation and the builder block template from `dispatch.md`. The orchestrator
-passes the lane shape, lane identity, boundaries, freeze SHA, gate file path,
-timeout policy, and report path. Builders persist until their lane is handled
-or blocked; they never commit and never touch gates.
-
-Do not block the orchestrator conversation unnecessarily. Background
-completion notifications, `wait_agent`, or the next heartbeat bring the work
-back into the next block.
-
-### 8. Next block
-
-Record the dispatch in `docs/HANDOFF.md`: slice counter, in-flight lanes,
-heartbeat cadence, lane report paths, and any ask-the-human items. When lanes
-complete, re-ground in the same conversation if it is healthy. If context is
-degraded, end the session and let the next session ground from the handoff; the
-repo is the memory.
-
-Before merging a milestone to origin (the PR boundary), spec one dedicated
-docs lane that consumes the running docs-debt list and updates product docs;
-build lanes and the orchestrator never edit product docs directly.
+- `docs/STOP` exists before dispatch.
+- An irreversible or destructive action is needed.
+- Two consecutive KILL decisions happen in the factory.
+- A blocker collides with a recorded assumption.
+- Scope grows beyond the approved spec.
+- Required GitHub or `gh` preflight cannot be satisfied.
 
 ## Maintenance
 
