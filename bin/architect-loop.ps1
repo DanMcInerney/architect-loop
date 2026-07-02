@@ -173,7 +173,7 @@ function Invoke-Brain([string]$Role, [string]$Log, [string]$Prompt) {
         $cmdArgs = @("-p", "/architect", "--model", $script:RoleModel)
         if ($script:RoleEffort) { $cmdArgs += @("--effort", $script:RoleEffort) }
         if ($Permissions -eq "bypass") { $cmdArgs += "--dangerously-skip-permissions" } else { $cmdArgs += @("--permission-mode", $Permissions) }
-        & claude @cmdArgs 2>&1 | Tee-Object -FilePath $Log
+        & claude @cmdArgs 2>&1 | Tee-Object -FilePath $Log | Out-Null
         $status = $LASTEXITCODE
         if ($null -eq $oldClaude) { Remove-Item Env:\CLAUDECODE -ErrorAction SilentlyContinue } else { $env:CLAUDECODE = $oldClaude }
         if ($null -eq $oldEntry) { Remove-Item Env:\CLAUDE_CODE_ENTRYPOINT -ErrorAction SilentlyContinue } else { $env:CLAUDE_CODE_ENTRYPOINT = $oldEntry }
@@ -181,7 +181,7 @@ function Invoke-Brain([string]$Role, [string]$Log, [string]$Prompt) {
         $cmdArgs = @("exec", "-C", $Repo, "--sandbox", "danger-full-access", "-m", $script:RoleModel)
         if ($script:RoleEffort) { $cmdArgs += @("-c", "model_reasoning_effort=`"$script:RoleEffort`"") }
         $cmdArgs += "-"
-        Get-Content -Raw $Prompt | & codex @cmdArgs 2>&1 | Tee-Object -FilePath $Log
+        Get-Content -Raw $Prompt | & codex @cmdArgs 2>&1 | Tee-Object -FilePath $Log | Out-Null
         $status = $LASTEXITCODE
     }
     if ($null -eq $oldLoop) { Remove-Item Env:\ARCHITECT_LOOP -ErrorAction SilentlyContinue } else { $env:ARCHITECT_LOOP = $oldLoop }
@@ -200,8 +200,9 @@ Split-Role $script:Brain
 if (-not (Get-Command $script:RoleCli -ErrorAction SilentlyContinue)) { Write-Error "brain CLI '$script:RoleCli' not on PATH"; exit 1 }
 Split-Role $script:Brawn
 if (-not (Get-Command $script:RoleCli -ErrorAction SilentlyContinue)) {
+    $requestedBrawnCli = $script:RoleCli
     $fallback = Get-TierDown $script:Brain
-    Write-Warn "brawn CLI '$script:RoleCli' not on PATH; falling back to $fallback"
+    Write-Warn "brawn CLI '$requestedBrawnCli' not on PATH; falling back to $fallback"
     $script:Brawn = $fallback
 }
 if (-not (Test-Path $Handoff)) { Write-Warn "docs/HANDOFF.md missing; first iteration must bootstrap it" }

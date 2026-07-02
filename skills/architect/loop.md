@@ -64,7 +64,7 @@ Safety rails:
 
 | Harness | Driver invocation | Notes |
 |---|---|---|
-| Claude Code brain | `claude -p "/architect" --model <brain> --permission-mode dontAsk` | Repo allowlist lives in `.claude/settings.json` under `permissions.allow`; bootstrap it with Read/Edit/Write, exact gate commands, and `Bash(git status/diff/log/add/commit/merge:*)`, then record the bootstrap in the handoff Decisions log. Strip `CLAUDECODE` and `CLAUDE_CODE_ENTRYPOINT` when launched from inside Claude Code. Never use `--bare`; skills must load. |
+| Claude Code brain | `claude -p "/architect" --model <brain> --effort <effort> --permission-mode dontAsk` | Repo allowlist lives in `.claude/settings.json` under `permissions.allow`; bootstrap it with Read/Edit/Write, exact gate commands, and `Bash(git status/diff/log/add/commit/merge:*)`, then record the bootstrap in the handoff Decisions log. Strip `CLAUDECODE` and `CLAUDE_CODE_ENTRYPOINT` when launched from inside Claude Code. Never use `--bare`; skills must load. |
 | Codex brain | `codex exec -C <repo> --sandbox danger-full-access - < prompt.md` | The prompt must inline the architect skill text. PENDING-CANARY: `$skill`-in-exec is unverified, so do not rely on it. Codex brain runs unsandboxed: `danger-full-access` is the only Codex mode that can commit freezes and merge lanes because workspace-write protects `.git`. |
 
 `--permissions bypass` maps to Claude Code `--dangerously-skip-permissions`.

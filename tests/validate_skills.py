@@ -14,6 +14,7 @@ Run: python tests/validate_skills.py   (exit 0 = pass)
 from __future__ import annotations
 
 import re
+import os
 import shutil
 import subprocess
 import sys
@@ -121,6 +122,43 @@ def markdown_cell_value(cell: str) -> str:
     return cell.strip().strip("`").strip()
 
 
+def bash_candidates() -> list[str]:
+    candidates: list[str] = []
+    seen: set[str] = set()
+    for entry in os.environ.get("PATH", "").split(os.pathsep):
+        if not entry:
+            continue
+        found = shutil.which("bash", path=entry)
+        if not found:
+            continue
+        key = str(Path(found).resolve()).lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        candidates.append(found)
+    fallback = shutil.which("bash")
+    if fallback:
+        key = str(Path(fallback).resolve()).lower()
+        if key not in seen:
+            candidates.append(fallback)
+    return candidates
+
+
+def is_system32_bash(path: str) -> bool:
+    resolved = str(Path(path).resolve()).lower()
+    return "\\windows\\system32\\bash.exe" in resolved
+
+
+def choose_bash() -> str | None:
+    candidates = bash_candidates()
+    for candidate in candidates:
+        if not is_system32_bash(candidate):
+            return candidate
+    if candidates:
+        return candidates[0]
+    return None
+
+
 def check_model_alias_table() -> None:
     dispatch = SKILLS / "architect" / "dispatch.md"
     if not dispatch.exists():
@@ -169,12 +207,25 @@ def check_drivers() -> None:
         errors.append("bin/architect-loop.sh missing")
     if not ps_driver.exists():
         errors.append("bin/architect-loop.ps1 missing")
-    bash = shutil.which("bash")
+    bash = choose_bash()
     if bash and sh_driver.exists():
-        result = subprocess.run([bash, "-n", str(sh_driver)], text=True, capture_output=True)
-        if result.returncode != 0:
-            output = (result.stdout + result.stderr).strip()
-            errors.append(f"bash -n bin/architect-loop.sh failed ({result.returncode}): {output}")
+        relative_sh_driver = str(sh_driver.relative_to(ROOT)).replace("\\", "/")
+        probe = subprocess.run(
+            [bash, "-c", f"test -r {relative_sh_driver!r}"],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+        )
+        if probe.returncode != 0:
+            output = (probe.stdout + probe.stderr).strip()
+            notes.append(
+                f"SKIP bash -n bin/architect-loop.sh: bash cannot execute repo scripts ({probe.returncode}): {output}"
+            )
+        else:
+            result = subprocess.run([bash, "-n", relative_sh_driver], cwd=ROOT, text=True, capture_output=True)
+            if result.returncode != 0:
+                output = (result.stdout + result.stderr).strip()
+                errors.append(f"bash -n bin/architect-loop.sh failed ({result.returncode}): {output}")
     else:
         notes.append("SKIP bash -n bin/architect-loop.sh: bash not on PATH")
     shell = shutil.which("powershell") or shutil.which("pwsh")

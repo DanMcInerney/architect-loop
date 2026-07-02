@@ -16,13 +16,15 @@
   D3 breaker false-trip — a healthy ps1 loop dies at iteration 5). G9/G10
   mechanics otherwise verified. **G7/G8/G11 DEFERRED** — running paid
   session canaries against a driver that must change would pay twice.
-- Slice verdict: **CONTINUE.** Fix slice `v3-loop-fixes` spec'd, gates frozen
-  at `docs/gates/v3-loop-fixes.md`, one codex lane dispatched.
-- Next action: fresh /architect session judges `v3-loop-fixes` (FG1–FG4),
-  integrates, then runs the parent G7–G11 canaries against the fixed driver;
+- Slice verdict: **CONTINUE.** Fix slice `v3-loop-fixes` built same day:
+  lane 01 COMPLETE_WITH_CONCERNS (concern environmental: bash-under-sandbox
+  skip), post-flighted clean, integrated on `slice/v3-loop`. PENDING JUDGMENT.
+- Next action: fresh /architect session judges FG1–FG4 per
+  `docs/gates/v3-loop-fixes.md` (report: `docs/lanes/v3-loop-fixes-01.md`),
+  then runs the parent G7–G11 canaries against the fixed driver;
   merge `slice/v3-loop` → main only after those PASS.
 
-LOOP: WAIT 20 (v3-loop-fixes lane in flight; fresh session judges on return)
+LOOP: CONTINUE
 
 ## Project goal
 
@@ -145,4 +147,6 @@ environment enters scope.
 | 2026-07-01 | Architect (Claude Fable, Claude Code) | v3-loop | freeze + dispatch | — | Froze gates 77f5037; dispatched 3 lanes |
 | 2026-07-01/02 | Builders (codex exec gpt-5.5) | v3-loop | a793eed / 0efd589+f/u / b78f103 | — | 3 lanes COMPLETE(_WITH_CONCERNS); PHASE 0 concerns environmental |
 | 2026-07-02 | Architect (same session as dispatch) | v3-loop | merges on slice/v3-loop | smoke green | Post-flight ×4 clean; C3 ruling; judgment deferred per hard rule 4 |
-| 2026-07-02 | Architect (Claude Fable, fresh session) | v3-loop → v3-loop-fixes | freeze docs/gates/v3-loop-fixes.md + dispatch | G1–G6 P, G9 P, G10 partial, G7/G8/G11 deferred | Found D1–D4 via stub-brain driver canaries; CONTINUE; brawn codex/gpt-5.5:xhigh, 1 lane |
+| 2026-07-02 | Architect (Claude Fable, fresh session) | v3-loop → v3-loop-fixes | freeze b1acc42 + dispatch | G1–G6 P, G9 P, G10 partial, G7/G8/G11 deferred | Found D1–D4 via stub-brain driver canaries; CONTINUE; brawn codex/gpt-5.5:xhigh, 1 lane |
+| 2026-07-02 | Builder (codex exec gpt-5.5 xhigh) | v3-loop-fixes | lane 01 working tree | — | COMPLETE_WITH_CONCERNS (bash sandbox skip); PHASE 0 raised implement-skill-vs-no-commit conflict (ACCEPTED: spec controls); D3 reproduced by live probe pre-code; canary FG2 asserts all PASS in-lane (raw, not verdicts) |
+| 2026-07-02 | Architect (dispatch session, post-flight only) | v3-loop-fixes | lane commit on slice/v3-loop | — | Post-flight clean: boundaries exact, gates diff empty, raw-only report; judgment deferred to fresh session per hard rule 4 |
