@@ -41,10 +41,13 @@
   satisfied by this slice's declared-ceiling dispatch. Nomenclature note for
   v4-cleanup: live collab stream names the wait tool `wait`, docs/PRD say
   `wait_agent` — add parenthetical in dispatch.md.
-- Remaining: `v4-cleanup` (delete bin/** drivers + driver canary + installer
-  driver lines, DESIGN.md v4 evidence, README rewrite incl. the desktop
-  caveat, validate_skills.py Pyright nit at line ~49, wait/wait_agent
-  parenthetical).
+- **`v4-cleanup` IN FLIGHT** (final v4 slice): gates DG1–DG5 frozen 9c670b5
+  on slice/v4-cleanup; lane 01 dispatched cold architect-builder
+  (claude/sonnet per human rule). Scope: delete bin/** drivers + driver
+  canary + installer driver blocks; README rewrite (one-session usage,
+  Codex install, desktop caveat); DESIGN.md v4 evidence section; validator
+  Pyright guard; wait/wait_agent parenthetical. After PASS + merge, v4 is
+  complete; watch items (gpt-5.6 alias, GLM recipe, mapfile/macOS) remain.
 - Historical: v4-core first judgment 2026-07-02: gates-integrity + VG1–VG7 +
   VG9 all PASS; VG8 FAILed 3× on desktop D9 before the re-ruling.
 - **VG8 FAIL root cause (D9):** the desktop harness denies Bash to BOTH
