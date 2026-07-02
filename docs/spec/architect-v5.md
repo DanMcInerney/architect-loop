@@ -1,6 +1,7 @@
 # Spec: Architect v5 — the autonomous software factory
 
-Status: DRAFT — awaiting human review at the spec gate (the one human step).
+Status: APPROVED at the spec gate 2026-07-02 (human: "go"). Assumptions
+A1-A7 stand unvetoed.
 Author: brain session, 2026-07-02. Research basis:
 `docs/research/autonomous-software-factory.md` (e9d6665) and
 `docs/research/skill-prompt-patterns.md` (r4 pass: compound engineering,
