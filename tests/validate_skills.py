@@ -47,7 +47,7 @@ def frontmatter(path: Path) -> dict[str, str] | None:
             key, value = raw_line.split(":", 1)
             current = key.strip()
             fields[current] = value.strip()
-        elif current:
+        elif current is not None:
             fields[current] = f"{fields[current]} {raw_line.strip()}".strip()
     return fields
 

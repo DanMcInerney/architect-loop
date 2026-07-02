@@ -33,17 +33,6 @@ for skill in "$SRC_ROOT"/*/; do
     echo "Installed Codex skill $name to $CODEX_DEST_ROOT/$name"
 done
 
-BIN_ROOT="$(cd "$(dirname "$0")" && pwd)/bin"
-DRIVER_DEST="$HOME/.local/bin/architect-loop"
-mkdir -p "$(dirname "$DRIVER_DEST")"
-cp "$BIN_ROOT/architect-loop.sh" "$DRIVER_DEST"
-chmod +x "$DRIVER_DEST"
-echo "Installed architect-loop driver to $DRIVER_DEST"
-case ":$PATH:" in
-    *":$HOME/.local/bin:"*) ;;
-    *) echo "WARNING: $HOME/.local/bin is not on PATH" ;;
-esac
-
 if command -v codex >/dev/null 2>&1; then
     echo "Codex CLI found: $(codex --version) (need >= 0.133 for default Goal Mode)"
 else
