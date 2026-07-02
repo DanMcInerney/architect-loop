@@ -58,7 +58,7 @@ same-family bias caveat. Never hard-fail on model availability alone.
 
 | | Claude Code (CLI + Desktop) | Codex (CLI + app) |
 |---|---|---|
-| Builder | Agent tool with `.claude/agents/architect-builder.md`; `disallowedTools` denies `Bash(git commit *)` and `Bash(git push *)`; `isolation: worktree`; `background: true`; model may be passed per invocation from the alias table. | `spawn_agent` with defensive framing: "Your task is: ..."; worktree created by the orchestrator via git; use `/goal` semantics for persistent lane completion. |
+| Builder | Agent tool with `.claude/agents/architect-builder.md`; `disallowedTools` denies `Bash(git commit *)` and `Bash(git push *)`; `isolation: worktree`; `background: true`; model may be passed per invocation from the alias table. On the desktop app, the harness auto-creates the agent's isolation worktree (`.claude/worktrees/agent-<id>`) and its branch — integrate from that branch. On the CLI, spawns have been observed to run UNISOLATED in the orchestrator's checkout despite `isolation: worktree` frontmatter (D11) — pass isolation explicitly per invocation if supported, and never run two Claude-backend builder lanes concurrently unless each is verified to have its own worktree (`git worktree list` after spawn). In all cases, never pre-create a lane worktree for Claude-backend lanes (a pre-made one is ignored); do not use `.architect/wt/<slice>-<NN>` (that pattern is Codex-backend only, below). | `spawn_agent` with defensive framing: "Your task is: ..."; worktree created by the orchestrator via git; use `/goal` semantics for persistent lane completion. |
 | Judge | Agent tool with `.claude/agents/architect-judge.md`; read-only tools plus Bash for gate commands; brain tier via `model: inherit` or per-invocation model. | Fresh `spawn_agent` with read-only instructions and the fixed judge template. |
 | Parallelism | Background subagents; permission prompts surface to the main session. | Native subagents, `max_threads` 6, `wait_agent` for completion. |
 | Review (high-stakes) | `codex review --base` when Codex is installed; otherwise a fresh same-CLI subagent with bias caveat. | `/review` / `review_model`; Claude reviewer when installed. |
@@ -91,6 +91,10 @@ Verdict format:
 <!-- architect-judge-template:end -->
 
 ## Codex backend from a Claude orchestrator
+
+The worktree pre-creation and dispatch commands in this section are
+Codex-backend only. Claude-backend lanes never pre-create a worktree — see
+the Per-harness delegation table above.
 
 When the orchestrator is Claude Code and the chosen brawn is Codex, write the
 builder block to a file first, then pass it via stdin (`-`). Big prompt blocks
@@ -132,7 +136,12 @@ lane; nothing reaches a branch until orchestrator checks pass.
 
 ## Integration commands
 
-Integration is architect-only, after per-lane post-flight passes:
+Integration is architect-only, after per-lane post-flight passes. The
+`.architect/wt/<slice>-<NN>` paths below are Codex-backend only. For
+Claude-backend lanes, skip `worktree add`/`worktree remove`; commit inside
+the harness's auto-created worktree, then
+`git -C <repo-root> merge --no-ff <agent-worktree-branch>` from the agent
+worktree's branch:
 
 ```bash
 git -C <repo-root> checkout -b slice/<name> <freeze-sha>

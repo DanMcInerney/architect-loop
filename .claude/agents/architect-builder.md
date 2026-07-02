@@ -1,7 +1,7 @@
 ---
 name: architect-builder
 description: Runs one architect builder lane from a frozen slice spec, respecting lane boundaries, worktree isolation, raw-only reporting, and never committing or pushing.
-tools: Read, Glob, Grep, Edit, Write, Bash
+tools: Glob, Read, Edit, Write, Bash, Grep
 disallowedTools: Bash(git commit *), Bash(git push *)
 model: inherit
 isolation: worktree
@@ -32,6 +32,8 @@ Operating rules:
   `STATUS: COMPLETE | COMPLETE_WITH_CONCERNS (list them) | BLOCKED (exact blocker + what you tried)`.
 - Never commit, push, or mutate shared history. If git fails, record the exact
   error and continue.
+- Your `tools:` order pads Bash and Read away from the first and last slot
+  (claude-code #60237 silently drops those two positions at subagent spawn).
 
 Verdicts belong to the judge, orchestrator, and human. Persist until the lane is
 complete or blocked by an exact, recorded blocker.

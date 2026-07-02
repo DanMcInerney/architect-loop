@@ -234,6 +234,19 @@ def check_judge_template() -> None:
         errors.append("skills/architect/dispatch.md: C5 template does not forbid slice-specific prose")
 
 
+def check_tools_pad(rel_path: str, tools_list: list[str]) -> None:
+    """D9 regression guard: claude-code #60237 drops the first and last
+    `tools:` entries at subagent spawn; Bash and Read must sit elsewhere."""
+    if "Bash" not in tools_list or "Read" not in tools_list:
+        errors.append(f"{rel_path}: tools must include Bash and Read")
+        return
+    if tools_list[0] in ("Bash", "Read") or tools_list[-1] in ("Bash", "Read"):
+        errors.append(
+            f"{rel_path}: Bash and Read must not be first or last in tools "
+            "(D9, claude-code #60237)"
+        )
+
+
 def check_agent_definitions() -> None:
     builder = ROOT / ".claude" / "agents" / "architect-builder.md"
     judge = ROOT / ".claude" / "agents" / "architect-judge.md"
@@ -259,6 +272,7 @@ def check_agent_definitions() -> None:
             errors.append(".claude/agents/architect-builder.md: isolation must be worktree")
         if fm.get("model") != "inherit":
             errors.append(".claude/agents/architect-builder.md: model must be inherit")
+        check_tools_pad(".claude/agents/architect-builder.md", split_csv(fm.get("tools", "")))
     if judge.exists():
         fm = frontmatter(judge) or {}
         tools = set(split_csv(fm.get("tools", "")))
@@ -269,6 +283,7 @@ def check_agent_definitions() -> None:
             errors.append(".claude/agents/architect-judge.md: disallowedTools must include Edit and Write")
         if fm.get("model") != "inherit":
             errors.append(".claude/agents/architect-judge.md: model must be inherit")
+        check_tools_pad(".claude/agents/architect-judge.md", split_csv(fm.get("tools", "")))
 
 
 def check_retired_loop_terms() -> None:
