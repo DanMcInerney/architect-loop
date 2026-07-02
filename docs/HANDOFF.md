@@ -73,13 +73,14 @@
   pointer + fix contract = judge's ENTIRE intent context; C5 stays
   pointer-only). History immutable: frozen gates/lanes keep old docs/prd
   references byte-identical.
-- **Research fan-out IN FLIGHT** (human-directed, /architect-research, 5
-  sonnet lanes → .architect/research/01-05): review cadence
-  (incremental-vs-batch judging), adversarial-spec-review placement, system
-  teardowns (firstmate/Gas Town/Ralph/labs/discovery), SOTA lab practices,
-  fallback/backcompat ban evidence. Output: docs/research/loop-improvements.md
-  (cited decision report). NO code changes from research without human
-  review of the report.
+- **Research COMPLETE 2026-07-02 → `docs/research/loop-improvements.md`
+  (committed 353b117).** 5 sonnet lanes + orchestrator verification (CCR
+  paper, 20,574-session misalignment study, gpt-pilot quote UNVERIFIED).
+  Headline answers: judge cadence = per-slice at integration (neither
+  per-worker nor batch), with a ≤~400-changed-lines slice-size discipline;
+  adversarial spec review = ONE cold repo-grounded grill of the draft gate
+  file BEFORE freeze (CCR: fresh-context beats same-session p=0.008,
+  repeats hurt). Proposals P1–P6 await human approval; NO code changes made.
 - Historical: v4-core first judgment 2026-07-02: gates-integrity + VG1–VG7 +
   VG9 all PASS; VG8 FAILed 3× on desktop D9 before the re-ruling.
 - **VG8 FAIL root cause (D9):** the desktop harness denies Bash to BOTH
