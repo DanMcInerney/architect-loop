@@ -41,13 +41,22 @@
   satisfied by this slice's declared-ceiling dispatch. Nomenclature note for
   v4-cleanup: live collab stream names the wait tool `wait`, docs/PRD say
   `wait_agent` — add parenthetical in dispatch.md.
-- **`v4-cleanup` IN FLIGHT** (final v4 slice): gates DG1–DG5 frozen 9c670b5
-  on slice/v4-cleanup; lane 01 dispatched cold architect-builder
-  (claude/sonnet per human rule). Scope: delete bin/** drivers + driver
-  canary + installer driver blocks; README rewrite (one-session usage,
-  Codex install, desktop caveat); DESIGN.md v4 evidence section; validator
-  Pyright guard; wait/wait_agent parenthetical. After PASS + merge, v4 is
-  complete; watch items (gpt-5.6 alias, GLM recipe, mapfile/macOS) remain.
+- **`v4-cleanup` JUDGED FAIL 2026-07-02 on gate-text letter (freeze 9c670b5,
+  lane 3db50d8): DG1/DG3/DG4/integrity/diff-vs-intent all PASS; DG2 and DG5
+  FAIL on two ORCHESTRATOR SPEC DEFECTS** the judge itself characterized as
+  such: (1) DG2's `grep -n "architect-loop" ... README.md` collides with the
+  repo's own name (title/clone URL/cd step/prose — unsatisfiable without
+  renaming the repo; the builder flagged this pre-emptively instead of
+  gaming it); (2) DG5's freeze..HEAD window contains the orchestrator's own
+  dispatch-bookkeeping commit e33f396 (docs/HANDOFF.md only), not in the
+  enumerated set. **Ruling: re-spec, not KILL** — the work passed every
+  intent check; the mechanization was defective. Corrected gates frozen at
+  `docs/gates/v4-cleanup2.md` (intent identical; DG2' greps for driver
+  FILENAMES; DG5' enumerates the lane commit and codifies the standing
+  orchestrator-handoff-bookkeeping exemption per VG9/XG6 precedent); fresh
+  cold judge re-judges the same branch. Process lessons codified: never
+  freeze a grep whose pattern collides with the repo name; gate files must
+  carry the handoff-bookkeeping exemption line explicitly.
 - Historical: v4-core first judgment 2026-07-02: gates-integrity + VG1–VG7 +
   VG9 all PASS; VG8 FAILed 3× on desktop D9 before the re-ruling.
 - **VG8 FAIL root cause (D9):** the desktop harness denies Bash to BOTH
