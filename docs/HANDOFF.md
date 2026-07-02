@@ -66,11 +66,25 @@
   e0fbfdb, lane report records the stripped tool set verbatim).
   D11 (CLI spawns unisolated despite `isolation: worktree`) stands; the
   padded defs + `check_tools_pad` guard stay (they still guard real #60237
-  on other surfaces and are harmless). Research in flight: is desktop
-  subagent-Bash-stripping policy or bug, and does foreground (non-background)
-  dispatch differ? VG8 satisfiability on current desktop may need a HUMAN
-  re-ruling of PRD §6 ruling 5 (e.g. desktop-orchestration + CLI-executed
-  judgment) — architect cannot amend a human ruling.
+  on other surfaces and are harmless).
+- **D9 mechanism verified against docs + local state (2026-07-02):** per
+  code.claude.com/docs/en/permission-modes, non-prompting contexts auto-deny
+  tool calls unless they match `permissions.allow`; background subagents
+  can't prompt. On CLI our subagents had Bash all day BECAUSE the repo's
+  untracked `.claude/settings.json` pre-approves the loop's exact commands
+  (`Bash(uv run:*)`, git ops). That file is ABSENT from desktop session
+  worktrees (untracked files don't propagate), AND desktop cuts its
+  worktrees from MAIN (`fe5462f`), not the current branch — so committing
+  the allowlist to slice/v4-core cannot reach a desktop canary until after
+  a merge (chicken-and-egg). Remaining zero-config hypothesis: FOREGROUND
+  subagent dispatch surfaces Bash permission prompts to the human in the
+  desktop UI — legitimate for a human-run gate. Next canary tests exactly
+  that; if it also fails, the human must re-rule PRD §6 ruling 5 (options:
+  hold merge for upstream #18885-class fix; or desktop-orchestrates +
+  CLI-executes-judgment). Long-term: committing `.claude/settings.json`
+  (deferred since v3) remains the right call so future desktop worktrees
+  cut from main carry the allowlist — decision goes to the human with the
+  re-ruling if needed.
 - Then v4-codex, v4-cleanup per PRD §4. v3 watch items (gpt-5.6 alias, GLM
   recipe, mapfile/macOS) carry over unchanged.
 
