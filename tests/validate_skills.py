@@ -303,6 +303,30 @@ def check_agent_definitions() -> None:
         check_tools_pad(".claude/agents/architect-judge.md", split_csv(fm.get("tools", "")))
 
 
+def check_skill_text_size() -> None:
+    """P5 (loop-hardening) instruction-budget guard: models silently skip
+    steps past a system-prompt instruction ceiling (docs/research/
+    loop-improvements.md P5; measured 510 non-blank lines across these three
+    files at freeze time). FAIL if the combined NON-BLANK line count of
+    SKILL.md + loop.md + dispatch.md exceeds 800."""
+    paths = [
+        SKILLS / "architect" / "SKILL.md",
+        SKILLS / "architect" / "loop.md",
+        SKILLS / "architect" / "dispatch.md",
+    ]
+    total = 0
+    for path in paths:
+        if not path.exists():
+            errors.append(f"{path.relative_to(ROOT)}: missing (required for skill-text size guard)")
+            continue
+        total += sum(1 for line in read_text(path).splitlines() if line.strip())
+    if total > 800:
+        errors.append(
+            f"skills/architect: combined non-blank line count {total} exceeds "
+            "800 (P5 instruction-budget guard, docs/research/loop-improvements.md)"
+        )
+
+
 def check_codex_install_step() -> None:
     """Both installers must copy skills/ to a Codex .agents/skills location,
     single-source (no committed .agents/ duplicate) - v4-codex fix contract."""
@@ -350,6 +374,7 @@ def main() -> int:
     check_agent_definitions()
     check_codex_install_step()
     check_retired_loop_terms()
+    check_skill_text_size()
     if errors:
         print(f"FAIL - {len(errors)} problem(s):")
         for e in errors:

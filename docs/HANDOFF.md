@@ -80,7 +80,20 @@
   per-worker nor batch), with a ≤~400-changed-lines slice-size discipline;
   adversarial spec review = ONE cold repo-grounded grill of the draft gate
   file BEFORE freeze (CCR: fresh-context beats same-session p=0.008,
-  repeats hurt). Proposals P1–P6 await human approval; NO code changes made.
+  repeats hurt). Human approved P1–P7 → **slice `loop-hardening` JUDGED
+  PASS + MERGED TO MAIN 2026-07-02** (freeze 6f64bd1, lane 977c7b6, cold
+  judge LG1–LG9 all PASS with file:line evidence). The pre-freeze grill
+  (P2) validated itself on its first use: 5 draft-gate defects caught
+  before freeze. Skill text now carries: fallback/backcompat ban, grill
+  step + fixed template, ≤~400-line slice discipline, repeat-action stall
+  signal, 800-non-blank-line size guard (at 557 post-change), tier-up-over-
+  retry, and the docs-debt convention.
+
+## Docs debt
+
+| Slice | Shipped | Product-doc update needed |
+|---|---|---|
+| loop-hardening | P1–P7 hardening (grill step, docs-debt convention, fallback ban, size guard) | README: mention the pre-freeze grill + docs-debt flow in the usage section; DESIGN.md: evidence rows for P1–P7 citing docs/research/loop-improvements.md + the grill's first-use result (5 pre-freeze catches) |
 - Historical: v4-core first judgment 2026-07-02: gates-integrity + VG1–VG7 +
   VG9 all PASS; VG8 FAILed 3× on desktop D9 before the re-ruling.
 - **VG8 FAIL root cause (D9):** the desktop harness denies Bash to BOTH
@@ -272,6 +285,7 @@ VG8 re-runs (human) before any merge to main.
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-07-02 | **Human APPROVED P1–P7** (loop-hardening slice): P1 no-silent-fallbacks/no-unrequested-backcompat ban; P2 pre-freeze spec grill; P3 ≤~400-changed-lines slice discipline; P4 repeated-identical-action stall signal; P5 skill-text size guard; P6 tier-up-over-retry; **P7 docs-debt (design: memory docs update continuously per block; product docs [README/DESIGN] batch into ONE dedicated docs lane at the milestone/PR boundary, fed by a running docs-debt list in the handoff — one pointer line appended per CONTINUE verdict; product docs never edited by build lanes or the orchestrator).** Standing rulings re-confirmed: brawn = claude/sonnet for building; Fable for spec/review | evidence: docs/research/loop-improvements.md (P1–P6); P7 rationale: disjoint lane file-sets (README is max-contention), evidence rows need post-judgment info, brain never writes product text |
 | 2026-07-02 | **HUMAN RE-RULING of PRD §6 ruling 5 (supersedes VG8/WG5/XG5 as merge gates):** desktop test-execution is NOT a merge requirement. Claude Code desktop currently strips shell tools (Bash; PowerShell untested) from subagent spawns — undocumented app behavior, 3 failed canaries + docs/issue research. v4 ships with the caveat, to be recorded in README (v4-cleanup): full loop (subagents run tests/gates) requires Claude Code from the terminal; desktop drives orchestration/review. Merge of slice/v4-core authorized per XG5's re-ruling clause | chasing an upstream app bug is not our product; CLI loop fully verified; desktop lights up when Anthropic fixes subagent tool grants (defs already carry PowerShell + deny mirrors, ready) |
 | 2026-07-02 | v4 direction approved by human through a 6-question grill; rulings recorded in PRD §6 (judge=brain tier no new key; delete all v3 loop machinery; unattended=pointer-only; dispatch rules optional; VG8 desktop canary HUMAN-RUN merge gate; PR #8 merged first) | grilled plan > open-ended plan; rulings are binding |
 | 2026-07-02 | ADR 0001 records why the externally-verified v3 driver is deleted hours after shipping | hard-to-reverse + surprising + real trade-off |

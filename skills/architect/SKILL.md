@@ -95,6 +95,11 @@ be converted into a merge. High-stakes slices (schema, API, persistence,
 security, data loss, auth, or broad architectural changes) add cross-model
 review before the slice call.
 
+Every CONTINUE verdict appends one docs-debt pointer line to the handoff:
+what shipped and which product doc (README, DESIGN.md, guides) it will need
+updated. Product docs are never edited directly by build lanes or by the
+orchestrator.
+
 ### 3. Integrate
 
 For each completed builder lane, perform post-flight before integration:
@@ -148,8 +153,20 @@ One slice is one PR-sized unit. The spec is the full delegation contract:
   and committed before dispatch.
 - **Effort call** - choose the brawn tier from defaults plus optional dispatch
   rules, and record which rule or judgment applied.
+- **Slice size** - target judged diffs ≤~400 changed lines; a spec whose diff
+  will clearly exceed that should be split into smaller slices.
 
 ### 6. Freeze
+
+Before freezing, grill the draft gate file: dispatch one cold, read-only
+subagent with the fixed template in `dispatch.md`. It must try to falsify the
+draft - run each gate command against the current tree, verify referenced
+paths/SHAs/pointers resolve, attack acceptance criteria for non-falsifiability
+and for patterns that collide with repo realities (e.g. a grep pattern
+matching the repo's own name), and flag assumptions not evidenced in the
+repo. Default ON for the first slice in a repo and for high-stakes slices;
+skippable for trivial slices (scale-to-task). Fix the draft from the grill
+report, then freeze.
 
 Write the gate file, verify it is inside `docs/gates/`, commit the freeze, and
 record the freeze SHA in the handoff. The files under `docs/gates/` are
@@ -183,6 +200,10 @@ heartbeat cadence, lane report paths, and any ask-the-human items. When lanes
 complete, re-ground in the same conversation if it is healthy. If context is
 degraded, end the session and let the next session ground from the handoff; the
 repo is the memory.
+
+Before merging a milestone to origin (the PR boundary), spec one dedicated
+docs lane that consumes the running docs-debt list and updates product docs;
+build lanes and the orchestrator never edit product docs directly.
 
 ## Maintenance
 
