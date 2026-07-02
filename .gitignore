@@ -10,3 +10,5 @@ Thumbs.db
 !/docs/prd/
 /.architect/
 /research/
+.gstack/
+!/docs/adr/
