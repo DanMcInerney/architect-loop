@@ -25,17 +25,28 @@
   desktop apps. PRD: `docs/prd/v4-orchestrator-loop.md` (§6 rulings binding);
   ADR 0001; glossary: `CONTEXT.md`. PR #8 (all of v3) merged to origin/main
   first per ruling 6 (merge commit fe5462f).
-- Current slice `v4-core` (1 of 3): **JUDGED 2026-07-02 (fresh session):
-  gates-integrity + VG1–VG7 + VG9 all PASS; VG8 (HUMAN desktop canary)
-  PENDING — hard merge gate.** Slice call CONTINUE contingent on VG8;
-  do NOT merge slice/v4-core to main until the human records VG8 PASS here.
+- Current slice `v4-core` (1 of 3): **JUDGED 2026-07-02: gates-integrity +
+  VG1–VG7 + VG9 all PASS; VG8 (HUMAN desktop canary) = FAIL → NO MERGE.**
+  Slice call: CONTINUE via a fix slice; slice/v4-core stays unmerged until
+  VG8 passes on re-run.
+- **VG8 FAIL root cause (D9):** the desktop harness denies Bash to BOTH
+  architect subagents at runtime ("No such tool available: Bash. Bash exists
+  but is not enabled in this context") even though both defs list Bash —
+  builder couldn't self-verify, judge returned INVALID (correctly). Same defs
+  get full Bash (pattern-denies enforced per-command) from the CLI on this
+  machine same day. **D10:** the desktop Agent harness auto-creates its own
+  worktree (`.claude/worktrees/agent-<id>`) and ignores an orchestrator
+  pre-made lane worktree; dispatch.md's Claude-backend worktree mechanics
+  assume otherwise. Evidence: `.architect/tmp/v4-canary/VG8-FINDING.md` +
+  toy2 under `.claude/worktrees/goofy-kalam-d02c1f/` (freeze effc321, lane
+  15433ed, gates diff clean, bye.py byte-exact).
 - VG7 bonus evidence: the cold judge correctly FAILed its first invocation
   (lane branch had gate-passing but UNCOMMITTED files) — fail-safe works.
-  Process lesson recorded: orchestrator commits the lane BEFORE dispatching
-  the judge; judges only judge committed branches.
-- Next action: human runs VG8 (desktop-app toy slice via /architect) and
-  records PASS/FAIL below; on PASS merge slice/v4-core → main, then slices
-  v4-codex, v4-cleanup per PRD §4. v3 watch items (gpt-5.6 alias, GLM recipe,
+  Lesson: orchestrator commits the lane BEFORE dispatching the judge.
+- Next action: root-cause D9 (research in flight: is it cowork-mode, a
+  fail-closed pattern-disallowedTools on desktop, or a desktop subagent
+  limitation?), spec fix slice `v4-desktop`, re-run VG8. Then v4-codex,
+  v4-cleanup per PRD §4. v3 watch items (gpt-5.6 alias, GLM recipe,
   mapfile/macOS) carry over unchanged.
 
 ## Project goal
@@ -133,14 +144,17 @@ Judged on `slice/v4-core` @ e53adbc; freeze 0f6442d; builder lane commit beb4d83
 | VG5 | PASS | `grep -ri sentinel skills/` and `grep -rn "^LOOP:" skills/` both empty (architect-run, Git Bash) |
 | VG6 | PASS | HANDOFF.template.md has judgment ledger, slice counter, heartbeat cadence, reconcile-on-ground checklist, escalation digest; no sentinel |
 | VG7 | PASS | live in-session canary, toy `.architect/tmp/v4-canary/toy` (freeze 000c043): cold architect-builder subagent built lane in toy worktree, nothing committed by builder (git log = freeze only; only declared files in status); cold architect-judge #1 FAILed uncommitted branch (correct); orchestrator committed 76b6358; cold judge #2 PASS on TG1–TG3 + integrity + intent; merge e711423, TG1 smoke on master exit 0, worktree removed. Zero new windows / driver processes / headless `claude -p` |
-| VG8 | **PENDING HUMAN** | desktop-app toy slice canary; hard merge gate per PRD §6 ruling 5 |
+| VG8 | **FAIL** (human-run 2026-07-02, desktop app) | Measured as specified: human drove `/architect` toy slice `bye` on desktop. Orchestrator stages all worked (freeze effc321 → cold builder → post-flight → lane commit 15433ed → cold judge with C5 template). BOTH subagents denied Bash at runtime ("Bash exists but is not enabled in this context"); judge returned INVALID — cold-judge-runs-gates invariant unmet on desktop (defect D9). Harness also auto-worktrees and ignores pre-made lane worktrees (D10). Merge gate held closed; artifact itself byte-correct (orchestrator observation, not a verdict). Evidence: `.architect/tmp/v4-canary/VG8-FINDING.md` |
 | VG9 | PASS | builder commit beb4d83 = exactly the 8 declared files; out-of-scope diff (`bin/ DESIGN.md README.md docs/gates/ docs/prd/ docs/adr/ CONTEXT.md`) empty; only other change is orchestrator's own handoff consolidation e53adbc (procedure-mandated) |
 
-**Slice call: CONTINUE, contingent on VG8.** Every architect-runnable gate
-passed on first measurement; the one FAIL in the session (judge #1) was an
-orchestrator sequencing error (judging an uncommitted lane branch) and the
-judge catching it is the designed behavior. Merge to main only after VG8 PASS
-is recorded here by the human.
+**Slice call: CONTINUE via fix slice — NO MERGE on VG8 FAIL.** Every
+architect-runnable gate passed on first measurement; VG7's judge #1 FAIL was
+an orchestrator sequencing error the judge correctly caught. VG8 failed for a
+specific, fixable cause (D9: desktop denies Bash to subagents; D10:
+auto-worktree supersedes pre-made lane worktrees) — the skill text and role
+separation held everywhere, including on desktop, so KILL is not warranted.
+slice/v4-core stays unmerged; fix slice `v4-desktop` addresses D9/D10 and
+VG8 re-runs (human) before any merge to main.
 
 ## Open disagreements (builder writes; architect rules)
 
@@ -188,4 +202,6 @@ gate) carry over. `.claude/settings.json` commit decision still deferred.
 | 2026-07-02 | Architect (Claude Fable, same session as v3 judgment canaries) | v4 planning + v4-core freeze + dispatch | PR #8 merge fe5462f; plan da064a1; freeze 0f6442d | — | 4 research lanes + 2 capability canaries + 2 source teardowns (PaulSolt thread via browser, firstmate); PRD grilled with human (6 rulings); v4-core lane 01 dispatched codex/best |
 | 2026-07-02 | Builder (codex exec gpt-5.5 xhigh, thread 019f232c) | v4-core | lane 01 working tree | — | COMPLETE_WITH_CONCERNS (sandbox bash blocked E_ACCESSDENIED; grep absent in PS, rg fallback clean; VG7/VG8 not builder-runnable); suite exit 0 PS ("v4 contracts clean"); frontmatter fields verified vs official subagent docs; ±line-neutral rewrite (+635/−617) |
 | 2026-07-02 | Architect (dispatch session, post-flight only) | v4-core | beb4d83 on slice/v4-core | — | Post-flight clean: touch set exactly 8 declared files, gates diff 0 bytes, out-of-scope diff empty, raw-only report, judge def hardens beyond C6 minimum. Judgment (VG1–VG7) deferred to fresh session; VG8 awaits human desktop canary |
-| 2026-07-02 | Architect (Claude Fable, fresh judgment session) | v4-core judgment | this commit on slice/v4-core; toy commits 000c043/76b6358/e711423 | integrity+VG1–VG7+VG9 P; VG8 pending | All gates run/read this session. VG7 in-session canary: cold builder subagent (commit-denied) + cold judge subagents via shipped agent defs; judge #1 correctly FAILed uncommitted lane; judge #2 PASS after orchestrator commit; integrated + smoked. Lesson: commit lane before judging. Awaiting human VG8 before merge to main |
+| 2026-07-02 | Architect (Claude Fable, fresh judgment session) | v4-core judgment | 57dc420 on slice/v4-core; toy commits 000c043/76b6358/e711423 | integrity+VG1–VG7+VG9 P; VG8 pending | All gates run/read this session. VG7 in-session canary: cold builder subagent (commit-denied) + cold judge subagents via shipped agent defs; judge #1 correctly FAILed uncommitted lane; judge #2 PASS after orchestrator commit; integrated + smoked. Lesson: commit lane before judging. Awaiting human VG8 before merge to main |
+| 2026-07-02 | Human + desktop orchestrator (Claude Code desktop app) | VG8 canary (toy2 `bye`) | toy2 effc321 freeze, 15433ed lane (inside `.claude/worktrees/goofy-kalam-d02c1f`) | VG8 F | Desktop session ran full loop; both architect subagents denied Bash at runtime → judge INVALID → no merge (correct). Defects D9 (desktop subagent Bash denial) + D10 (harness auto-worktree ignores pre-made lane worktree). Finding preserved at `.architect/tmp/v4-canary/VG8-FINDING.md` |
+| 2026-07-02 | Architect (same Fable session, VG8 recording) | v4-core VG8 verdict | this commit | VG8 F recorded | Audited toy2 evidence on disk (freeze/lane SHAs, clean gates diff, byte-exact artifact) before recording. Slice call: CONTINUE via fix slice `v4-desktop`; no merge. claude-code-guide research dispatched on D9 root cause |
