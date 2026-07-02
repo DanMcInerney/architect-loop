@@ -8,7 +8,8 @@ Catches the failure modes we've actually hit:
 - README/DESIGN relative links pointing at deleted/moved files.
 - Unbalanced ``` fences.
 - v4 architect contracts: model aliases, dispatch-rules examples, fixed judge
-  template, and Claude agent definition constraints.
+  template, v5 handoff-retirement guard, and Claude agent definition
+  constraints.
 
 Run: python tests/validate_skills.py   (exit 0 = pass)
 """
@@ -23,9 +24,14 @@ ROOT = Path(__file__).resolve().parent.parent
 SKILLS = ROOT / "skills"
 MAX_DESC = 1024
 REQUIRED_SIBLINGS = {
-    "architect": ["dispatch.md", "research.md", "HANDOFF.template.md", "loop.md"],
+    "architect": ["dispatch.md", "research.md", "loop.md"],
     "architect-research": ["lanes.md"],
 }
+ARCHITECT_HANDOFF_FREE_FILES = [
+    SKILLS / "architect" / "SKILL.md",
+    SKILLS / "architect" / "loop.md",
+    SKILLS / "architect" / "dispatch.md",
+]
 errors: list[str] = []
 
 
@@ -91,7 +97,6 @@ def check_siblings(skill_dir: Path) -> None:
         "CONVENTIONS.md",
         "DESIGN.md",
         "GEMINI.md",
-        "HANDOFF.md",
         "MEMORY.md",
         "PLAN.md",
         "README.md",
@@ -327,6 +332,15 @@ def check_skill_text_size() -> None:
         )
 
 
+def check_architect_handoff_free() -> None:
+    for path in ARCHITECT_HANDOFF_FREE_FILES:
+        if not path.exists():
+            errors.append(f"{path.relative_to(ROOT)}: missing (required for handoff guard)")
+            continue
+        if "handoff" in read_text(path).lower():
+            errors.append(f"{path.relative_to(ROOT)}: contains retired handoff reference")
+
+
 def check_codex_install_step() -> None:
     """Both installers must copy skills/ to a Codex .agents/skills location,
     single-source (no committed .agents/ duplicate) - v4-codex fix contract."""
@@ -373,6 +387,7 @@ def main() -> int:
     check_judge_template()
     check_agent_definitions()
     check_codex_install_step()
+    check_architect_handoff_free()
     check_retired_loop_terms()
     check_skill_text_size()
     if errors:

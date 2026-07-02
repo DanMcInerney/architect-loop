@@ -167,7 +167,6 @@ build loop's specs.
 | [skills/architect/dispatch.md](skills/architect/dispatch.md) | Builder/judge/grill delegation templates, model table, stall triage |
 | [skills/architect/loop.md](skills/architect/loop.md) | Block procedure, judgment ledger, safety rails |
 | [skills/architect/research.md](skills/architect/research.md) | Slice-scale inline fact-check fan-out |
-| [skills/architect/HANDOFF.template.md](skills/architect/HANDOFF.template.md) | The repo-memory diary, ready to copy |
 | [skills/architect-research/SKILL.md](skills/architect-research/SKILL.md) | Research orchestration: scout → design → fan out → verify → write |
 | [skills/architect-research/lanes.md](skills/architect-research/lanes.md) | Source-class tactics library for research lanes |
 | `.claude/agents/architect-builder.md` / `architect-judge.md` | The shipped builder and judge agent definitions |
