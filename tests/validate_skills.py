@@ -100,7 +100,7 @@ def check_siblings(skill_dir: Path) -> None:
     for ref in re.findall(r"`([\w][\w.-]*\.md)`", skill_md):
         if ref in repo_files:
             continue
-        if re.match(r"(docs|lane|gate|prd|research)", ref):
+        if re.match(r"(docs|lane|gate|spec|research)", ref):
             continue
         if not (skill_dir / ref).exists():
             errors.append(f"{skill_dir.name}: SKILL.md references `{ref}` which doesn't exist")

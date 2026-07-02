@@ -357,7 +357,7 @@ breath (fresh-context judgment, R3).
 Between judging and speccing, the architect may run a research phase: 3–5
 parallel `codex exec --sandbox read-only -c web_search="live"` researchers, each
 answering one narrow non-overlapping question, with the architect adversarially
-verifying load-bearing claims and writing `docs/prd/<slice>.md` itself. Design
+verifying load-bearing claims and writing `docs/spec/<slice>.md` itself. Design
 decisions behind it:
 
 - **Trigger-gated, not always-on.** "Research if you think it helps" either
@@ -383,9 +383,9 @@ decisions behind it:
   Multi-angle decomposition (docs / changelogs / failure reports /
   alternatives) follows the multi-modal-sweep pattern from
   [Anthropic's multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system).
-- **The PRD is repo memory; raw findings are not.** `docs/prd/<slice>.md` is
+- **The spec is repo memory; raw findings are not.** `docs/spec/<slice>.md` is
   committed with citations (R1); raw researcher output stays in the gitignored
-  `.architect/research/`. The builder's PHASE 0 challenges the PRD like any
+  `.architect/research/`. The builder's PHASE 0 challenges the spec like any
   other spec input.
 
 ### Two skills: `/architect` and `/architect-research`
@@ -484,7 +484,7 @@ became a tactics library the orchestrator draws from when designing lanes:
 | Builder self-misidentification | Lane identity clause tells Claude Code lanes their redirected event stream is their own and whether they are the only builder; prevents a lane from reading its own stream, inferring a duplicate worker, and aborting with zero artifacts (2026-07-02 live loop canary, this repo) |
 | Gate-passing but unmergeable work | Judge reads the diff against spec intent, not gate output alone — METR: 38% test-pass, 0 mergeable as-is; cross-model review for high-stakes (R3, R4) |
 | Builder gaming visible gates | Gates frozen + read-only; architect-run verification; no builder iterate-against-gate feedback loops (ImpossibleBench: visible-test loops raised cheating 33%→38%) (R2, R3) |
-| Stalled unattended runs | The driver WAIT cycle schedules liveness by construction: if lanes are still in flight, the next loop iteration runs the fast path, checks event-file growth, and applies the rescue ladder. The root cause chain it prevents is out-of-workspace temp/cache paths (`C:\tmp`), parallel gate execution, missing timeout ceilings, and no scheduled return (Part A; `docs/prd/v3-loop-stall-prevention.md`). |
+| Stalled unattended runs | The driver WAIT cycle schedules liveness by construction: if lanes are still in flight, the next loop iteration runs the fast path, checks event-file growth, and applies the rescue ladder. The root cause chain it prevents is out-of-workspace temp/cache paths (`C:\tmp`), parallel gate execution, missing timeout ceilings, and no scheduled return (Part A; `docs/spec/v3-loop-stall-prevention.md`). |
 | Runaway loop | Fail-safe sentinel parsing treats missing, unparseable, or untouched `LOOP:` state as STOP; `--max-iters` defaults to 50, optional `--max-hours` bounds wall time, the circuit breaker stops after 3 no-progress iterations or 5 nonzero exits, and `docs/STOP` is checked before every invocation (F5; docs/gates/v3-loop.md C1/C4). |
 | Researcher context exhaustion | ≤5 subjects per lane; hard context rules in the preamble; bisect-and-redispatch dead lanes (lanes.md) |
 | Harness bloat / obsolescence | Thin declarative skill; per-model-generation pruning review (R12) |
@@ -618,7 +618,7 @@ Code's Agent tool plus custom agent definitions (`model`, `tools`,
 working in CLI **and** Desktop), and Codex's native subagents (`spawn_agent`,
 `send_input`, `resume_agent`, `wait_agent`, `close_agent`, `max_threads` 6,
 `max_depth` 1 — [Codex Subagents](https://developers.openai.com/codex/subagents)).
-Full source list: `docs/prd/v4-orchestrator-loop.md` §2 items 1 and 4.
+Full source list: `docs/spec/v4-orchestrator-loop.md` §2 items 1 and 4.
 
 **D9 — desktop subagent Bash strip.** Three independent human-run desktop
 canaries falsified the initial hypothesis and narrowed the root cause. VG8

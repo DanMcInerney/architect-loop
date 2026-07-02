@@ -56,3 +56,6 @@ Glossary only. No implementation details, no spec content.
 - **Sentinel / `LOOP:` line** — v3 driver-control protocol; deleted in v4.
 - **Driver** — the v3 external loop script (`bin/architect-loop.*`);
   deleted in v4. The loop is the orchestrator conversation itself.
+- **PRD** — renamed to **spec** (2026-07-02); the old PRD doc directory was
+  renamed to `docs/spec/`. "PRD" is retired; "spec" is the current term
+  everywhere the loop refers to a slice's specification document.
