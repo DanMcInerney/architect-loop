@@ -1,16 +1,14 @@
 # Builder dispatch reference
 
-Verified live against Codex CLI 0.139.0 on this Windows machine. Facts that
-correct common misinformation: the model slug is `gpt-5.5` (not
-`gpt-5.5-codex`); `--search` and `-a/--ask-for-approval` appear on top-level
-`codex --help` but are not `codex exec` flags; `codex exec` is
-non-interactive by design and the sandbox flag is the permission control.
-Goal Mode's real subcommands are bare `/goal`, `/goal pause|resume|clear`.
+Dispatch turns a frozen slice into cold builder or judge work. The
+orchestrator chooses the lane shape, model tier, worktree, and report path;
+the subagent receives a self-contained task and returns raw evidence.
 
-**Preflight (once per environment):** run `codex --version`. Need >= 0.133.
-On the first dispatch in a new environment, launch one canary run and confirm
-it starts cleanly before fanning anything out; CLI flags churn between
-versions.
+Verified local Codex facts from the v3 evidence remain useful for the Codex
+backend path: the model slug is `gpt-5.5`; `--search` and
+`-a/--ask-for-approval` are top-level `codex --help` flags, not `codex exec`
+flags; `codex exec` is non-interactive; Goal Mode subcommands are bare
+`/goal`, `/goal pause|resume|clear`.
 
 ## Model alias table
 
@@ -22,65 +20,118 @@ versions.
 | `claude/tier-down` | `--model sonnet --effort high` | Model-down at high effort. |
 
 General tier-down rule: same family, one step down. For Claude, the step is the
-model at high effort (Fable/Opus -> Sonnet; Sonnet -> Haiku when the architect
-explicitly chooses that risk). For Codex, the step is effort (xhigh -> high) on
-the frontier model. Dispatch blocks still print explicit pinned flags in every
-command; this table is the source of those pins.
+model at high effort (Fable/Opus -> Sonnet; Sonnet -> Haiku only when the
+orchestrator explicitly chooses that risk). For Codex, the step is effort
+(xhigh -> high) on the frontier model. Dispatch blocks print explicit pinned
+flags in every command; this table is the source of those pins.
 
-## Model resolution and degradation
+## Model resolution and dispatch rules
 
 Role strings are `<cli>/<model-spec>[:<effort>]`, with `<cli>` in `{claude,
 codex}`. Resolution order per role is repo `.architect/config`, then user
 `~/.architect/config`, then defaults: brain = the running session; brawn =
-tier-down per the alias table. Flat `key = value` config lines are the only
-supported format; unknown keys warn and never fail.
+tier-down per the alias table. Flat `key = value` lines are the supported
+format for role keys. Unknown keys warn and never fail.
+
+Optional dispatch-rules lines route task classes to a brawn tier:
+
+```ini
+# .architect/config or ~/.architect/config
+brain = claude/best
+brawn = codex/best
+when trivial mechanical edit -> claude/haiku:low # cheap exact patch
+when broad ambiguous refactor -> codex/best:xhigh # deeper search and edit budget
+```
+
+Format: `when <task-class description> -> <cli>/<model-spec>[:<effort>] # why`.
+The trailing reason is optional but preferred. Absent file = tier-down default.
+Absent dispatch rules = tier-down default. A matching rule is still a judgment
+aid; the orchestrator records which rule was used and may override it with a
+reason in the handoff.
 
 Configured brawn CLI absent at preflight -> fall back to the tier-down default
 and write one handoff line naming requested vs substituted. Cross-family review
-backend absent -> run review in a fresh same-CLI context and log the same-family
-bias caveat. Never hard-fail on model availability alone.
+backend absent -> run review in a fresh same-CLI context and log the
+same-family bias caveat. Never hard-fail on model availability alone. When a
+lane fails once, prefer raising its model tier over re-running it at the same
+tier.
 
-Every dispatch block header states resolved brawn as cli/model/effort. The
-handoff Session log records Brain and Brawn. The loop driver logs the brain per
-iteration. A run's models must be reconstructable from repo evidence.
+## Per-harness delegation
 
-## Builder backends
-
-A brawn backend must provide all of: headless one-shot prompt input;
-per-run model and effort flags; unattended permission control; JSONL event
-stream plus final-message-to-file for liveness checks; worktree compatibility.
-
-Only these backends are supported:
-
-| Backend | Template | Boundary |
+| | Claude Code (CLI + Desktop) | Codex (CLI + app) |
 |---|---|---|
-| Codex | `codex exec -C <worktree> --sandbox workspace-write <model flags> --json -o <last-message> - < <block.md>` | Canonical builder. Workspace-write protects `.git`, including worktree git-dir resolution. |
-| Claude Code | `claude -p --model <x> --effort <y> --output-format stream-json --verbose --permission-mode dontAsk --allowedTools "Read" "Edit" "Write" "Bash(<gate commands>:*)" "Bash(git status:*)" "Bash(git diff:*)" --disallowedTools "Bash(git commit *)" "Bash(git push *)"` | F12 rationale: dontAsk continues with denials; allowlist omits commit; deny rules are an extra no-commit guard. Keep the post-flight `git log <freeze-sha>..HEAD` and branch-state detection backstop. |
+| Builder | Agent tool with `.claude/agents/architect-builder.md`; `disallowedTools` denies `Bash(git commit *)` and `Bash(git push *)`; `isolation: worktree`; `background: true`; model may be passed per invocation from the alias table. On the desktop app, the harness auto-creates the agent's isolation worktree (`.claude/worktrees/agent-<id>`) and its branch — integrate from that branch. On the CLI, spawns have been observed to run UNISOLATED in the orchestrator's checkout despite `isolation: worktree` frontmatter (D11) — pass isolation explicitly per invocation if supported, and never run two Claude-backend builder lanes concurrently unless each is verified to have its own worktree (`git worktree list` after spawn). In all cases, never pre-create a lane worktree for Claude-backend lanes (a pre-made one is ignored); do not use `.architect/wt/<slice>-<NN>` (that pattern is Codex-backend only, below). | `spawn_agent` with defensive framing: "Your task is: ..."; worktree created by the orchestrator via git; use `/goal` semantics for persistent lane completion. |
+| Judge | Agent tool with `.claude/agents/architect-judge.md`; read-only tools plus Bash for gate commands; brain tier via `model: inherit` or per-invocation model. | Fresh `spawn_agent` with read-only instructions and the fixed judge template. |
+| Parallelism | Background subagents; permission prompts surface to the main session. | Native subagents, `max_threads` 6, `max_depth` 1 (root session is depth 0; a spawned child may not spawn further — no nested orchestrators, the orchestrator dispatches builders directly), `wait_agent` for completion (the live collab event stream names the underlying tool call `wait`, not `wait_agent` — evidence: v4-codex CG4 architect-run canary `events.jsonl`). |
+| Review (high-stakes) | `codex review --base` when Codex is installed; otherwise a fresh same-CLI subagent with bias caveat. | `/review` / `review_model`; Claude reviewer when installed. |
+| Skill packaging | `skills/architect/` plus Claude skill install locations. | `.agents/skills/architect/SKILL.md` (and any other `skills/*/`); same source text copied by installer. |
 
-Lane identity (Claude Code lanes): when a Claude-backend lane's
-`stream-json` output is redirected to a workspace file, the dispatch block MUST
-name that file as the lane's own event stream and state the lane is the only
-builder when true. Evidence: 2026-07-02 live canary, where a lane found its own
-event file plus the architect's "lane 01 in flight" sentinel, inferred a
-duplicate worker, and exited with zero artifacts.
+D9 note: the desktop harness strips the Bash tool from spawned subagents by
+name; both agent defs now carry `PowerShell` as the desktop-safe executor
+(still padded interior per the position guard above). Lane and judge reports
+must name which executor — Bash or PowerShell — ran each gate command.
 
-On Windows PowerShell 5.1, `>`, `*>`, and `Tee-Object` write UTF-16. Liveness
-and rescue checks over event files must read encoding-aware (`Get-Content`, or
-`iconv` from UTF-16); byte-oriented grep can silently miss.
+## C5 judge delegation template
 
-Excluded runtimes are deliberate scope, not TODO scaffolding. opencode is
-policy-viable but outside the 2026-07-02 Claude+Codex product scope; gemini and
-pi cannot enforce unattended no-commit natively; agy flag syntax was
-unverified. Revisit in `DESIGN.md` only when new evidence changes that matrix.
+The orchestrator must send this template as-is except for replacing the three
+placeholder values. It must not add slice-specific prose, encouragement,
+summaries, or interpretation.
 
-## Canonical headless dispatch (architect-driven)
+<!-- architect-judge-template:start -->
+```text
+Frozen gate file path: <docs/gates/<slice>.md>
+Freeze commit SHA: <freeze-sha>
+Branch to judge: <branch>
 
-Write the builder block to a file first, then pass it via stdin (`-`) - never
-as a shell argument. Big prompt blocks contain quotes that shells, especially
-Windows PowerShell, mangle; a mangled argument can make codex wait on stdin and
-hang forever in a background shell.
+Verdict format:
+- Gates integrity: PASS | FAIL | INVALID
+  Raw evidence: <git diff <freeze-sha>..HEAD -- docs/gates/>
+- Diff vs intent: PASS | FAIL | INVALID
+  Raw evidence: <file:line evidence from the diff and frozen gate/spec text>
+- Per gate:
+  - <gate id>: PASS | FAIL | INVALID
+    Command: <exact command from the frozen gate>
+    Raw evidence: <verbatim stdout/stderr and exit code>
+- Slice verdict: PASS | FAIL | INVALID
+  Decisive reason: <one sentence tied to raw evidence>
+```
+<!-- architect-judge-template:end -->
 
-Single-lane slice in the main checkout, resolved brawn `codex/best`:
+## Grill delegation template
+
+The orchestrator must send this template as-is except for replacing the two
+placeholder values. It must not add slice-specific prose, encouragement,
+summaries, or interpretation.
+
+<!-- architect-grill-template:start -->
+```text
+Draft gate file path: <docs/gates/<slice>.md>
+Branch: <branch>
+
+Task: try to falsify this draft. Execute each gate command against the
+current tree, verify every referenced path/SHA/pointer resolves, attack each
+acceptance criterion for non-falsifiability and for patterns that collide
+with repo realities (e.g. a grep pattern matching the repo's own name), and
+flag any assumption not evidenced in the repo.
+
+Defect report format:
+- <gate id or clause>: FALSIFIED | HOLDS
+  Evidence: <command run and verbatim output, or file:line>
+- Assumptions not evidenced in the repo: <list or none>
+```
+<!-- architect-grill-template:end -->
+
+## Codex backend from a Claude orchestrator
+
+The worktree pre-creation and dispatch commands in this section are
+Codex-backend only. Claude-backend lanes never pre-create a worktree — see
+the Per-harness delegation table above.
+
+When the orchestrator is Claude Code and the chosen brawn is Codex, write the
+builder block to a file first, then pass it via stdin (`-`). Big prompt blocks
+contain quotes that shells, especially Windows PowerShell, can mangle.
+
+Single-lane slice in the current checkout, resolved brawn `codex/best`:
 
 ```bash
 codex exec -C <repo-root> --sandbox workspace-write \
@@ -98,19 +149,12 @@ codex exec -C <repo-root> --sandbox workspace-write \
   - < .architect/dispatch-block.md
 ```
 
-## Worktree fan-out (2-4 lanes - the architect owns parallelism)
-
-One isolated worktree plus one fresh builder session per lane, all launched in
-parallel in the background by the architect. Lanes have file-touch sets checked
-for overlap from the spec; each writes raw results to its own
-`docs/lanes/<slice>-<lane>.md`, so nothing collides.
+For 2-4 lanes, the orchestrator owns worktree creation and parallelism:
 
 ```bash
-# per lane, off the freeze commit
 git -C <repo-root> worktree add .architect/wt/<slice>-<NN> \
   -b lane/<slice>-<NN> <freeze-sha>
 
-# write the lane's builder block, then dispatch
 codex exec -C <repo-root>/.architect/wt/<slice>-<NN> --sandbox workspace-write \
   -m gpt-5.5 -c model_reasoning_effort="xhigh" \
   --json -o .architect/wt/<slice>-<NN>.last-run.md \
@@ -119,18 +163,23 @@ codex exec -C <repo-root>/.architect/wt/<slice>-<NN> --sandbox workspace-write \
 
 A worktree's `.git` is a pointer file and the resolved git dir is
 sandbox-protected too. Builders cannot commit or touch shared history from any
-lane; nothing reaches a branch until architect checks pass.
+lane; nothing reaches a branch until orchestrator checks pass.
 
-### Integration (architect-only, after per-lane post-flight passes)
+## Integration commands
+
+Integration is architect-only, after per-lane post-flight passes. The
+`.architect/wt/<slice>-<NN>` paths below are Codex-backend only. For
+Claude-backend lanes, skip `worktree add`/`worktree remove`; commit inside
+the harness's auto-created worktree, then
+`git -C <repo-root> merge --no-ff <agent-worktree-branch>` from the agent
+worktree's branch:
 
 ```bash
 git -C <repo-root> checkout -b slice/<name> <freeze-sha>
-# per passing lane, sequentially:
 git -C <repo-root>/.architect/wt/<slice>-<NN> add -A
 git -C <repo-root>/.architect/wt/<slice>-<NN> commit -m "lane <NN>: <what>"
 git -C <repo-root> merge --no-ff lane/<slice>-<NN>
 <run the gate commands>
-# cleanup:
 git -C <repo-root> worktree remove .architect/wt/<slice>-<NN>
 git -C <repo-root> branch -d lane/<slice>-<NN>
 ```
@@ -138,70 +187,54 @@ git -C <repo-root> branch -d lane/<slice>-<NN>
 A merge conflict means the lane plan was not disjoint. Kill the conflicting
 lane and re-spec; do not hand-resolve builder conflicts.
 
-Dispatch notes:
+## Timeout policy
 
-- Run builders in the background; read `.architect/last-run.md`, event JSONL,
-  and repo state afterwards.
-- Pin the model explicitly from `## Model alias table`; automations have been
-  reported silently falling back to older models.
-- Same-slice follow-up after a human ruling: `codex exec resume --last
-  "<rulings + proceed>"`. Never resume across slices.
-- Optional: `--output-schema <schema.json>` to force a machine-checkable final
-  report.
-- Cross-model review gate: `codex review --base <branch>` or
-  `codex review --uncommitted`, with custom focus text appended.
-- Add `.architect/` to the repo's `.gitignore`.
-- **Builders never commit - the architect does.** Workspace-write protects
-  `.git` as read-only (verified on Windows, Codex 0.139.0; no config toggle;
-  `writable_roots` does not bypass it; worktree pointer files are resolved and
-  protected too).
+The slice spec declares ceilings for known commands. Use the declared ceiling;
+otherwise default to 600s. Commands run sequentially. On timeout: record it;
+retry once with a doubled ceiling only if output showed forward progress.
+Otherwise report the stall and stop that lane.
 
-## Timeout cap investigation
+Local Codex help checked during v3: `codex --help`, `codex exec --help`, and
+`codex exec resume --help`. They exposed generic `-c key=value` overrides but
+no named per-command timeout cap. Do not invent config keys. The active control
+is explicit command ceilings plus heartbeat liveness.
 
-Local help checked for this slice: `codex --help`, `codex exec --help`, and
-`codex exec resume --help`. They expose generic `-c key=value` config override
-but no named per-command timeout cap. The offline config reference was not
-available from this sandbox, so do not assert a hard cap from memory or invent
-`-c` keys. The gap is owned: the builder block's graduated timeout policy is
-the active control, and loop WAIT liveness bounds true stalls.
+## Stall detection and rescue
 
-The live CLI also confirms the rescue gotcha: flags such as `-C` and
-`--sandbox` parse before `resume` (`codex exec -C . --sandbox workspace-write
-resume --help`) and `codex exec resume -C . --help` rejects `-C`.
+A lane is STALLED when its event/report file has not grown past its ceiling and
+the last observed work is still in progress. Silent gaps between events are
+normal model thinking. A low context reading is not wedging; harnesses
+auto-compact and keep going. A lane repeatedly issuing the same command or
+query with identical arguments is stalled even if its event/report file is
+still growing.
 
-## Stall detection and rescue (verified live: Windows, Codex 0.139.0)
-
-A dispatched run is STALLED when its `--json` event file has not grown for
-15+ minutes and the last event is an `in_progress` command_execution. Silent
-gaps between events are normal model thinking; a shell command that should take
-seconds sitting in flight for 15+ minutes is not.
+On Windows PowerShell 5.1, `>`, `*>`, and `Tee-Object` write UTF-16. Liveness
+and rescue checks over event files must read encoding-aware (`Get-Content`, or
+`iconv` from UTF-16); byte-oriented grep can silently miss.
 
 Known sandbox hang sources:
 
 - `asyncio.create_subprocess_exec` and anything built on it: Playwright browser
   launch, anyio subprocess pools, and similar runtime harnesses. Plain
   `subprocess.run` works.
-- Out-of-workspace temp paths (`C:\tmp`, `$env:TEMP`, pytest `--basetemp` or
-  `-o cache_dir` outside the repo) under workspace-write: sometimes instant
-  `PermissionError`, sometimes a hot spin after tests complete. Verified
-  signature: uniform ~46%-core burn across unrelated pytest runs on
-  2026-07-01. Treat any out-of-root write path as a hang source, not an error
-  source. Prescribe `--basetemp .architect/tmp/<gate-id> -p no:cacheprovider`
-  or an equivalent in-workspace cache path.
+- Out-of-workspace temp paths under workspace-write. Prescribe
+  `.architect/tmp/<purpose>` paths, `--basetemp .architect/tmp/<gate-id>`, and
+  in-workspace cache dirs.
 
 Rescue ladder:
 
-1. Kill stuck children first. On Windows, the direct child list can lie because
+1. Kill stuck children first. On Windows, direct child lists can lie because
    wrappers die while grandchildren hold pipes. Search system-wide by command
-   signature: executable path, test path, basetemp/cache directory, or other
-   unique fragments from the in-flight command. Expect codex to wake within
-   seconds after pipes close.
-2. If the builder re-enters the same hang, kill the codex run and resume the
-   thread with `codex exec [flags] resume <thread-id> - < rescue-block.md`.
-   Put global flags before `resume`; `-C` after `resume` is rejected. The
-   thread id is in the first `thread.started` event.
-3. If resume fails or hangs again, discard the lane and re-dispatch from the
-   frozen spec (hard rule 7).
+   signature: executable path, test path, basetemp/cache directory, or another
+   unique fragment from the in-flight command.
+2. If a native background subagent repeats the same hang, stop that lane and
+   discard the worktree. Re-dispatch only after the spec forbids the failing
+   path or command.
+3. If using the Codex backend path from Claude, resume only within the same
+   lane and same slice. Put global flags before `resume`; `-C` after `resume`
+   is rejected. The thread id is in the first `thread.started` event.
+4. If resume fails or hangs again, discard the lane and re-dispatch from the
+   frozen spec.
 
 Rescue block template:
 
@@ -210,7 +243,7 @@ You are resuming the same lane. Do not redo completed edits; working-tree edits
 survived unless the following command output proves otherwise.
 
 Observed from outside the sandbox:
-- <event file path> stopped growing at <time>.
+- <event/report file path> stopped growing at <time>.
 - Last in-progress command: <exact command>.
 - Stuck child processes matched: <process list or search signature>.
 
@@ -229,11 +262,16 @@ Boundaries remain:
 - End with exactly one STATUS line.
 ```
 
-## Manual alternative (human-driven)
+## Cross-model review
 
-Paste the builder block into an interactive `codex` session prefixed with
-`/goal `. Codex loops plan -> act -> test -> review against the stopping
-condition until done. Use when the human wants to watch or steer the run.
+Use cross-model review for high-stakes slices: schema, API, persistence,
+security, data loss, auth, or broad architectural changes. The reviewer's job
+is to break confidence in the change with correctness, requirement, or
+invariant gaps grounded in file:line evidence; no style nits.
+
+Direction matters. In the one available study, Claude reviewing Codex output
+helped, while Codex reviewing Claude output hurt. Prefer Claude-reviews-Codex
+when the direction is choosable, and record the direction in the handoff.
 
 ## Builder block template
 
@@ -247,30 +285,32 @@ disagreements, state what you checked before concluding the spec is sound.
 Verify the named APIs/formats/versions against the live dependencies before
 planning around them.
 
-PHASE 1 - Freeze shared contracts (schemas/interfaces) in docs/ first. After
-freeze they are read-only for everyone including you. The files under
-docs/gates/ are read-only at all times - editing them fails the slice
-regardless of results.
+PHASE 1 - The files under docs/gates/ are read-only at all times - editing
+them fails the slice regardless of results.
 
-PHASE 2 - Build YOUR LANE ONLY: exactly the files listed in BOUNDARIES. You
-are one of several parallel lane agents working in isolated worktrees; files
-outside your lane belong to other agents - touching them fails your lane.
-No placeholder implementations - search the codebase before implementing;
-full implementations only. Verify your work by running the lane's gate
-commands and record the verbatim output. Do NOT commit - the sandbox protects
-.git by design; the architect commits and merges after verification. Do NOT
-delete lock files or escalate privileges if a git command fails; record the
-exact error and continue.
+PHASE 2 - Build YOUR LANE ONLY: exactly the files listed in BOUNDARIES. Lane
+shape is ship|scout. Lane identity: you are lane <slice>-<lane>; if the spec
+says you are the only builder, no other lane exists. Files outside your lane
+belong outside your authority - touching them fails your lane. No placeholder
+implementations - search the codebase before implementing; full
+implementations only. No silent fallbacks or success-shaped defaults - never
+swallow an error to make output look right. No unrequested backwards-
+compatibility shims or dead compatibility code. Fail loudly, with context.
+Exception: fallbacks or compat code are allowed only when the spec explicitly
+requests them. Verify your work by running the lane's gate commands and
+record the verbatim output. Do NOT commit - the sandbox protects .git by
+design; the architect commits and merges after verification. Do NOT delete lock
+files or escalate privileges if a git command fails; record the exact error and
+continue.
 
 SANDBOX EXECUTION POLICY - All temp, basetemp, and cache paths MUST be inside
-the workspace (`.architect/tmp/<purpose>`); never the system temp, never
-`C:\tmp`. Run test/gate commands SEQUENTIALLY - never two invocations in flight
-at once. The spec must declare realistic timeout ceilings for known commands;
-600s is only the default for commands the spec did not declare. On timeout:
-record it; retry once with a doubled ceiling ONLY if output showed forward
-progress, else report it as a stall. A filesystem/sandbox error on a path is
-environmental: record the exact failure and route around it - never retry the
-same path.
+the workspace (`.architect/tmp/<purpose>`); never the system temp. Run
+test/gate commands SEQUENTIALLY - never two invocations in flight at once. The
+spec must declare realistic timeout ceilings for known commands; 600s is only
+the default for commands the spec did not declare. On timeout: record it; retry
+once with a doubled ceiling ONLY if output showed forward progress, else report
+it as a stall. A filesystem/sandbox error on a path is environmental: record
+the exact failure and route around it - never retry the same path.
 
 When a known-bad pattern exists, the spec must name it as forbidden with
 evidence and provide exact command forms, flags included. Failed attempts in
@@ -303,13 +343,12 @@ fully handled end-to-end.
 ...
 ```
 
-## Builder-side standing setup (one time per machine/repo)
+## Builder-side standing setup
 
-- `~/.codex/config.toml`: `model = "gpt-5.5"`. Parallelism is
-  architect-orchestrated worktrees; it does not depend on Codex's experimental
-  `[features] multi_agent` config.
+- Builders never commit; the orchestrator does. Workspace-write protects `.git`
+  as read-only in Codex on Windows, including worktree pointer resolution.
 - Repo `AGENTS.md`: exact build/test commands and repo gotchas only. The
   loop's PHASE rules stay in the dispatch block so they version with the skill.
-- Subscription quotas are per-5h window plus weekly cap; long runs draw the
-  weekly pool. For overnight unattended runs that must not die mid-run,
-  `CODEX_API_KEY` per-token billing avoids window exhaustion.
+- Subscription quotas are per-window plus weekly cap. For unattended runs that
+  must not die mid-run, use the harness-native paid or scheduled mechanism
+  rather than repo-owned loop infrastructure.

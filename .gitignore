@@ -7,6 +7,9 @@ Thumbs.db
 !/docs/HANDOFF.md
 !/docs/gates/
 !/docs/lanes/
-!/docs/prd/
+!/docs/spec/
+!/docs/research/
 /.architect/
 /research/
+.gstack/
+!/docs/adr/

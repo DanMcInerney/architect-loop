@@ -1,142 +1,133 @@
-# Architect loop mode
+# Loop-block reference
 
-Loop mode is opt-in. The human starts `architect-loop` once in a repo; the
-driver starts one fresh architect session per iteration, reads the handoff
-sentinel, then continues, waits, or stops. Plain `/architect` remains the
-single-block manual workflow.
+The loop is one orchestrator conversation. A block is one pass over one slice:
+ground -> arbitrate -> judge -> integrate -> spec -> freeze -> dispatch -> next
+block. Repo memory makes the conversation disposable; the handoff, gates, lane
+reports, specs, and git are the durable state.
 
-## Sentinel protocol
+## Block procedure
 
-`docs/HANDOFF.md` carries exactly one line beginning with `LOOP:`. The
-architect session writes it as the last act of every loop block:
+1. **Ground.** Read `docs/HANDOFF.md`, referenced gates, project operating
+   docs, and the current git/worktree state.
+2. **Reconcile.** Compare handoff claims against reality: branch, HEAD,
+   freeze commits, lane reports, in-flight worktrees, status lines, and gate
+   file diffs. Stale or dead lanes are resolved before new work starts.
+3. **Arbitrate.** Rule every open disagreement ACCEPT / REJECT / MODIFY.
+4. **Judge.** If the previous slice has completed lanes awaiting judgment,
+   send the fixed judge template from `dispatch.md` to one cold judge subagent.
+5. **Rule.** Record KILL / CONTINUE in the judgment ledger. Two consecutive
+   KILLs stop the loop and ask the human.
+6. **Integrate.** Post-flight lane reports and boundaries, then commit and
+   merge only passing lanes.
+7. **Spec.** Define exactly one next slice. Use `ship` lanes for code changes
+   and `scout` lanes for investigation/report-only work.
+8. **Freeze.** Write and commit `docs/gates/<slice>.md`; record the freeze SHA.
+9. **Dispatch.** Check `docs/STOP`, then launch cold builder subagents in
+   background worktrees.
+10. **Carry forward.** Record in-flight lanes, heartbeat cadence, ask-the-human
+   items, and the next expected block.
 
-- `LOOP: CONTINUE`
-- `LOOP: WAIT <minutes>`
-- `LOOP: WAIT 20 (2 lanes in flight)`
-- `LOOP: STOP (<reason>)`
+## Judgment ledger
 
-The driver accepts only:
-`^LOOP: (CONTINUE|WAIT [0-9]+( \(.+\))?|STOP \(.+\))$`
+`docs/HANDOFF.md` owns the judgment ledger. Each slice gets one row with:
 
-Fail safe: no `LOOP:` line, an unparseable line, or a handoff file untouched
-since the previous iteration is STOP. `LOOP: STOP (<reason>)` is mandatory on
-hard-rule-8 stops, goal completion, or any arbitration that needs the human.
-Sentinel updates are working-tree state; do not force a commit just to record a
-WAIT tick.
+- slice name
+- freeze commit SHA
+- branch judged
+- gate file path
+- judge subagent invocation or report pointer
+- per-gate PASS / FAIL / INVALID
+- gates-integrity verdict
+- diff-vs-intent verdict
+- slice call KILL / CONTINUE
+- decisive reason, tied to raw evidence
+- docs-debt pointer (what shipped -> what product-doc update it needs),
+  appended on CONTINUE
 
-## WAIT fast path
+No judgment row means the next block must not build on that slice as accepted.
+The orchestrator may re-run judgment with a fresh judge if evidence is missing,
+but it may not fill in a verdict from memory.
 
-When `ARCHITECT_LOOP=1`, ground normally, then check for the fast path before
-judging. If the handoff shows lanes still in flight:
+## Slice counter
 
-1. Check each lane's `--json` event file under `.architect/` for growth.
-2. If a file has not grown for the WAIT interval and the last event is an
-   in-progress command, run the rescue ladder in `dispatch.md`.
-3. If any lane is still running, write `LOOP: WAIT <minutes> (<reason>)` and
-   exit.
-4. If all lanes have completed, write `LOOP: CONTINUE` and exit.
+The handoff tracks an unattended-stretch counter:
 
-WAIT sessions never judge. After a WAIT, the driver relaunches on the
-tier-down brain automatically; if that cheap session finds completion, the next
-full-brain iteration performs judgment.
-
-## Driver contract
-
-`architect-loop` has zero required flags. Optional flags are exactly
-`--max-iters N` (default 50), `--max-hours H`, `--permissions <mode>`,
-`--brain <str>`, and `--brawn <str>`. The resolved brain string selects the
-harness; there is no separate harness flag.
-
-Safety rails:
-
-- Kill switch: `docs/STOP`, checked before every invocation.
-- Child sessions get `ARCHITECT_LOOP=1`.
-- Logs: `.architect/loop/<n>-<timestamp>.log` and one appended index line in
-  `.architect/loop/loop.log`.
-- Circuit breaker: 3 consecutive no-progress iterations or 5 consecutive
-  nonzero exits stop the loop with diagnostics.
-- Progress means HEAD moved, the sentinel line changed, or any lane event file
-  under `.architect/` grew.
-- Never bound architect sessions with `--max-turns`; it can hard-error
-  mid-work.
-
-## Harness invocation table
-
-| Harness | Driver invocation | Notes |
-|---|---|---|
-| Claude Code brain | `claude -p "/architect" --model <brain> --effort <effort> --permission-mode dontAsk` | Repo allowlist lives in `.claude/settings.json` under `permissions.allow`; bootstrap it with Read/Edit/Write, exact gate commands, and `Bash(git status/diff/log/add/commit/merge:*)`, then record the bootstrap in the handoff Decisions log. Strip `CLAUDECODE` and `CLAUDE_CODE_ENTRYPOINT` when launched from inside Claude Code. Never use `--bare`; skills must load. |
-| Codex brain | `codex exec -C <repo> --sandbox danger-full-access - < prompt.md` | The prompt must inline the architect skill text. PENDING-CANARY: `$skill`-in-exec is unverified, so do not rely on it. Codex brain runs unsandboxed: `danger-full-access` is the only Codex mode that can commit freezes and merge lanes because workspace-write protects `.git`. |
-
-`--permissions bypass` maps to Claude Code `--dangerously-skip-permissions`.
-Use it only in an isolated container or VM, after the one-time interactive
-acceptance on that machine. Never combine it with `--permission-mode`; bug
-#17544 records silent override behavior.
-
-Dated F4d note: as of 2026-07-02, the Agent-SDK-credits billing split was
-paused and `claude -p` drew normal subscription quota. Recheck before relying
-on that economics assumption.
-
-## Config example
-
-```ini
-# .architect/config or ~/.architect/config
-brain = claude/best
-brawn = codex/best
+```text
+Slice counter: <completed>/<cap> this unattended stretch (default cap 10)
+Consecutive KILLs: <n>
 ```
 
-Format is flat `key = value` lines. Unknown keys warn, never fail. Resolution
-order is repo `.architect/config`, then user `~/.architect/config`, then
-defaults from `dispatch.md`.
+Default cap is 10 slices per unattended stretch. At the cap, stop and ask the
+human before dispatching more work. Reset the counter only when the human
+reviews the ledger and explicitly starts a new stretch.
 
-## Chained fallback commands
+## Heartbeat fallback
 
-The supported loop is the outer driver. Chained fallback is degraded: it loses
-central iteration caps, crash recovery, and clean observability. Use only when
-the driver is unavailable, and write the next prompt to
-`.architect/loop/next-prompt.md` first.
+Primary continuation comes from background completion notifications or native
+agent wait/resume facilities. Heartbeats are only the stall fallback.
 
-Windows, detached PowerShell child:
+When dispatching a lane, record:
 
-    Start-Process -FilePath "powershell" -ArgumentList @("-NoProfile","-Command","Set-Location '<repo>'; codex exec -C '<repo>' --sandbox danger-full-access - < .architect/loop/next-prompt.md *> .architect/loop/chained.log") -WindowStyle Hidden
+- lane id and shape
+- report path
+- worktree path, when applicable
+- event/log path, when the harness exposes one
+- command ceiling or expected heartbeat deadline
+- last observed growth time
 
-POSIX with tmux:
+At a heartbeat, inspect lane liveness. A lane silent past its ceiling is
+stalled only when its event/report files stop growing and the last observed
+work is still in progress. Silent model thinking is normal. A low context
+reading is not wedging; harnesses auto-compact and keep going.
 
-    tmux new-session -d -s architect-next 'cd "<repo>" && codex exec -C "<repo>" --sandbox danger-full-access - < .architect/loop/next-prompt.md >> .architect/loop/chained.log 2>&1'
+If a lane is truly stalled, kill that lane, discard its worktree, record the
+raw evidence, and re-spec or KILL. Never blind-retry the same failing lane
+more than once; a lane that fails twice re-specs or dies.
 
-POSIX with setsid:
+## Escalation digest
 
-    setsid sh -lc 'cd "<repo>" && codex exec -C "<repo>" --sandbox danger-full-access - < .architect/loop/next-prompt.md >> .architect/loop/chained.log 2>&1' </dev/null >/dev/null 2>&1 &
+When multiple lanes resolve while the human is away, write one escalation
+digest entry instead of interleaving noisy notes. Include:
 
-Claude Code background fallback:
+- completed lanes and statuses
+- failed/stalled lanes and exact blockers
+- judge verdicts received
+- unresolved disagreements
+- decisions needed from the human
 
-    claude --bg "/architect"
+Ask-the-human items are batched in the digest unless a safety rail requires an
+immediate stop.
 
-PENDING-CANARY: `claude --bg` plus env stripping of `CLAUDECODE` and
-`CLAUDE_CODE_ENTRYPOINT` must be canaried before treating chained Claude
-spawning as reliable. Use an external launcher script for env stripping; do not
-ask an in-session hook to spawn Claude Code.
+## Safety rails
 
-Codex under its Windows sandbox is not expected to detach a durable child
-reliably because child processes are tied to the sandbox job object. Use the
-outer driver for Codex loop mode.
+| Situation | Rail |
+|---|---|
+| Too many unattended slices | Stop at 10 by default and ask the human. |
+| `docs/STOP` exists | Stop before dispatch. |
+| No judgment row for completed work | Do not build on it as accepted. |
+| Builder touched `docs/gates/` | Automatic FAIL for that lane/slice. |
+| Lane fails twice | Re-spec or kill; do not blind-retry. |
+| Two consecutive KILLs | Stop and ask the human. |
+| Lane silent past ceiling | Kill lane, discard worktree, record evidence. |
+| Session context degrades | End the session; next session grounds from repo memory. |
+| High-stakes slice | Add cross-model review before CONTINUE. |
 
-## One-time setup checklist
+## Context discipline
 
-- Run `codex --version` and `claude --version`; first dispatch per environment
-  is a one-run canary before fan-out.
-- For Claude Code loop runs, bootstrap `.claude/settings.json`
-  `permissions.allow` with the repo's exact gate and git commands, then record
-  the allowlist in `docs/HANDOFF.md`.
-- Headless `claude -p` ignores repo `.claude/settings.json`
-  `permissions.allow` in an untrusted workspace ("Ignoring N permissions.allow
-  entries ... this workspace has not been trusted"). Under `--permission-mode
-  dontAsk`, settings-allowed calls are denied and the brain cannot update the
-  handoff. Trust the workspace before first driver launch: run one interactive
-  Claude Code session in the repo and accept the trust dialog, or set
-  `projects["<absolute repo path>"].hasTrustDialogAccepted: true` in
-  `~/.claude.json`.
-- If using `--permissions bypass`, run one interactive
-  `claude --dangerously-skip-permissions` session in the isolated environment
-  and accept the warning before the driver depends on it.
-- Keep all loop logs, prompts, event files, temp paths, basetemp, and caches
-  under `.architect/`.
+- One slice per block.
+- Delegate heavy reading to scout or builder subagents; keep the orchestrator
+  thin.
+- Compact proactively when the harness supports it.
+- Ending a degraded session is free because the handoff is the memory.
+- Do not leave important state in chat. If the next orchestrator needs it,
+  write it to the handoff, a gate, a spec, or a lane report.
+
+## Unattended
+
+Use harness-native mechanisms only:
+
+- Codex: Automations plus `/goal` heartbeats.
+- Claude Code: native background agents and scheduled facilities where
+  available.
+
+This repo ships no extra unattended infrastructure.

@@ -357,7 +357,7 @@ breath (fresh-context judgment, R3).
 Between judging and speccing, the architect may run a research phase: 3–5
 parallel `codex exec --sandbox read-only -c web_search="live"` researchers, each
 answering one narrow non-overlapping question, with the architect adversarially
-verifying load-bearing claims and writing `docs/prd/<slice>.md` itself. Design
+verifying load-bearing claims and writing `docs/spec/<slice>.md` itself. Design
 decisions behind it:
 
 - **Trigger-gated, not always-on.** "Research if you think it helps" either
@@ -383,9 +383,9 @@ decisions behind it:
   Multi-angle decomposition (docs / changelogs / failure reports /
   alternatives) follows the multi-modal-sweep pattern from
   [Anthropic's multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system).
-- **The PRD is repo memory; raw findings are not.** `docs/prd/<slice>.md` is
+- **The spec is repo memory; raw findings are not.** `docs/spec/<slice>.md` is
   committed with citations (R1); raw researcher output stays in the gitignored
-  `.architect/research/`. The builder's PHASE 0 challenges the PRD like any
+  `.architect/research/`. The builder's PHASE 0 challenges the spec like any
   other spec input.
 
 ### Two skills: `/architect` and `/architect-research`
@@ -484,7 +484,7 @@ became a tactics library the orchestrator draws from when designing lanes:
 | Builder self-misidentification | Lane identity clause tells Claude Code lanes their redirected event stream is their own and whether they are the only builder; prevents a lane from reading its own stream, inferring a duplicate worker, and aborting with zero artifacts (2026-07-02 live loop canary, this repo) |
 | Gate-passing but unmergeable work | Judge reads the diff against spec intent, not gate output alone — METR: 38% test-pass, 0 mergeable as-is; cross-model review for high-stakes (R3, R4) |
 | Builder gaming visible gates | Gates frozen + read-only; architect-run verification; no builder iterate-against-gate feedback loops (ImpossibleBench: visible-test loops raised cheating 33%→38%) (R2, R3) |
-| Stalled unattended runs | The driver WAIT cycle schedules liveness by construction: if lanes are still in flight, the next loop iteration runs the fast path, checks event-file growth, and applies the rescue ladder. The root cause chain it prevents is out-of-workspace temp/cache paths (`C:\tmp`), parallel gate execution, missing timeout ceilings, and no scheduled return (Part A; `docs/prd/v3-loop-stall-prevention.md`). |
+| Stalled unattended runs | The driver WAIT cycle schedules liveness by construction: if lanes are still in flight, the next loop iteration runs the fast path, checks event-file growth, and applies the rescue ladder. The root cause chain it prevents is out-of-workspace temp/cache paths (`C:\tmp`), parallel gate execution, missing timeout ceilings, and no scheduled return (Part A; `docs/spec/v3-loop-stall-prevention.md`). |
 | Runaway loop | Fail-safe sentinel parsing treats missing, unparseable, or untouched `LOOP:` state as STOP; `--max-iters` defaults to 50, optional `--max-hours` bounds wall time, the circuit breaker stops after 3 no-progress iterations or 5 nonzero exits, and `docs/STOP` is checked before every invocation (F5; docs/gates/v3-loop.md C1/C4). |
 | Researcher context exhaustion | ≤5 subjects per lane; hard context rules in the preamble; bisect-and-redispatch dead lanes (lanes.md) |
 | Harness bloat / obsolescence | Thin declarative skill; per-model-generation pruning review (R12) |
@@ -597,3 +597,171 @@ behavior without a DESIGN.md entry is incomplete by definition.
 [Reward hacking in self-improvement](https://openreview.net/forum?id=ikrQWGgxYg) ·
 [Obfuscated reward hacking](https://arxiv.org/pdf/2503.11926) ·
 [Worktrees for parallel agents](https://engineering.intility.com/article/agent-teams-or-how-i-learned-to-stop-worrying-about-merge-conflicts-and-love-git-worktrees)
+
+---
+
+## 9. v4 evidence (in-session loop, verified 2026-07-02)
+
+Per the standing evidence rule, this section records the five load-bearing
+facts behind the v4 refactor (ADR 0001) that were not yet in the evidence
+ledger.
+
+**In-session three-role design basis.** Fresh context per unit of work, not a
+fresh OS process, is the invariant Anthropic's own harness guidance treats as
+load-bearing: fresh-context agent invocations are "equivalent to separate
+sessions" ([Effective Harnesses](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)),
+and Claude Code subagents start genuinely cold — "no parent conversation, no
+parent file reads" ([Subagents](https://code.claude.com/docs/en/sub-agents)).
+Both harnesses now productize that cold-context delegation natively: Claude
+Code's Agent tool plus custom agent definitions (`model`, `tools`,
+`disallowedTools`, `permissionMode`, `isolation: worktree`, `background`,
+working in CLI **and** Desktop), and Codex's native subagents (`spawn_agent`,
+`send_input`, `resume_agent`, `wait_agent`, `close_agent`, `max_threads` 6,
+`max_depth` 1 — [Codex Subagents](https://developers.openai.com/codex/subagents)).
+Full source list: `docs/spec/v4-orchestrator-loop.md` §2 items 1 and 4.
+
+**D9 — desktop subagent Bash strip.** Three independent human-run desktop
+canaries falsified the initial hypothesis and narrowed the root cause. VG8
+run 1 (toy2, freeze `effc321`, lane `15433ed`): both subagents denied Bash at
+spawn. WG5 = VG8 re-run after padding tools per the (falsified) positional
+theory (toy3, freeze `fddcec6`, lane `e0fbfdb`): padding did not restore
+Bash — builder kept `Glob,Read,Edit,Write,Grep`, judge kept `Glob,Read,Grep`,
+proving the strip targets Bash by name, not position. VG8 run 3, foreground
+dispatch variant (toy4, freeze `c694398`, lane `0c7e1e3`, finding `79d5755`):
+still no Bash even fully synchronous, proving the strip happens before any
+permission-prompt layer could apply. Upstream sources:
+[claude-code#60237](https://github.com/anthropics/claude-code/issues/60237)
+(first/last `tools:` entries dropped at spawn — the pattern this repo's own
+canaries falsified for desktop),
+[claude-code#18749](https://github.com/anthropics/claude-code/issues/18749)
+(Bash-specific variant, closed not-planned, matches the observed desktop
+behavior), and
+[Permission modes](https://code.claude.com/docs/en/permission-modes)
+(non-prompting contexts auto-deny tool calls that aren't pre-allowed —
+background subagents can't prompt). Session-log anchors:
+`docs/HANDOFF.md` rows dated 2026-07-02 for the VG8 (×2) and WG5 desktop-canary
+entries.
+
+**PowerShell second-executor fix + live judge usage.** Slice `v4-desktop2`
+(freeze `588a3e9`, lane `74f8221`) added `PowerShell` as a second, interior
+(padded) executor to both agent definitions with matching deny mirrors, to
+route around the Bash-specific strip. Decisive evidence: the judging
+subagent itself held and used the native PowerShell tool on the CLI to run
+gates XG3/XG6 — first live proof either executor works in a cold subagent
+under the new defs. Anchor: `docs/HANDOFF.md` v4-desktop2 lane+judgment row,
+2026-07-02; gate IDs XG2/XG3/XG6 in `docs/gates/v4-desktop2.md`.
+
+**D11 — CLI subagent spawns unisolated despite `isolation: worktree`.**
+Discovered live during the `v4-desktop` builder lane (cold architect-builder
+subagent, sonnet:high, working tree → commit `1d84230`): a Claude Code CLI
+spawn of an agent definition carrying `isolation: worktree` frontmatter did
+not create a worktree, contradicting the frontmatter's documented guarantee.
+`skills/architect/dispatch.md`'s per-harness delegation table now tells
+Claude-backend lanes to verify with `git worktree list` after spawn rather
+than assume isolation. Anchor: `docs/HANDOFF.md` v4-desktop lane row,
+2026-07-02.
+
+**Codex 0.139 native `spawn_agent` round-trip canary.** One codex 0.139.0
+thread spawned exactly one child agent instructed to reply `PONG`; the parent
+surfaced `SPAWN_RESULT: PONG` after `wait`ing on it — proving the native
+collab-tool round trip end to end. Raw evidence:
+`.architect/tmp/codex-spawn-canary/events.jsonl` (architect-run, this
+machine; `item.completed` records `"tool":"spawn_agent"` then
+`"tool":"wait"` with `"message":"PONG"`, followed by the parent's
+`agent_message` item `"SPAWN_RESULT: PONG"`) and `prompt.md` in the same
+directory. Judged independently: slice `v4-codex` judgment (commit `ca78b71`)
+re-ran the canary and recorded gate CG4 PASS in `docs/gates/v4-codex.md`.
+This canary is also the source of the `wait` vs `wait_agent` naming note in
+`skills/architect/dispatch.md` — the collab event stream names the tool
+`wait`, while the docs and PRD call it `wait_agent`.
+
+---
+
+## 10. Loop-hardening evidence (P1–P7, verified 2026-07-02)
+
+Human-approved research-driven hardening (`docs/HANDOFF.md` Decisions log,
+2026-07-02, "Human APPROVED P1–P7" row), shipped in slice `loop-hardening`
+(freeze `6f64bd1`, lane `977c7b6`, cold judge LG1–LG9 all PASS). P1–P6 are
+argued in `docs/research/loop-improvements.md`; P7 is not — its rationale
+lives only in the Decisions-log row cited above.
+
+**P1 — ban silent fallbacks and unrequested backcompat shims.** The builder
+block and `architect-builder` agent definition now forbid success-shaped
+defaults and unrequested backwards-compatibility code, fail loudly by
+default, with the sole exception of explicitly-specced resilience fallbacks.
+Primary-source language: OpenAI's
+[Codex Prompting Guide](https://developers.openai.com/cookbook/examples/gpt-5/codex_prompting_guide)
+bans "broad catches or silent defaults... no silent failures"; practitioner
+precedent in
+[claude-code#21027](https://github.com/anthropics/claude-code/issues/21027)
+("NEVER use fallback values - they hide errors and mask problems"). The
+gate-gaming mechanism (a silent fallback can fake passing output while the
+primary path is broken) and Fowler's YAGNI four-cost framework for
+unrequested compat code have no citable primary URL; see
+`docs/research/loop-improvements.md` Q5.
+
+**P2 — pre-freeze spec grill.** One cold, read-only subagent falsifies the
+draft gate file before it freezes — running each gate command against the
+current tree, verifying referenced paths exist, and attacking acceptance
+criteria for non-falsifiability. Default on for the first slice in a repo and
+for high-stakes slices. Evidence:
+[Cross-Context Review](https://arxiv.org/abs/2603.12123) (fresh-session
+review F1 28.6% vs same-session self-review 24.6%, p=0.008; reviewing twice
+in the same session did not beat once); the
+[20,574-session misalignment study](https://arxiv.org/abs/2605.29442) (41%
+of Wrong-Project-Diagnosis failures stem from Premature Action — the
+first-time-unfamiliar-repo case); CRITIC's tool-grounded-critique result
+(+7.7 F1), uncited by URL in `docs/research/loop-improvements.md` Q2. The
+research doc's own proposal figure was this repo's pre-P2 history: 2 spec
+defects that shipped past PHASE 0 into frozen gates (repo-name grep
+collision; bookkeeping-commit enumeration). The as-shipped, first-use result
+differs: slice `loop-hardening`'s own grill caught 5 draft-gate defects
+before freeze (`docs/HANDOFF.md` TL;DR, 2026-07-02 loop-hardening bullet:
+"The pre-freeze grill (P2) validated itself on its first use: 5 draft-gate
+defects caught before freeze").
+
+**P3 — slice-size discipline.** Judged diffs target ≤~400 changed lines;
+a spec whose diff will exceed that should be split into more lanes or more
+slices. Evidence: batch/position-bias degradation literature and human
+code-review effectiveness falling off past ~200–400 LOC per pass (SmartBear/
+Cisco, no citable primary URL) plus
+[Chroma's Context Rot](https://www.trychroma.com/research/context-rot)
+(degradation "at every increment, not just near the limit," across 18
+models); see `docs/research/loop-improvements.md` Q1.
+
+**P4 — repeated-identical-action stall signal.** The stall doctrine now
+names a repeated identical action/query as a stuck signal, not just silence
+or missing artifacts. Evidence: OpenHands SDK's same-action-repeated stuck
+detector (no citable primary URL) and
+[SWE-Marathon](https://arxiv.org/abs/2606.07682), where the worst scaffold
+repeated 32% of tool calls and produced 63/83 timeouts; see
+`docs/research/loop-improvements.md` Q3.
+
+**P5 — skill-text instruction-budget guard.** The validator now warns when
+total skill-text imperative-instruction count crosses a ceiling. The
+research doc's proposal figure was ~150–200 imperative instructions total
+(HumanLayer/RPI: models "silently skip" steps past that range — direct
+quote, no citable primary URL in `docs/research/loop-improvements.md` Q3).
+The as-shipped guard differs: the validator's threshold is 800 non-blank
+lines, measured at 557 post-change (`docs/HANDOFF.md` TL;DR, 2026-07-02
+loop-hardening bullet: "800-non-blank-line size guard (at 557
+post-change)").
+
+**P6 — tier-up over retry.** The alias-table note now says: when a lane fails
+once, prefer raising its model tier over re-running the same tier. Evidence:
+Anthropic's
+[Multi-Agent Research System](https://www.anthropic.com/engineering/multi-agent-research-system)
+post — "upgrading [the subagent model] is a larger performance gain than
+doubling the token budget"; see `docs/research/loop-improvements.md` Q4.
+
+**P7 — docs-debt convention.** Memory docs (`docs/HANDOFF.md`) update
+continuously per block; product docs (`README.md`, `DESIGN.md`) are never
+edited by build lanes or the orchestrator mid-slice — they batch into one
+dedicated docs lane at the milestone/PR boundary, fed by a running docs-debt
+list in the handoff (one pointer line appended per CONTINUE verdict). Not
+in `docs/research/loop-improvements.md` — the rationale (disjoint lane
+file-sets, README as the highest-contention file, evidence rows needing
+post-judgment information, product text never brain-written) is recorded
+only in `docs/HANDOFF.md`'s Decisions log, 2026-07-02, "Human APPROVED P1–P7"
+row. This lane (`v4-docs`) is the convention's first dedicated-docs-lane
+consumption of the Docs debt table.

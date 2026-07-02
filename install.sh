@@ -16,16 +16,22 @@ for skill in "$SRC_ROOT"/*/; do
     echo "Installed /$name to $DEST_ROOT/$name"
 done
 
-BIN_ROOT="$(cd "$(dirname "$0")" && pwd)/bin"
-DRIVER_DEST="$HOME/.local/bin/architect-loop"
-mkdir -p "$(dirname "$DRIVER_DEST")"
-cp "$BIN_ROOT/architect-loop.sh" "$DRIVER_DEST"
-chmod +x "$DRIVER_DEST"
-echo "Installed architect-loop driver to $DRIVER_DEST"
-case ":$PATH:" in
-    *":$HOME/.local/bin:"*) ;;
-    *) echo "WARNING: $HOME/.local/bin is not on PATH" ;;
-esac
+# Codex reads skills from $CWD/.agents/skills (repo) or $HOME/.agents/skills
+# (user) - developers.openai.com/codex/skills. Same source tree, no committed
+# duplicate.
+if [ "${1:-}" = "--project" ]; then
+    CODEX_DEST_ROOT="$(pwd)/.agents/skills"
+else
+    CODEX_DEST_ROOT="$HOME/.agents/skills"
+fi
+
+mkdir -p "$CODEX_DEST_ROOT"
+for skill in "$SRC_ROOT"/*/; do
+    name="$(basename "$skill")"
+    rm -rf "${CODEX_DEST_ROOT:?}/$name"
+    cp -r "$skill" "$CODEX_DEST_ROOT/$name"
+    echo "Installed Codex skill $name to $CODEX_DEST_ROOT/$name"
+done
 
 if command -v codex >/dev/null 2>&1; then
     echo "Codex CLI found: $(codex --version) (need >= 0.133 for default Goal Mode)"

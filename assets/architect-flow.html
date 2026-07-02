@@ -1,46 +1,65 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { width:1500px; height:560px; background:#0d1117; font-family:"Cascadia Code",Consolas,monospace; color:#e6edf3; padding:44px 56px; }
-  .row { display:flex; align-items:center; justify-content:center; gap:18px; margin-top:10px; }
-  .box { border-radius:16px; padding:30px 34px; text-align:center; }
-  .fable { background:#1c1410; border:3px solid #d97757; width:360px; }
-  .codex { background:#0e1a16; border:3px solid #10a37f; width:360px; }
-  .who { font-size:30px; font-weight:700; }
-  .fable .who { color:#d97757; } .codex .who { color:#3fd0a4; }
-  .does { font-size:21px; color:#c9d1d9; margin-top:10px; line-height:1.45; }
-  .arrow { font-size:44px; color:#6e7681; }
-  .lanes { display:flex; flex-direction:column; gap:7px; margin-top:12px; }
-  .lane { border:1.5px solid #1f6f58; border-radius:8px; padding:4px 10px; font-size:16px; color:#7ee2c3; background:#0a221b; }
-  .repo { margin:40px auto 0; width:1020px; background:#1a1607; border:3px solid #e3b341; border-radius:16px; padding:18px; text-align:center; }
-  .repo .who { color:#e3b341; font-size:24px; }
-  .repo .does { font-size:19px; }
-  .updown { text-align:center; color:#6e7681; font-size:28px; margin-top:14px; letter-spacing:30px; }
+  body { width:1500px; height:580px; background:#0d1117; font-family:"Cascadia Code",Consolas,monospace; color:#e6edf3; padding:40px 36px; }
+  .row { display:flex; align-items:stretch; justify-content:center; gap:12px; margin-top:6px; }
+  .box { border-radius:16px; padding:22px 18px; text-align:center; width:252px; display:flex; flex-direction:column; justify-content:flex-start; }
+  .fable { background:#1c1410; border:3px solid #d97757; }
+  .cold  { background:#0d1826; border:3px solid #58a6ff; }
+  .build { background:#0e1a16; border:3px solid #10a37f; }
+  .who { font-size:24px; font-weight:700; }
+  .fable .who { color:#d97757; } .cold .who { color:#79b8ff; } .build .who { color:#3fd0a4; }
+  .step { font-size:15px; color:#8b949e; letter-spacing:2px; margin-bottom:6px; }
+  .does { font-size:18px; color:#c9d1d9; margin-top:9px; line-height:1.45; }
+  .arrow { font-size:36px; color:#6e7681; align-self:center; }
+  .lanes { display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+  .lane { border:1.5px solid #1f6f58; border-radius:8px; padding:3px 8px; font-size:14px; color:#7ee2c3; background:#0a221b; }
+  .repo { margin:34px auto 0; width:1180px; background:#1a1607; border:3px solid #e3b341; border-radius:16px; padding:16px; text-align:center; }
+  .repo .who { color:#e3b341; font-size:22px; }
+  .repo .does { font-size:17px; }
+  .updown { text-align:center; color:#6e7681; font-size:26px; margin-top:12px; letter-spacing:30px; }
+  .legend { text-align:center; color:#8b949e; font-size:16px; margin-top:16px; }
+  .legend .snow { color:#79b8ff; }
 </style></head><body>
   <div class="row">
     <div class="box fable">
+      <div class="step">1 · SPEC</div>
       <div class="who">FABLE</div>
-      <div class="does">designs the slice<br>freezes the gates</div>
+      <div class="does">picks one PR-sized slice<br>drafts the pass/fail gates</div>
     </div>
     <div class="arrow">⟶</div>
-    <div class="box codex">
-      <div class="who">CODEX ×1–4</div>
-      <div class="does">builds, in parallel</div>
+    <div class="box cold">
+      <div class="step">2 · GRILL ❄</div>
+      <div class="who">SPEC GRILL</div>
+      <div class="does">attacks the draft gates<br>runs the commands, checks paths<br><b>then the gates freeze</b></div>
+    </div>
+    <div class="arrow">⟶</div>
+    <div class="box build">
+      <div class="step">3 · BUILD ❄</div>
+      <div class="who">BUILDERS ×1–4</div>
+      <div class="does">write the code + raw report<br>can't commit, can't touch gates</div>
       <div class="lanes">
-        <div class="lane">worktree 1</div>
-        <div class="lane">worktree 2</div>
-        <div class="lane">worktree N</div>
+        <div class="lane">isolated lane 1</div>
+        <div class="lane">isolated lane N</div>
       </div>
     </div>
     <div class="arrow">⟶</div>
+    <div class="box cold">
+      <div class="step">4 · JUDGE ❄</div>
+      <div class="who">COLD JUDGE</div>
+      <div class="does">runs the frozen gates itself<br>PASS / FAIL —<br>Fable can't overrule a FAIL</div>
+    </div>
+    <div class="arrow">⟶</div>
     <div class="box fable">
+      <div class="step">5 · MERGE</div>
       <div class="who">FABLE</div>
-      <div class="does">runs the gates<br>judges · merges</div>
+      <div class="does">merges on PASS<br>logs everything, next slice</div>
     </div>
   </div>
   <div class="updown">⇣⇡</div>
   <div class="repo">
     <div class="who">THE REPO REMEMBERS</div>
-    <div class="does">HANDOFF.md · gates/ · lanes/ · git — not in the repo = didn't happen</div>
+    <div class="does">HANDOFF.md diary · gates/ frozen tests · lanes/ evidence · git — not written down = didn't happen</div>
   </div>
+  <div class="legend"><span class="snow">❄</span> = a fresh agent with no memory of the conversation — nobody grades their own work</div>
 </body></html>

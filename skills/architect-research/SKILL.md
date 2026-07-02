@@ -154,6 +154,6 @@ Commit the report. Raw findings stay in `.architect/research/` (gitignored).
 
 ### 7. Hand off
 
-If this feeds the build loop: distill the report into `docs/prd/<slice>.md`
+If this feeds the build loop: distill the report into `docs/spec/<slice>.md`
 per `/architect` and continue there. The builder's PHASE 0 will challenge the
-PRD's claims — that's a feature.
+spec's claims — that's a feature.
