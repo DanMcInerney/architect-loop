@@ -19,14 +19,20 @@
   remedies in `loop.md`'s checklist; **D8** lane-identity/self-stream rule +
   PS 5.1 UTF-16 note in `dispatch.md`, evidence row in `DESIGN.md`. Driver and
   tests untouched (HG5b/HG5e diffs empty).
-- Next action: no open slice. Remaining work is PRD §6 watch items (gpt-5.6
-  alias recheck, billing-pause reversal note, GLM recipe canary), the standing
-  `mapfile` bash≥4 / no-macOS-gate watch, and G12 (confirm per-command timeout
-  ceilings against the first real post-merge dispatch). Also unlanded: whether
-  to commit the untracked `.claude/settings.json` loop allowlist (deferred to a
-  future slice by decision).
-
-LOOP: CONTINUE
+- **v4 REFACTOR UNDERWAY** (human-approved via grilled PRD, 2026-07-02):
+  the loop moves in-session — orchestrator brain + cold-context builder and
+  judge subagents, no external drivers, works in Claude Code & Codex, CLI &
+  desktop apps. PRD: `docs/prd/v4-orchestrator-loop.md` (§6 rulings binding);
+  ADR 0001; glossary: `CONTEXT.md`. PR #8 (all of v3) merged to origin/main
+  first per ruling 6 (merge commit fe5462f).
+- Current slice `v4-core` (1 of 3): gates frozen at `docs/gates/v4-core.md`
+  (VG1–VG9; VG8 is a HUMAN-RUN desktop-app canary and a hard merge gate).
+  Lane 01 dispatched on `slice/v4-core`, brawn codex/best (gpt-5.5 xhigh —
+  large skill-text rewrite, not routine).
+- Next action: fresh session judges VG1–VG6 + VG9, runs VG7 (live in-session
+  loop canary), asks the human for VG8; merge only on all-PASS. Then slices
+  v4-codex, v4-cleanup per PRD §4. v3 watch items (gpt-5.6 alias, GLM recipe,
+  mapfile/macOS) carry over unchanged.
 
 ## Project goal
 
@@ -54,9 +60,11 @@ PowerShell 5.1 `>`/`*>`/`Tee-Object` write UTF-16; read logs encoding-aware
 - `docs/gates/v3-loop.md` — parent gates + interface contracts C1–C4.
 - `docs/gates/v3-loop-fixes.md` — FG1–FG4 + defect record D1–D4.
 - `docs/gates/v3-loop-eol.md` — EG1–EG4 + D5.
-- `docs/gates/v3-loop-docs.md` — HG1–HG5 + D6–D8 (current slice).
-- `docs/prd/v3-loop.md` — the plan (wins all conflicts);
-  `docs/prd/v3-loop-stall-prevention.md` — Part A source, amended by §4.4.
+- `docs/gates/v3-loop-docs.md` — HG1–HG5 + D6–D8 (closed).
+- `docs/gates/v4-core.md` — VG1–VG9 + contracts C2'/C5/C6 (CURRENT slice).
+- `docs/prd/v4-orchestrator-loop.md` — the v4 plan (wins all conflicts;
+  §6 grill rulings binding); ADR 0001; `CONTEXT.md` glossary.
+- v3 history: `docs/prd/v3-loop.md` + `docs/prd/v3-loop-stall-prevention.md`.
 
 ## Closed slices (detail lives in the judgment commits)
 
@@ -116,6 +124,10 @@ untrusted workspace: "Ignoring 10 permissions.allow entries … has not been tru
 
 | Date | Decision | Why |
 |------|----------|-----|
+| 2026-07-02 | v4 direction approved by human through a 6-question grill; rulings recorded in PRD §6 (judge=brain tier no new key; delete all v3 loop machinery; unattended=pointer-only; dispatch rules optional; VG8 desktop canary HUMAN-RUN merge gate; PR #8 merged first) | grilled plan > open-ended plan; rulings are binding |
+| 2026-07-02 | ADR 0001 records why the externally-verified v3 driver is deleted hours after shipping | hard-to-reverse + surprising + real trade-off |
+| 2026-07-02 | `v4-core` brawn = codex/best (gpt-5.5 xhigh), 1 lane, main checkout on slice/v4-core | large interlocking skill-text rewrite; not routine, no disjoint split |
+| 2026-07-02 | v4-core does NOT delete bin/** or driver tests; deletion is v4-cleanup's job | suite must stay green at every merge; rewrite and delete are separable risks |
 | 2026-07-02 | `v3-loop-docs` judged HG1–HG5 all PASS by fresh architect session → merged to main (no-ff); doc defects D6–D8 closed | gates run and read verbatim this session; diff matches spec intent; doc-only, no code/gate surface |
 | 2026-07-02 | G7–G11 measured on live paid sessions this session; toy-repo evidence archived under `.architect/tmp/loop-canary/` (git-ignored, local) | handoff records the evidence; toys are throwaway |
 | 2026-07-02 | Workspace trust for headless loop brains set via `projects[<path>].hasTrustDialogAccepted` in `~/.claude.json` (toy repos only; entries removed after) | claude -p ignores repo allowlist in untrusted workspaces (D7); the error message itself names this workaround |
@@ -131,10 +143,11 @@ untrusted workspace: "Ignoring 10 permissions.allow entries … has not been tru
 
 ## Next slice (builder may propose; architect decides)
 
-After `v3-loop-docs` merges: PRD §6 watch items (gpt-5.6 alias recheck,
-billing-pause reversal note, GLM recipe canary), and the standing `mapfile`
-bash≥4 watch (no macOS gate). G12 confirms against the first real dispatch
-after this one.
+After `v4-core`: `v4-codex` (.agents/skills packaging, spawn_agent guidance),
+then `v4-cleanup` (delete drivers/canary/sentinel files, DESIGN.md v4
+evidence, README rewrite). v3 watch items (gpt-5.6 alias recheck,
+billing-pause reversal note, GLM recipe canary, `mapfile` bash≥4 / no-macOS
+gate) carry over. `.claude/settings.json` commit decision still deferred.
 
 ## Session log
 
@@ -145,3 +158,4 @@ after this one.
 | 2026-07-02 | Builder (codex exec gpt-5.5 high, thread 019f2195) | v3-loop-docs | lane 01 working tree | — | COMPLETE_WITH_CONCERNS (known sandbox bash -n skip, E_ACCESSDENIED); PHASE 0 verified D6 at dispatch.md:58, checklist at loop.md:123, DESIGN table at :473 before editing |
 | 2026-07-02 | Architect (dispatch session, post-flight only) | v3-loop-docs | lane commit on slice/v3-loop-docs | — | Post-flight clean ×4; judgment deferred to fresh session per hard rule 4 |
 | 2026-07-02 | Architect (Claude Opus 4.8, fresh session) | v3-loop-docs judgment | merge slice/v3-loop-docs → main (no-ff) | HG1–HG5 P | Gates run this session: --verbose grep non-empty; loop.md/dispatch.md/DESIGN.md text read verbatim vs gate; validator exit 0 Git Bash AND PowerShell; bin/tests + gates diffs empty; builder touch set = 4 files; net +20 ≤ 45. Diff-vs-intent clean (doc-only). Post-merge smoke: validator PASS on main. LOOP: CONTINUE |
+| 2026-07-02 | Architect (Claude Fable, same session as v3 judgment canaries) | v4 planning + v4-core freeze + dispatch | PR #8 merge fe5462f; plan da064a1; freeze + dispatch this commit | — | 4 research lanes + 2 capability canaries + 2 source teardowns (PaulSolt thread via browser, firstmate); PRD grilled with human (6 rulings); v4-core lane 01 dispatched codex/best |
