@@ -89,10 +89,89 @@
   signal, 800-non-blank-line size guard (at 557 post-change), tier-up-over-
   retry, and the docs-debt convention.
 
+- **Research round 2 COMPLETE 2026-07-02 → `docs/research/agent-pipeline-patterns.md`**
+  (human-directed: agent research-pipeline techniques for a research skill
+  loop; scout + 5 designed lanes + expert wave, codex gpt-5.5; 11 load-bearing
+  sources orchestrator-fetched and verified). Headline: current
+  /architect-research shape IS the field consensus (fan-out for gathering
+  only, single-author synthesis, file artifacts, engineered stop caps —
+  Cognition's Yan now endorses read-side fan-out too). Proposed (awaiting
+  human ruling, nothing built): A1 numeric ≤~1,500-token lane return cap;
+  A2 draft-as-state gap rounds + NOT-FOUND do-not-rechase carry-forward;
+  A3 tool-call-calibrated budgets + published cost envelopes; A4 name the
+  committed report + open questions the research handoff (loop-ification).
+  Rejected with evidence: D1 extra coordination layers (bloat, 58-515%
+  overhead); D2 cache-alignment machinery (harness-owned, preamble below
+  cache minimums).
+
+- **Slice `research-loop` JUDGED PASS + MERGED TO MAIN 2026-07-02 (merge
+  e39d0f4; freeze 1b2fd90; lane 3f46f09; 107 changed lines).** Composite
+  cold judgment across three contexts: codex/best judge (gpt-5.5 xhigh,
+  workspace-write, tree audited untouched after) PASSed gates-integrity +
+  diff-vs-intent + RG2-RG8 with raw git evidence (touch set exactly the
+  enumerated paths; shortstat 70+/37-); RG1 measured PASS by a cold
+  headless `claude -p --model opus` session (both shells exit 0, verbatim
+  output recorded) after Git Bash proved unable to start under the codex
+  sandbox (known Win32 error 5). Two prior Claude architect-judge spawns
+  were tool-stripped (see D12 below) and correctly returned INVALID; their
+  RG2-RG6 ripgrep+read checks PASSed independently ×2. Slice call:
+  CONTINUE. Post-merge smoke: validator green on main. Docs debt appended.
+  **D12 (new watch item): CLI-side subagent tool strip is INTERMITTENT and
+  def-asymmetric** — same session, same day: architect-builder spawn held
+  working Bash AND PowerShell (ran RG1 both shells), while two consecutive
+  architect-judge spawns got only Glob/Read/Grep (BOTH shell tools
+  stripped — not Bash-only like desktop D9, and #60237's first/last
+  positional pattern doesn't match either: Glob first and Grep last both
+  survived). Judge INVALID fail-safe held both times. Mitigation that
+  worked and is now precedent: codex-backend judge for shell-dependent
+  gates + cold headless claude -p for gates the codex sandbox can't run.
+- Slice `research-loop` dispatch record (historical): human approved A1-A4 with
+  two amendments (return cap ~2,500 tokens per r2 lane measurements
+  2,000-3,600 tok w/ citations + single-URL numbered source lists; R5
+  brain/brawn config parity — architect-research resolves models from the
+  same `.architect/config` chain as /architect, no hardcoded pins). Spec
+  `docs/spec/research-loop.md`; gates `docs/gates/research-loop.md` frozen
+  @ **1b2fd90** after grill caught 2 blocking defects (RG1 PS exit-code
+  vacuity; RG7 unenumerable touch set) + 4 sharpenings. Lane 01 dispatched:
+  cold architect-builder, claude/tier-down (sonnet), background, branch
+  slice/research-loop, report docs/lanes/research-loop-01.md, touch set =
+  3 skill files. Next block: post-flight → lane commit → cold judge
+  (C5, brain tier) → merge on PASS. Docs-debt on CONTINUE: README's
+  research-skill description will need the A1-A4 mechanics reflected.
+
+- **Slice `research-loop-docs` JUDGED PASS + MERGED TO MAIN 2026-07-02
+  (merge 3129b4b; freeze ded508c; lane 9e102d6; 62 changed lines on
+  README+DESIGN).** Composite cold judgment: codex/best judge PASSed
+  gates-integrity + diff-vs-intent via PowerShell (touch set exactly the
+  enumerated paths) but returned per-gate INVALID on the "from Git Bash"
+  letter (Git Bash cannot start under the codex sandbox, Win32 error 5 —
+  known); cold headless `claude -p --model opus` ran QG1-QG5 verbatim from
+  real Git Bash: ALL PASS (validator green both shells; README strings +
+  section read checks; DESIGN §11 (a)-(e) read check; touch set exact;
+  62 <= 200). Slice call: CONTINUE. Post-merge smoke: validator green on
+  main. **Docs debt CONSUMED — research-loop row closed. Main is
+  PR-ready** (research report + research-loop + docs, 8 commits ahead of
+  origin; push/PR awaits the human). Process lesson for future gate
+  files: name Git Bash as the PREFERRED executor but permit recorded
+  same-pattern substitution (D9-note style), or codex-sandbox judges go
+  per-gate INVALID on the executor letter alone.
+
+- Historical: `research-loop-docs` dispatch record: P7 docs lane consuming
+  the research-loop debt row. Spec `docs/spec/research-loop-docs.md`; gates
+  `docs/gates/research-loop-docs.md` frozen @ **ded508c** (grill: no
+  FALSIFIED clause; 1 ambiguity tightened — spec touch set now names the
+  lane report; grill spawn itself tool-stripped again, D12). Lane 01: cold
+  architect-builder (sonnet), background, branch slice/research-loop-docs,
+  touch set README.md + DESIGN.md (+ lane report), QG1-QG5, size cap 200.
+  Next block: post-flight → lane commit → cold judge (D12 fallback ready:
+  codex judge + headless claude -p for QG1) → merge on PASS → then main is
+  PR-ready (docs debt consumed).
+
 ## Docs debt
 
 | Slice | Shipped | Product-doc update needed |
 |---|---|---|
+| research-loop | A1-A4 research calibrations + brain/brawn config parity (merge e39d0f4) | CONSUMED by slice research-loop-docs 2026-07-02 (merge 3129b4b: README /architect-research section + DESIGN.md §11) |
 | loop-hardening | P1–P7 hardening | CONSUMED by slice v4-docs 2026-07-02 (README 
 - Historical: v4-core first judgment 2026-07-02: gates-integrity + VG1–VG7 +
   VG9 all PASS; VG8 FAILed 3× on desktop D9 before the re-ruling.
