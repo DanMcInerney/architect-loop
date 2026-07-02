@@ -16,15 +16,19 @@
   D3 breaker false-trip — a healthy ps1 loop dies at iteration 5). G9/G10
   mechanics otherwise verified. **G7/G8/G11 DEFERRED** — running paid
   session canaries against a driver that must change would pay twice.
-- Slice verdict: **CONTINUE.** Fix slice `v3-loop-fixes` built same day:
-  lane 01 COMPLETE_WITH_CONCERNS (concern environmental: bash-under-sandbox
-  skip), post-flighted clean, integrated on `slice/v3-loop`. PENDING JUDGMENT.
-- Next action: fresh /architect session judges FG1–FG4 per
-  `docs/gates/v3-loop-fixes.md` (report: `docs/lanes/v3-loop-fixes-01.md`),
+- Fix slice `v3-loop-fixes` judged 2026-07-02 (fresh session): **FG2, FG3,
+  FG4 PASS; FG1 FAIL** — new defect **D5** (no `.gitattributes`; autocrlf
+  checkout gives the sh driver CRLF; strict-LF WSL bash correctly fails
+  `bash -n` from PowerShell). D1–D4 fixes themselves verified sound.
+  Slice verdict: **CONTINUE.**
+- Micro fix slice `v3-loop-eol` (D5 only) spec'd, gates frozen at
+  `docs/gates/v3-loop-eol.md`, one codex tier-down lane dispatched.
+- Next action: fresh /architect session judges EG1–EG4 per
+  `docs/gates/v3-loop-eol.md` (report: `docs/lanes/v3-loop-eol-01.md`),
   then runs the parent G7–G11 canaries against the fixed driver;
   merge `slice/v3-loop` → main only after those PASS.
 
-LOOP: CONTINUE
+LOOP: WAIT 15 (v3-loop-eol lane in flight; fresh session judges EG1–EG4 on return)
 
 ## Project goal
 
@@ -97,15 +101,30 @@ config precedence audits: brawn=codex/best (repo wins) / brawn=claude/best
 all real flags (D4: loop.md table omits `--effort`).
 Merged v3-loop lanes: 01 a793eed, 02 0efd589 + follow-up, 03 b78f103.
 
-## Current slice — `v3-loop-fixes`
+## Gate verdicts — slice `v3-loop-fixes` (architect, 2026-07-02, fresh session)
 
-- Spec + defect record: `docs/gates/v3-loop-fixes.md` (frozen before dispatch)
-- One lane, main checkout, brawn `codex/best` (xhigh — PS pipeline-semantics
-  subtlety is exactly what bit us; not tier-down material)
-- MAY TOUCH: `bin/architect-loop.ps1`, `tests/validate_skills.py`,
-  `tests/driver-canary.ps1` (new), `skills/architect/loop.md` (≤3 net lines),
-  `docs/lanes/v3-loop-fixes-01.md`
-- Report: `docs/lanes/v3-loop-fixes-01.md`
+| Gate | Verdict | Decisive evidence |
+|------|---------|-------------------|
+| gates-integrity | PASS | `git diff b1acc42..HEAD -- docs/gates/` empty |
+| FG1 | FAIL (defect D5) | Git Bash exit 0; PowerShell exit 1 — chosen bash = WindowsApps WSL bash, `bash -n` on CRLF-checked-out sh driver: ``syntax error near unexpected token `$'{\r''`` ; `git ls-files --eol` → `i/lf w/crlf attr/` empty; `core.autocrlf=true`; no `.gitattributes` in repo |
+| FG2 | PASS | canary exit 0, all 11 asserts PASS incl. leaky/contained pipeline proof pair; harness source read: runs REAL ps1 driver, toy repo + stub claude under `.architect/tmp/`, asserts (a)–(g) exactly |
+| FG3 | PASS | `bash -n` exit 0; G3 parser command exit 0 (run via Git Bash so inner `$t`/`$e` pass literally); `git diff b1acc42..HEAD -- bin/architect-loop.sh` empty (byte-identical) |
+| FG4 | PASS (note) | Committed diff = 5 declared files + `docs/HANDOFF.md`; HANDOFF delta verified architect-authored integration bookkeeping (sentinel + session log), not builder output; loop.md net 0 ≤ 3 |
+
+**Slice call: CONTINUE** — D1–D4 fixes verified sound (D3 `Out-Null` containment,
+D2 requested-CLI capture, D1 relative-path+cwd probe semantics, D4 one line);
+FG1's failure is the newly exposed D5, orthogonal to driver logic. FG1's
+anti-gaming property incidentally proven: the suite really fails on `bash -n`
+errors instead of skipping.
+
+## Current slice — `v3-loop-eol`
+
+- Spec + defect record: `docs/gates/v3-loop-eol.md` (frozen before dispatch)
+- One lane, main checkout, brawn `codex/tier-down` (gpt-5.5 high — routine,
+  tightly specified: one `.gitattributes` rule + working-tree eol refresh)
+- MAY TOUCH: `.gitattributes` (new), `docs/lanes/v3-loop-eol-01.md` (new),
+  working-tree line endings of `*.sh` only (no content change)
+- Report: `docs/lanes/v3-loop-eol-01.md`
 
 ## Open disagreements (builder writes; architect rules)
 
@@ -130,6 +149,9 @@ Merged v3-loop lanes: 01 a793eed, 02 0efd589 + follow-up, 03 b78f103.
 | 2026-07-02 | C3 ambiguity ruling (MODIFY): backtick-tolerant alias test via lane-02 follow-up | spec-precision defect owned by architect |
 | 2026-07-02 | Gate specs prescribe `UV_CACHE_DIR=.architect/tmp/uv-cache` for sandboxed `uv run` | AppData cache write-denial under workspace-write |
 | 2026-07-02 | `bash -n` architect-run only on this machine — Git Bash dies under codex sandbox (Win32 error 5) | environment limitation |
+| 2026-07-02 | FG1 FAIL → D5 fix goes to a builder lane (`v3-loop-eol`), not architect hand-edit, despite being ~one line | hard rule 1; next fresh session judges it |
+| 2026-07-02 | G7–G11 deferred again until `v3-loop-eol` integrates | paid brain-session canaries must not run on a tree whose suite is red from PowerShell; the eol fix touches no driver logic so it cannot invalidate them |
+| 2026-07-02 | `v3-loop-eol` brawn = codex/tier-down (gpt-5.5 high) | routine, tightly specified; per skill effort rule, recorded here |
 
 ## Next slice (builder may propose; architect decides)
 
@@ -150,3 +172,4 @@ environment enters scope.
 | 2026-07-02 | Architect (Claude Fable, fresh session) | v3-loop → v3-loop-fixes | freeze b1acc42 + dispatch | G1–G6 P, G9 P, G10 partial, G7/G8/G11 deferred | Found D1–D4 via stub-brain driver canaries; CONTINUE; brawn codex/gpt-5.5:xhigh, 1 lane |
 | 2026-07-02 | Builder (codex exec gpt-5.5 xhigh) | v3-loop-fixes | lane 01 working tree | — | COMPLETE_WITH_CONCERNS (bash sandbox skip); PHASE 0 raised implement-skill-vs-no-commit conflict (ACCEPTED: spec controls); D3 reproduced by live probe pre-code; canary FG2 asserts all PASS in-lane (raw, not verdicts) |
 | 2026-07-02 | Architect (dispatch session, post-flight only) | v3-loop-fixes | lane commit on slice/v3-loop | — | Post-flight clean: boundaries exact, gates diff empty, raw-only report; judgment deferred to fresh session per hard rule 4 |
+| 2026-07-02 | Architect (Claude Fable, fresh session) | v3-loop-fixes → v3-loop-eol | freeze + dispatch | FG2/FG3/FG4 P, FG1 F | Judged FG1–FG4 by re-running gates; found D5 (missing .gitattributes, autocrlf CRLF checkout vs strict-LF WSL bash); CONTINUE; dispatched v3-loop-eol, brawn codex/gpt-5.5:high |
