@@ -8,6 +8,7 @@ Thumbs.db
 !/docs/gates/
 !/docs/lanes/
 !/docs/spec/
+!/docs/research/
 /.architect/
 /research/
 .gstack/
