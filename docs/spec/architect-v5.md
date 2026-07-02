@@ -2,7 +2,9 @@
 
 Status: DRAFT — awaiting human review at the spec gate (the one human step).
 Author: brain session, 2026-07-02. Research basis:
-`docs/research/autonomous-software-factory.md` (e9d6665).
+`docs/research/autonomous-software-factory.md` (e9d6665) and
+`docs/research/skill-prompt-patterns.md` (r4 pass: compound engineering,
+superpowers, Pocock design skills, gstack local mining).
 
 ## Problem
 
@@ -78,7 +80,7 @@ problems the brain fixes (D7).
 Human reads `docs/spec/<project>.md`, edits/vetoes assumptions, approves.
 Approval authorizes the entire DAG — it replaces v4's 10-slice unattended
 counter as the authorization boundary. After approval the human is contacted
-only via the batched digest (D8) or the stop rails (D9).
+only via the batched digest (D8) or the stop rails (D11).
 
 ### D5. Decomposition
 
@@ -152,7 +154,70 @@ only via the batched digest (D8) or the stop rails (D9).
 - A running brawn agent does NOT re-read issue comments (Copilot precedent);
   the issue is the log, the spawn context is the delivery channel.
 
-### D9. Safety rails (v4 rails, retargeted)
+### D9. Design-quality doctrine (the brain's design rubric)
+
+Applied at spec time and decomposition time — design quality is enforced
+with named, checkable rules at plan time, never requested with adjectives at
+review time. Full evidence: `docs/research/skill-prompt-patterns.md`.
+
+- **The oddity rule** (root-cause design over patching): when reality
+  resists the plan — an oddity, workaround, or special case — the brain
+  classifies before any fix is dispatched: (a) local wart → patch it,
+  record it on the issue; (b) a variation that will recur (e.g. the next
+  benchmark added to a zoo) → a real seam exists → emit a structural issue
+  that abstracts it, blocking the behavioral issue. Guardrail against
+  over-abstraction: "don't introduce a seam unless something actually
+  varies across it — one adapter is a hypothetical seam, two is a real
+  one." Three failed fixes on the same point = stop and question the
+  architecture, never attempt fix #4.
+- **Tidy-first DAG structure** (Beck: "make the change easy, then make the
+  easy change"): structural (behavior-preserving) and behavioral changes
+  are SEPARATE issues with a blocking edge, never mixed in one lane.
+  Structural-issue gates = existing tests still green.
+- **Deep modules + design it twice**: the spec names its fundamental
+  abstractions. Each NEW load-bearing abstraction (a module other issues
+  build on) gets 2-3 radically different interface sketches from cheap
+  parallel subagents; the brain picks with recorded rationale, judged on
+  depth-as-leverage (small interface hiding real complexity), the deletion
+  test, and misuse-resistance. Leaf code never triggers this.
+- **Scope challenge before cutting issues**: what existing code already
+  solves each sub-problem; minimum change set; complexity smell at >8 files
+  or >2 new classes/services per issue; search for built-ins before
+  building; boring by default; essential vs accidental complexity.
+- **Interface handoff blocks**: any issue producing a surface another issue
+  consumes states that interface verbatim (names, parameters, return types)
+  in its body; the consumer references it. Disjoint files keep lanes from
+  colliding; interface blocks make them compose.
+- **Evidence over trust**: when tests are in scope, lane reports carry TDD
+  evidence — RED command + failing output + why expected, GREEN command +
+  passing output. Tracer-bullet vertical slices; never all-tests-then-all-
+  code; never refactor while RED; tests through public interfaces only.
+- **Codify (compound) step**: nontrivial diagnoses — a blocker the brain
+  solved, an oddity ruling, a what-didn't-work — become
+  `docs/solutions/<slug>.md` (Problem / What Didn't Work / Why This Works /
+  Prevention) via the docs lane at the PR boundary; intake grounding reads
+  `docs/solutions/` so each run makes the next one easier.
+- **Reviewer calibration** (verbatim in judge/cross-review prompts): "Flag
+  only gaps that affect correctness, the stated requirements, or documented
+  project invariants — cite file:line evidence for every finding. Do not
+  report stylistic preferences."
+- **Domain language, sparse ADRs**: issues and interfaces use the project's
+  domain terms (update the glossary the moment a term sharpens). ADR only
+  when hard-to-reverse AND surprising-without-context AND a real trade-off.
+- **Parallel-safety check beyond files**: concurrently schedulable issues
+  must also not share migrations, lockfiles, generated artifacts,
+  config/schema, dev servers, or databases.
+
+### D10. Skill-writing craft (applies to building v5's own text)
+
+Descriptions state when to use + trigger branches, never summarize the
+workflow. Every step ends on a checkable completion criterion. Progressive
+disclosure: SKILL.md top stays legible, reference lives in dispatch/loop
+files. No-op pruning test per line ("does this line change behaviour versus
+the default?"). The 800-non-blank-line guard stands (compound-engineering's
+36k-token always-loaded footprint is the documented failure case).
+
+### D11. Safety rails (v4 rails, retargeted)
 
 `docs/STOP` before any dispatch wave; irreversible/destructive actions stop
 immediately; two consecutive KILLs stop the factory; a blocker that collides
@@ -164,7 +229,10 @@ issue; scope growth beyond the approved spec stops the factory.
 ## What changes in this repo (deliverable inventory)
 
 1. `skills/architect/SKILL.md` — rewritten: v5 procedure (intake → gate →
-   decompose → factory loop), hard rules retargeted to issues.
+   decompose → factory loop), hard rules retargeted to issues, D9
+   design-quality doctrine embedded in the spec/decompose steps (oddity
+   rule, tidy-first issue splitting, design-it-twice trigger, scope
+   challenge, interface handoff blocks, codify step to `docs/solutions/`).
 2. `skills/architect/loop.md` — rewritten as the factory-loop reference:
    event-driven block procedure, monitor protocol, failure/blocker ladders,
    digest format; judgment ledger becomes issue verdict comments; slice
