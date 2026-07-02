@@ -11,11 +11,12 @@
 
 - Goal: implement the v3 plan (`docs/prd/v3-loop.md`) — stall prevention +
   loop driver/sentinel + brain/brawn config (Claude Code & Codex only).
-- Last slice: `v3-loop` — dispatched 2026-07-01, 3 lanes in flight, pending
-  judgment.
-- Next action: post-flight the 3 lanes (reports at `docs/lanes/v3-loop-0*.md`),
-  integrate passing lanes onto `slice/v3-loop`, then a LATER session judges
-  G1–G6 and runs the G7–G11 canaries before any merge to main.
+- Last slice: `v3-loop` — 3 lanes built + follow-up, post-flighted clean,
+  integrated on `slice/v3-loop` 2026-07-02. PENDING JUDGMENT.
+- Next action: a FRESH /architect session judges G1–G6 against
+  `docs/gates/v3-loop.md` verbatim and runs the G7–G11 canaries on this
+  machine; merge `slice/v3-loop` → main only on PASS/CONTINUE.
+- LOOP: STOP (v3-loop integrated; judgment + G7–G11 canaries belong to a fresh architect session)
 
 ## Project goal
 
@@ -65,7 +66,17 @@ powershell -NoProfile -Command "...Parser::ParseFile check — see gate G3"
 
 ## Raw results (latest run — builder writes, architect never edits)
 
-(pending — lanes in flight)
+Lane reports: `docs/lanes/v3-loop-01.md`, `-02.md` (incl. follow-up section),
+`-03.md`. Integration smoke on `slice/v3-loop` (architect-run, 2026-07-02,
+outside sandbox — raw, verdicts pending):
+
+```
+uv run tests/validate_skills.py → OK — 2 skills validated, README/DESIGN links + fences clean (exit 0)
+bash -n bin/architect-loop.sh → exit 0
+powershell Parser::ParseFile bin/architect-loop.ps1 → exit 0
+```
+
+Merged: lane 01 a793eed, lane 02 0efd589 + follow-up, lane 03 b78f103.
 
 ## Open disagreements (builder writes; architect rules)
 
@@ -84,6 +95,9 @@ powershell -NoProfile -Command "...Parser::ParseFile check — see gate G3"
 | 2026-07-01 | Lane 03 effort high (01/02 xhigh) | doc transcription tightly specified by PRD §4.6–4.7; 01/02 carry interlocking/concurrency risk |
 | 2026-07-01 | Environment canary satisfied: codex 0.139 dispatched successfully on this machine 2026-07-01 (BenchPair); each lane start still verified after launch | one-canary-per-environment rule |
 | 2026-07-01 | Per-lane validate_skills.py failures referencing ONLY other lanes' files are expected; full pass is an integration gate | tests deliberately span all three lanes' files |
+| 2026-07-02 | C3 ambiguity ruling (MODIFY): gate file showed aliases backticked → lane 01's backticked cells vs lane 02's bare-string compare; test made backtick-tolerant via lane-02 follow-up; dispatch.md untouched | spec-precision defect owned by architect; both lanes read the frozen text defensibly |
+| 2026-07-02 | Future gate specs in this repo prescribe `UV_CACHE_DIR=.architect/tmp/uv-cache` (+ TMP/TEMP) for sandboxed `uv run` | lanes 01–03 all hit AppData cache write-denial under workspace-write (Part A failure family) |
+| 2026-07-02 | `bash -n` is architect-run only on this machine — Git Bash dies under the codex sandbox (CreateFileMapping Win32 error 5); the in-suite check runs where bash works | environment limitation, recorded verbatim in lane 02's report |
 
 ## Next slice (builder may propose; architect decides)
 
@@ -94,4 +108,6 @@ items: gpt-5.6 alias recheck, billing-pause reversal, GLM recipe canary).
 
 | Date | Role | Slice | Commits | Gates P/F | Notes |
 |------|------|-------|---------|-----------|-------|
-| 2026-07-01 | Architect (Claude Fable, Claude Code) | v3-loop | freeze + dispatch | — | Bootstrapped handoff; froze gates; dispatched 3 lanes (brawn: codex/gpt-5.5 — 01/02 xhigh, 03 high) |
+| 2026-07-01 | Architect (Claude Fable, Claude Code) | v3-loop | freeze + dispatch | — | Bootstrapped handoff; froze gates 77f5037; dispatched 3 lanes (brawn: codex/gpt-5.5 — 01/02 xhigh, 03 high) |
+| 2026-07-01/02 | Builders (codex exec gpt-5.5) | v3-loop | a793eed / 0efd589+follow-up / b78f103 | — | 3 lanes COMPLETE(_WITH_CONCERNS); PHASE 0: no spec disagreements, live-verified CLI flags; concerns were environmental (uv cache, bash-under-sandbox) or expected cross-lane |
+| 2026-07-02 | Architect (same session as dispatch) | v3-loop | merges on slice/v3-loop | smoke green (not verdicts) | Post-flight ×4 clean; C3 ruling + follow-up; worktrees removed; judgment deferred to fresh session per hard rule 4 |
