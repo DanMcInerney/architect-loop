@@ -139,7 +139,24 @@
   (C5, brain tier) → merge on PASS. Docs-debt on CONTINUE: README's
   research-skill description will need the A1-A4 mechanics reflected.
 
-- **Slice `research-loop-docs` IN FLIGHT 2026-07-02**: P7 docs lane consuming
+- **Slice `research-loop-docs` JUDGED PASS + MERGED TO MAIN 2026-07-02
+  (merge 3129b4b; freeze ded508c; lane 9e102d6; 62 changed lines on
+  README+DESIGN).** Composite cold judgment: codex/best judge PASSed
+  gates-integrity + diff-vs-intent via PowerShell (touch set exactly the
+  enumerated paths) but returned per-gate INVALID on the "from Git Bash"
+  letter (Git Bash cannot start under the codex sandbox, Win32 error 5 —
+  known); cold headless `claude -p --model opus` ran QG1-QG5 verbatim from
+  real Git Bash: ALL PASS (validator green both shells; README strings +
+  section read checks; DESIGN §11 (a)-(e) read check; touch set exact;
+  62 <= 200). Slice call: CONTINUE. Post-merge smoke: validator green on
+  main. **Docs debt CONSUMED — research-loop row closed. Main is
+  PR-ready** (research report + research-loop + docs, 8 commits ahead of
+  origin; push/PR awaits the human). Process lesson for future gate
+  files: name Git Bash as the PREFERRED executor but permit recorded
+  same-pattern substitution (D9-note style), or codex-sandbox judges go
+  per-gate INVALID on the executor letter alone.
+
+- Historical: `research-loop-docs` dispatch record: P7 docs lane consuming
   the research-loop debt row. Spec `docs/spec/research-loop-docs.md`; gates
   `docs/gates/research-loop-docs.md` frozen @ **ded508c** (grill: no
   FALSIFIED clause; 1 ambiguity tightened — spec touch set now names the
@@ -154,7 +171,7 @@
 
 | Slice | Shipped | Product-doc update needed |
 |---|---|---|
-| research-loop | A1-A4 research calibrations + brain/brawn config parity (merge e39d0f4) | README's research-skill description (return contract, draft-as-state gap round, tool-call budgets, research handoff, config chain); DESIGN.md evidence row (r2 research b2a7766 + grill catch + D12 + composite-judgment precedent) |
+| research-loop | A1-A4 research calibrations + brain/brawn config parity (merge e39d0f4) | CONSUMED by slice research-loop-docs 2026-07-02 (merge 3129b4b: README /architect-research section + DESIGN.md §11) |
 | loop-hardening | P1–P7 hardening | CONSUMED by slice v4-docs 2026-07-02 (README 
 - Historical: v4-core first judgment 2026-07-02: gates-integrity + VG1–VG7 +
   VG9 all PASS; VG8 FAILed 3× on desktop D9 before the re-ruling.
