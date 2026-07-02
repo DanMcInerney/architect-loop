@@ -57,6 +57,14 @@
   cold judge re-judges the same branch. Process lessons codified: never
   freeze a grep whose pattern collides with the repo name; gate files must
   carry the handoff-bookkeeping exemption line explicitly.
+- **`v4-cleanup` RE-JUDGED PASS 2026-07-02** (fresh cold judge, corrected
+  gates v4-cleanup2 @ 4426f8c, same untouched lane 3db50d8): DG1'–DG5' +
+  integrity + diff-vs-intent ALL PASS on raw evidence (both-shell suites
+  exit 0, driver-filename greps empty, exact 10-path lane diff, README/
+  DESIGN items verified with line anchors). **MERGED TO MAIN — v4 COMPLETE.**
+  Remaining watch items only: gpt-5.6 alias recheck, GLM recipe canary,
+  mapfile bash≥4/no-macOS note, optional upstream filing of the desktop
+  subagent shell-strip (evidence: DESIGN.md §9, VG8-FINDING files).
 - Historical: v4-core first judgment 2026-07-02: gates-integrity + VG1–VG7 +
   VG9 all PASS; VG8 FAILed 3× on desktop D9 before the re-ruling.
 - **VG8 FAIL root cause (D9):** the desktop harness denies Bash to BOTH
