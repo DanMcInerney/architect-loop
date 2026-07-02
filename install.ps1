@@ -15,6 +15,17 @@ foreach ($skill in Get-ChildItem -Directory $srcRoot) {
     Write-Host "Installed /$($skill.Name) to $dest"
 }
 
+$driverSrc = Join-Path $PSScriptRoot "bin\architect-loop.ps1"
+$driverRoot = Join-Path $env:USERPROFILE ".local\bin"
+$driverDest = Join-Path $driverRoot "architect-loop.ps1"
+New-Item -ItemType Directory -Force $driverRoot | Out-Null
+Copy-Item $driverSrc $driverDest -Force
+Write-Host "Installed architect-loop driver to $driverDest"
+$pathEntries = $env:PATH -split ';'
+if ($pathEntries -notcontains $driverRoot) {
+    Write-Host "WARNING: $driverRoot is not on PATH"
+}
+
 $codex = Get-Command codex -ErrorAction SilentlyContinue
 if ($codex) {
     Write-Host "Codex CLI found: $(codex --version) (need >= 0.133 for default Goal Mode)"
