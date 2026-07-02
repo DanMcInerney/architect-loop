@@ -65,6 +65,13 @@
   Remaining watch items only: gpt-5.6 alias recheck, GLM recipe canary,
   mapfile bash≥4/no-macOS note, optional upstream filing of the desktop
   subagent shell-strip (evidence: DESIGN.md §9, VG8-FINDING files).
+- **PR #9 open** (pr/v4-loop → main on origin): all of v4. **Slice
+  `spec-rename` IN FLIGHT** (human-directed): docs/prd → docs/spec rename +
+  codify judge-context convention (gate file = judge's entire intent
+  context). Gates RG1–RG6 frozen 865f330 on slice/spec-rename; sonnet
+  builder dispatched. History immutable: frozen gates/lanes keep old
+  docs/prd references byte-identical. On PASS: merge to main + push to
+  pr/v4-loop so PR #9 stays one unit.
 - Historical: v4-core first judgment 2026-07-02: gates-integrity + VG1–VG7 +
   VG9 all PASS; VG8 FAILed 3× on desktop D9 before the re-ruling.
 - **VG8 FAIL root cause (D9):** the desktop harness denies Bash to BOTH
