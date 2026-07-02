@@ -117,6 +117,10 @@ def markdown_cells(row: str) -> list[str]:
     return [cell.strip() for cell in row.strip().strip("|").split("|")]
 
 
+def markdown_cell_value(cell: str) -> str:
+    return cell.strip().strip("`").strip()
+
+
 def check_model_alias_table() -> None:
     dispatch = SKILLS / "architect" / "dispatch.md"
     if not dispatch.exists():
@@ -150,7 +154,7 @@ def check_model_alias_table() -> None:
         cells = markdown_cells(row)
         if len(cells) <= max(alias_idx, flags_idx):
             continue
-        found[cells[alias_idx]] = cells[flags_idx]
+        found[markdown_cell_value(cells[alias_idx])] = markdown_cell_value(cells[flags_idx])
     for alias in ("codex/best", "claude/best", "codex/tier-down", "claude/tier-down"):
         if alias not in found:
             errors.append(f"skills/architect/dispatch.md: Model alias table missing {alias}")

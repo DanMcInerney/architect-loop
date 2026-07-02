@@ -84,3 +84,30 @@ FAIL � 4 problem(s):
 | skills/architect/loop.md: missing config example for C2 | cross-lane lane 01 |
 
 STATUS: COMPLETE_WITH_CONCERNS (bash -n failed with Git Bash CreateFileMapping Win32 error 5; validation also reports cross-lane lane 01 files missing: skills/architect/loop.md and ## Model alias table)
+
+## Follow-Up: Alias Cell Backtick Tolerance
+
+| Item | Result |
+|---|---|
+| File changed | tests/validate_skills.py |
+| Logic changed | `markdown_cell_value()` strips surrounding whitespace and backticks; `check_model_alias_table()` applies it to Alias cells before comparison and to Flags cells before the non-empty check |
+| Lines | tests/validate_skills.py:120-121, 157 |
+| Fixture | .architect/tmp/alias-fixture/dispatch.md |
+
+## Follow-Up Command: uv run tests/validate_skills.py
+
+```text
+FAIL � 4 problem(s):
+  - architect: required file loop.md missing
+  - skills/architect/dispatch.md: missing ## Model alias table
+  - bash -n bin/architect-loop.sh failed (256): 0 [main] bash (9520) C:\Program Files\Git\usr\bin\bash.EXE: *** fatal error - CreateFileMapping S-1-5-21-940813291-4134638421-1989498454-1002.1, Win32 error 5.  Terminating.
+  - skills/architect/loop.md: missing config example for C2
+```
+
+## Follow-Up Fixture Command: uv run python .architect\tmp\alias-fixture\check_alias.py
+
+```text
+OK backticked aliases accepted; non-empty flags=4
+```
+
+STATUS: COMPLETE_WITH_CONCERNS (validator still reports known worktree-local loop.md/config-example missing, missing alias-table heading, and Git Bash CreateFileMapping Win32 error 5; backticked alias fixture passed)
