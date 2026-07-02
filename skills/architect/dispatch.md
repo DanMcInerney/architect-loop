@@ -55,7 +55,18 @@ Only these backends are supported:
 | Backend | Template | Boundary |
 |---|---|---|
 | Codex | `codex exec -C <worktree> --sandbox workspace-write <model flags> --json -o <last-message> - < <block.md>` | Canonical builder. Workspace-write protects `.git`, including worktree git-dir resolution. |
-| Claude Code | `claude -p --model <x> --effort <y> --output-format stream-json --permission-mode dontAsk --allowedTools "Read" "Edit" "Write" "Bash(<gate commands>:*)" "Bash(git status:*)" "Bash(git diff:*)" --disallowedTools "Bash(git commit *)" "Bash(git push *)"` | F12 rationale: dontAsk continues with denials; allowlist omits commit; deny rules are an extra no-commit guard. Keep the post-flight `git log <freeze-sha>..HEAD` and branch-state detection backstop. |
+| Claude Code | `claude -p --model <x> --effort <y> --output-format stream-json --verbose --permission-mode dontAsk --allowedTools "Read" "Edit" "Write" "Bash(<gate commands>:*)" "Bash(git status:*)" "Bash(git diff:*)" --disallowedTools "Bash(git commit *)" "Bash(git push *)"` | F12 rationale: dontAsk continues with denials; allowlist omits commit; deny rules are an extra no-commit guard. Keep the post-flight `git log <freeze-sha>..HEAD` and branch-state detection backstop. |
+
+Lane identity (Claude Code lanes): when a Claude-backend lane's
+`stream-json` output is redirected to a workspace file, the dispatch block MUST
+name that file as the lane's own event stream and state the lane is the only
+builder when true. Evidence: 2026-07-02 live canary, where a lane found its own
+event file plus the architect's "lane 01 in flight" sentinel, inferred a
+duplicate worker, and exited with zero artifacts.
+
+On Windows PowerShell 5.1, `>`, `*>`, and `Tee-Object` write UTF-16. Liveness
+and rescue checks over event files must read encoding-aware (`Get-Content`, or
+`iconv` from UTF-16); byte-oriented grep can silently miss.
 
 Excluded runtimes are deliberate scope, not TODO scaffolding. opencode is
 policy-viable but outside the 2026-07-02 Claude+Codex product scope; gemini and
