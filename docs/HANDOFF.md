@@ -80,7 +80,7 @@
   per-worker nor batch), with a ≤~400-changed-lines slice-size discipline;
   adversarial spec review = ONE cold repo-grounded grill of the draft gate
   file BEFORE freeze (CCR: fresh-context beats same-session p=0.008,
-  repeats hurt). Proposals P1–P6 await human approval; NO code changes made.
+  repeats hurt). Human approved P1–P7 → slice `loop-hardening` frozen 6f64bd1 (post-grill: 5 draft defects caught pre-freeze — P2 validated itself); sonnet lane 01 in flight.
 - Historical: v4-core first judgment 2026-07-02: gates-integrity + VG1–VG7 +
   VG9 all PASS; VG8 FAILed 3× on desktop D9 before the re-ruling.
 - **VG8 FAIL root cause (D9):** the desktop harness denies Bash to BOTH
