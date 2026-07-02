@@ -25,12 +25,16 @@
   desktop apps. PRD: `docs/prd/v4-orchestrator-loop.md` (§6 rulings binding);
   ADR 0001; glossary: `CONTEXT.md`. PR #8 (all of v3) merged to origin/main
   first per ruling 6 (merge commit fe5462f).
-- Current slice `v4-core` (1 of 3): gates frozen at `docs/gates/v4-core.md`
-  (VG1–VG9; VG8 is a HUMAN-RUN desktop-app canary and a hard merge gate).
-  Lane 01 dispatched on `slice/v4-core`, brawn codex/best (gpt-5.5 xhigh —
-  large skill-text rewrite, not routine).
-- Next action: fresh session judges VG1–VG6 + VG9, runs VG7 (live in-session
-  loop canary), asks the human for VG8; merge only on all-PASS. Then slices
+- Current slice `v4-core` (1 of 3): **JUDGED 2026-07-02 (fresh session):
+  gates-integrity + VG1–VG7 + VG9 all PASS; VG8 (HUMAN desktop canary)
+  PENDING — hard merge gate.** Slice call CONTINUE contingent on VG8;
+  do NOT merge slice/v4-core to main until the human records VG8 PASS here.
+- VG7 bonus evidence: the cold judge correctly FAILed its first invocation
+  (lane branch had gate-passing but UNCOMMITTED files) — fail-safe works.
+  Process lesson recorded: orchestrator commits the lane BEFORE dispatching
+  the judge; judges only judge committed branches.
+- Next action: human runs VG8 (desktop-app toy slice via /architect) and
+  records PASS/FAIL below; on PASS merge slice/v4-core → main, then slices
   v4-codex, v4-cleanup per PRD §4. v3 watch items (gpt-5.6 alias, GLM recipe,
   mapfile/macOS) carry over unchanged.
 
@@ -115,6 +119,29 @@ claude 2.1.198: --print --output-format stream-json REQUIRES --verbose (D6)
 untrusted workspace: "Ignoring 10 permissions.allow entries … has not been trusted" (D7)
 ```
 
+## Gate verdicts — `v4-core` (architect, 2026-07-02, fresh session, this machine)
+
+Judged on `slice/v4-core` @ e53adbc; freeze 0f6442d; builder lane commit beb4d83.
+
+| Gate | Verdict | Decisive evidence |
+|------|---------|-------------------|
+| gates-integrity | PASS | `git diff 0f6442d..HEAD -- docs/gates/` empty |
+| VG1 | PASS | validator exit 0 from Git Bash AND PowerShell, both run this session ("OK - 2 skills validated, v4 contracts clean") |
+| VG2 | PASS | SKILL.md read vs PRD §3.1: orchestrator never builds/judges (hard rules 1,4); judge cold at brain tier (rule 4); builders cold + worktree + never commit (rules 7, §3, §7); description length enforced by validator (VG1 green) |
+| VG3 | PASS | both agent defs meet C6 verbatim (builder disallowedTools has `Bash(git commit *)`+`Bash(git push *)`, isolation worktree; judge tools Read/Glob/Grep/Bash only, no Edit/Write, model inherit); validate_skills.py gains check_agent_definitions/check_judge_template/check_config_example/check_retired_loop_terms — test source read this session |
+| VG4 | PASS | C5 template verbatim in dispatch.md between markers with gate path/freeze SHA/branch/verdict-format; "must not add slice-specific prose" present and machine-checked |
+| VG5 | PASS | `grep -ri sentinel skills/` and `grep -rn "^LOOP:" skills/` both empty (architect-run, Git Bash) |
+| VG6 | PASS | HANDOFF.template.md has judgment ledger, slice counter, heartbeat cadence, reconcile-on-ground checklist, escalation digest; no sentinel |
+| VG7 | PASS | live in-session canary, toy `.architect/tmp/v4-canary/toy` (freeze 000c043): cold architect-builder subagent built lane in toy worktree, nothing committed by builder (git log = freeze only; only declared files in status); cold architect-judge #1 FAILed uncommitted branch (correct); orchestrator committed 76b6358; cold judge #2 PASS on TG1–TG3 + integrity + intent; merge e711423, TG1 smoke on master exit 0, worktree removed. Zero new windows / driver processes / headless `claude -p` |
+| VG8 | **PENDING HUMAN** | desktop-app toy slice canary; hard merge gate per PRD §6 ruling 5 |
+| VG9 | PASS | builder commit beb4d83 = exactly the 8 declared files; out-of-scope diff (`bin/ DESIGN.md README.md docs/gates/ docs/prd/ docs/adr/ CONTEXT.md`) empty; only other change is orchestrator's own handoff consolidation e53adbc (procedure-mandated) |
+
+**Slice call: CONTINUE, contingent on VG8.** Every architect-runnable gate
+passed on first measurement; the one FAIL in the session (judge #1) was an
+orchestrator sequencing error (judging an uncommitted lane branch) and the
+judge catching it is the designed behavior. Merge to main only after VG8 PASS
+is recorded here by the human.
+
 ## Open disagreements (builder writes; architect rules)
 
 | # | Builder's position | Spec's position | Evidence (real files) | Ruling |
@@ -161,3 +188,4 @@ gate) carry over. `.claude/settings.json` commit decision still deferred.
 | 2026-07-02 | Architect (Claude Fable, same session as v3 judgment canaries) | v4 planning + v4-core freeze + dispatch | PR #8 merge fe5462f; plan da064a1; freeze 0f6442d | — | 4 research lanes + 2 capability canaries + 2 source teardowns (PaulSolt thread via browser, firstmate); PRD grilled with human (6 rulings); v4-core lane 01 dispatched codex/best |
 | 2026-07-02 | Builder (codex exec gpt-5.5 xhigh, thread 019f232c) | v4-core | lane 01 working tree | — | COMPLETE_WITH_CONCERNS (sandbox bash blocked E_ACCESSDENIED; grep absent in PS, rg fallback clean; VG7/VG8 not builder-runnable); suite exit 0 PS ("v4 contracts clean"); frontmatter fields verified vs official subagent docs; ±line-neutral rewrite (+635/−617) |
 | 2026-07-02 | Architect (dispatch session, post-flight only) | v4-core | beb4d83 on slice/v4-core | — | Post-flight clean: touch set exactly 8 declared files, gates diff 0 bytes, out-of-scope diff empty, raw-only report, judge def hardens beyond C6 minimum. Judgment (VG1–VG7) deferred to fresh session; VG8 awaits human desktop canary |
+| 2026-07-02 | Architect (Claude Fable, fresh judgment session) | v4-core judgment | this commit on slice/v4-core; toy commits 000c043/76b6358/e711423 | integrity+VG1–VG7+VG9 P; VG8 pending | All gates run/read this session. VG7 in-session canary: cold builder subagent (commit-denied) + cold judge subagents via shipped agent defs; judge #1 correctly FAILed uncommitted lane; judge #2 PASS after orchestrator commit; integrated + smoked. Lesson: commit lane before judging. Awaiting human VG8 before merge to main |
