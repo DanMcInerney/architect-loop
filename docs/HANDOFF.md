@@ -52,16 +52,25 @@
   not-planned), so the human VG8 re-run remains the true test.
 - Fix slice **`v4-desktop` JUDGED 2026-07-02** (cold judge subagent, freeze
   7d85899, lane commit 1d84230 on slice/v4-core): gates-integrity + WG1–WG4 +
-  WG6 all PASS; **WG5 (= human VG8 re-run) INVALID pending — the only open
-  gate and the merge gate for everything.** Fix shipped: tools padded per
-  #60237 (Bash/Read interior in both defs), validator positional guard
-  (`check_tools_pad`), dispatch.md desktop/CLI worktree scoping. New defect
-  **D11** found and documented in-lane: CLI Agent spawns run UNISOLATED in
-  the orchestrator's checkout despite `isolation: worktree` frontmatter
-  (desktop DOES auto-worktree) — until fixed upstream, pass isolation
-  explicitly per invocation and never run concurrent Claude-backend lanes
-  unverified. Bonus evidence: the judging subagent itself ran under the
-  padded defs on CLI with fully working Bash.
+  WG6 all PASS; **WG5 (= human VG8 re-run) FAIL 2026-07-02 — padding did NOT
+  restore Bash on desktop. NO MERGE.** Refined D9 signature (toy3 canary,
+  human-run, evidence audited on disk): the desktop strip is **Bash-specific,
+  not positional** — in BOTH agents the first (Glob) and last (Grep) entries
+  SURVIVED and only Bash (a middle entry) was stripped (builder got
+  Glob,Read,Edit,Write,Grep; judge got Glob,Read,Grep). #60237's first+last
+  pattern is falsified for desktop; matches the #18749 Bash-specific variant
+  (closed not-planned). Desktop MAIN session has Bash; only subagent spawns
+  lose it. Judge correctly INVALID; builder correctly BLOCKED; orchestrator
+  diagnostic run showed the artifact itself passes all gates. Evidence:
+  toy3 under `.claude/worktrees/dreamy-curie-b2d326/` (freeze fddcec6, lane
+  e0fbfdb, lane report records the stripped tool set verbatim).
+  D11 (CLI spawns unisolated despite `isolation: worktree`) stands; the
+  padded defs + `check_tools_pad` guard stay (they still guard real #60237
+  on other surfaces and are harmless). Research in flight: is desktop
+  subagent-Bash-stripping policy or bug, and does foreground (non-background)
+  dispatch differ? VG8 satisfiability on current desktop may need a HUMAN
+  re-ruling of PRD §6 ruling 5 (e.g. desktop-orchestration + CLI-executed
+  judgment) — architect cannot amend a human ruling.
 - Then v4-codex, v4-cleanup per PRD §4. v3 watch items (gpt-5.6 alias, GLM
   recipe, mapfile/macOS) carry over unchanged.
 
@@ -223,4 +232,5 @@ gate) carry over. `.claude/settings.json` commit decision still deferred.
 | 2026-07-02 | Architect (same Fable session, VG8 recording) | v4-core VG8 verdict | 2004ee4 | VG8 F recorded | Audited toy2 evidence on disk (freeze/lane SHAs, clean gates diff, byte-exact artifact) before recording. Slice call: CONTINUE via fix slice `v4-desktop`; no merge. claude-code-guide research dispatched on D9 root cause |
 | 2026-07-02 | Architect (same Fable session) | v4-desktop spec+freeze+dispatch | freeze 7d85899; 028147c | — | Research verified against live GitHub (#60237 confirmed: first+last tools dropped, pad workaround; #18749 Bash-variant). WG1–WG6 frozen; lane 01 dispatched cold architect-builder (sonnet tier-down) in background; WG4 is self-evidencing (builder's own Bash output = the gate). Judgment goes to a cold judge subagent after post-flight + lane commit |
 | 2026-07-02 | Builder (cold architect-builder subagent, sonnet:high) | v4-desktop lane 01 | working tree → 1d84230 | — | COMPLETE. PHASE 0 flagged branch-name mismatch (slice/v4-core, HEAD=freeze — accepted). Post-flight found D11 (its own spawn ran unisolated in main checkout; overclaim "both CLI and desktop" in its D10 text) → within-lane follow-up applied after one nudge: auto-worktree scoped to desktop, D11 + CLI cautions documented. Discovery: CLI spawn of a def with `isolation: worktree` did NOT create a worktree (D11) |
-| 2026-07-02 | Judge (cold architect-judge subagent, padded defs) + architect recording | v4-desktop judgment | this commit | integrity+WG1–WG4+WG6 P; WG5 INVALID pending | Judge ran WG1 both shells itself, verified check_tools_pad wiring, read defs/dispatch.md against D9/D10 contracts, flagged that post-update spawn behavior is only testable by WG5. Slice verdict INVALID until human records VG8 re-run. Judge's own Bash-capable run under padded defs = live CLI no-regression evidence. Slice call: CONTINUE contingent on WG5 |
+| 2026-07-02 | Judge (cold architect-judge subagent, padded defs) + architect recording | v4-desktop judgment | 2a66076 | integrity+WG1–WG4+WG6 P; WG5 INVALID pending | Judge ran WG1 both shells itself, verified check_tools_pad wiring, read defs/dispatch.md against D9/D10 contracts, flagged that post-update spawn behavior is only testable by WG5. Slice verdict INVALID until human records VG8 re-run. Judge's own Bash-capable run under padded defs = live CLI no-regression evidence. Slice call: CONTINUE contingent on WG5 |
+| 2026-07-02 | Human + desktop orchestrator (Claude Code desktop app) | WG5 = VG8 re-run (toy3 `hi`) | toy3 fddcec6 freeze, e0fbfdb lane (inside `.claude/worktrees/dreamy-curie-b2d326`) | WG5/VG8 F | Padded defs did NOT restore Bash on desktop: builder tool set Glob,Read,Edit,Write,Grep (BLOCKED, honest); judge tool set Glob,Read,Grep (INVALID all gates, honest); pads survived, only Bash stripped → #60237 positional pattern falsified for desktop, #18749 Bash-specific variant matches. Desktop session followed the full loop discipline: post-flight, orchestrator commit, C5 verbatim, no merge on non-PASS, diagnostic run separated artifact-soundness (all 3 gates pass) from loop-self-verification (impossible). Architect audited toy3 evidence on disk before recording |
