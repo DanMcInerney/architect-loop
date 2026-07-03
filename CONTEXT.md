@@ -45,6 +45,8 @@ Glossary only. No implementation details, no spec content.
 - **Tracker** - GitHub issues are the coordination state: claims are
   assignments, progress and verdicts are comments, the tracking issue carries
   the digest. "Not in the tracker = didn't happen."
+- **Status tree** - a read-only render over run artifacts and the tracker;
+  never a new state store.
 - **Spec approval** - the one human step: review one spec document, edit or
   veto its recorded assumptions, approve in-session or by commenting
   `APPROVE` on the tracking issue. Verbatim pre-approval can authorize a run

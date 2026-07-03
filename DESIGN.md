@@ -397,6 +397,16 @@ loop-hardening research ([docs/research/loop-improvements.md](docs/research/loop
   repo and evidence rows need post-judgment information, so build jobs and
   the orchestrator never edit them mid-run; pointers accumulate and one
   docs job consumes them before the PR.
+- **Conversational status display.** Decision: a mid-run status question runs
+  the status tree script and prints that plain-text tree beside the prose
+  answer. Why: Lazyagent's agent-tree precedent shows the right visual shape;
+  Agent View does not list spawned subagents; `gh` 2.94 exposes the JSON tree
+  fields (`parent`, `blockedBy`, state) needed for a read-only issue view; and
+  chat surfaces do not render ANSI, so color follows `isatty` and `NO_COLOR`.
+  The run scripts are invoked from the repo root or with `-RepoRoot`;
+  live-watch was descoped by human ruling. Evidence:
+  [docs/research/status-display-evidence.md](docs/research/status-display-evidence.md)
+  and [docs/jobs/status-scripts-rulings.md](docs/jobs/status-scripts-rulings.md).
 - **Nontrivial diagnoses are codified to `docs/solutions/<slug>.md`** and
   read back at grounding, so each run makes the next one easier. Measured
   basis: [docs/research/lesson-store-evidence.md](docs/research/lesson-store-evidence.md).
