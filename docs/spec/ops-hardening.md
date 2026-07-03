@@ -95,7 +95,7 @@ never heredocs; never rely on persisted cwd across commands.
 | A `hardening-watchdog` | `skills/architect/watchdog.ps1` (new), `skills/architect/watchdog.sh` (new), `tests/validate_skills.py` |
 | B `hardening-dispatch` | `skills/architect/dispatch.md`, `skills/architect/loop.md`, delete `.claude/agents/architect-monitor.md` |
 | C `hardening-skill-core` | `skills/architect/SKILL.md` |
-| D `hardening-docs` (blocked by A, B, C) | `DESIGN.md`, `README.md`, `CONTEXT.md`, `docs/solutions/git-bash-msys-codex-sandbox.md` (new) |
+| D `hardening-docs` (blocked by A, B, C) | `DESIGN.md`, `README.md`, `CONTEXT.md`, `docs/solutions/git-bash-msys-codex-sandbox.md` (new), `docs/solutions/monitor-per-job-evidence.md` (append only) |
 
 ## Assumptions (pre-approved unless vetoed on the tracking issue)
 

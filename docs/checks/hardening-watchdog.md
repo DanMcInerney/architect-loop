@@ -22,10 +22,16 @@ Commands (PowerShell) and PASS criteria:
 
 ## WA2 — ps1 parses as valid PowerShell
 
-Command:
-`powershell -NoProfile -Command "$t=[System.Management.Automation.Language.Parser]::ParseFile('skills/architect/watchdog.ps1',[ref]$null,[ref]$e); if($e.Count -eq 0){'WA2_OK'}else{$e}"`
+Run directly in the PowerShell session (not via nested `powershell -Command`,
+which expands `$` variables in the outer shell):
 
-PASS: output `WA2_OK`. (Use an absolute path for ParseFile if relative fails.)
+```powershell
+$e = $null
+[System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'skills/architect/watchdog.ps1').Path, [ref]$null, [ref]$e) | Out-Null
+if ($e.Count -eq 0) { 'WA2_OK' } else { $e }
+```
+
+PASS: output `WA2_OK`.
 
 ## WA3 — functional: ALL_DONE path
 

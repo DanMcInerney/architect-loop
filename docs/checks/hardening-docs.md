@@ -29,6 +29,9 @@ Commands and PASS criteria:
 - `git grep -c "APPROVE" -- README.md` → count ≥ 1
 - No sentence still claims an LLM/agent performs stall detection as primary
   — quote the monitor-related sentences.
+- `git grep -in "architect-monitor" -- README.md DESIGN.md CONTEXT.md` → no
+  output (the deleted agent definition is no longer referenced; the sibling
+  issue deleted the file, this issue removes the mentions).
 
 ## DD3 — CONTEXT updates
 
@@ -46,8 +49,9 @@ Commands and PASS criteria:
   contains `CreateFileMapping`, `Win32 error 5`, a works/dies scope
   statement, and at least one upstream issue link — quote the lines.
 - `git grep -ci "watchdog" -- docs/solutions/monitor-per-job-evidence.md` → count ≥ 1 (the appended supersession note)
-- `git diff --stat <freeze-sha> -- docs/solutions/monitor-per-job-evidence.md`
-  shows additions only (no deleted lines) — paste the stat.
+- `git diff --stat $(git rev-list -1 HEAD -- docs/solutions/monitor-per-job-evidence.md) -- docs/solutions/monitor-per-job-evidence.md`
+  run BEFORE your edits shows no output; run AFTER, against the same base
+  commit, shows additions only (no deleted lines) — paste both.
 
 ## DD5 — link integrity (composite)
 
