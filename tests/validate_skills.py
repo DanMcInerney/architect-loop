@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SKILLS = ROOT / "skills"
 MAX_DESC = 1024
 REQUIRED_SIBLINGS = {
-    "architect": ["dispatch.md", "research.md", "loop.md"],
+    "architect": ["dispatch.md", "research.md", "loop.md", "watchdog.ps1", "watchdog.sh"],
     "architect-research": ["tactics.md"],
 }
 ARCHITECT_HANDOFF_FREE_FILES = [
@@ -357,6 +357,28 @@ def check_codex_install_step() -> None:
             errors.append(f"{path.name}: missing Codex skills copy step ({needle})")
 
 
+def check_watchdog_contract() -> None:
+    ps1 = SKILLS / "architect" / "watchdog.ps1"
+    sh = SKILLS / "architect" / "watchdog.sh"
+    for path in (ps1, sh):
+        if not path.exists():
+            errors.append(f"{path.relative_to(ROOT)}: missing watchdog file")
+            continue
+        text = read_text(path)
+        for marker in (
+            "WATCHDOG: ALL_DONE",
+            "WATCHDOG: INTEGRATED",
+            "WATCHDOG: STALL",
+            "WATCHDOG: REPEAT",
+        ):
+            if marker not in text:
+                errors.append(f"{path.relative_to(ROOT)}: missing {marker}")
+    if sh.exists() and not read_text(sh).startswith("#!"):
+        errors.append("skills/architect/watchdog.sh: missing shebang")
+    if ps1.exists() and "ConvertFrom-Json" not in read_text(ps1):
+        errors.append("skills/architect/watchdog.ps1: missing ConvertFrom-Json")
+
+
 def check_retired_loop_terms() -> None:
     for path in SKILLS.rglob("*.md"):
         text = read_text(path)
@@ -387,6 +409,7 @@ def main() -> int:
     check_judge_template()
     check_agent_definitions()
     check_codex_install_step()
+    check_watchdog_contract()
     check_architect_handoff_free()
     check_retired_loop_terms()
     check_skill_text_size()
