@@ -54,3 +54,10 @@
   (correct trees, piped output ESC-free, stub regression green). Judgment
   still goes to a fresh judge - the no-self-grading invariant holds even
   for orchestrator-authored code.
+- 2026-07-03 judgment 6 FAIL: the orchestrator fix leaked failing-gh stderr
+  in degraded mode (the removed 2>$null had been HIDING the true root
+  cause - quote-stripping made gh exit nonzero - not causing the failure).
+  Completion of the same authorized fix: quoting stays fixed, stderr
+  suppression restored. Live-verified: tracker mode green; GH_TOKEN=bad
+  yields the degraded view with 0 stderr bytes. Judgment 7 dispatched; a
+  FAIL there stops the run for human ruling (no further orchestrator edits).

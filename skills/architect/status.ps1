@@ -77,13 +77,14 @@ function TrackerLines() {
     if (-not (Get-Command gh -ErrorAction SilentlyContinue)) { return @{ Reachable = $false; Lines = @() } }
     try {
         Push-Location -LiteralPath $root
-        # No stderr redirect: PS 5.1 wraps native stderr in ErrorRecords and
-        # poisons this try/catch even when gh succeeds (run #43 live evidence).
         # PS <=5 strips embedded double quotes when passing args to native
         # commands; gh must receive the pinned jq with its quotes intact.
+        # (The original live failure: quote-stripping made gh exit nonzero
+        # while 2>$null hid its parse error. Quoting fixed, stderr stays
+        # suppressed so failing gh is as silent as absent gh.)
         $jqArg = $PinnedJq
         if ($PSVersionTable.PSVersion.Major -le 5) { $jqArg = $PinnedJq -replace '"', '\"' }
-        try { $out = & gh issue list --state all --limit 200 --json number,title,state,parent,blockedBy --jq $jqArg }
+        try { $out = & gh issue list --state all --limit 200 --json number,title,state,parent,blockedBy --jq $jqArg 2>$null }
         finally { Pop-Location }
         return @{ Reachable = ($LASTEXITCODE -eq 0); Lines = @($out) }
     } catch {
