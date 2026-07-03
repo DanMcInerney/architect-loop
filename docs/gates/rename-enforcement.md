@@ -15,10 +15,11 @@ bookkeeping commits are exempt from touch-set checks.
 
 ## EN1 — retired terms absent (word-boundary; .gitignore handled by EN2)
 
-Command:
-`git grep -inwE "gate|gates|lane|lanes|brain|brawn|cold|epic|grill|dag" -- tests/validate_skills.py .claude/agents/ install.sh install.ps1`
+Commands:
+`git grep -inwE "gate|gates|gated|lane|lanes|brain|brawn|cold|epic|grill|grilled|grilling|dag" -- tests/validate_skills.py .claude/agents/ install.sh install.ps1`
+`git grep -inE "stop rail|spec gate" -- tests/validate_skills.py .claude/agents/ install.sh install.ps1`
 
-PASS: no output.
+PASS: no output from either.
 
 ## EN2 — .gitignore un-ignores both old and new run-artifact paths
 

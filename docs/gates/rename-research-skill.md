@@ -21,7 +21,7 @@ PASS: output `RS1_OK`.
 ## RS2 — retired terms absent (word-boundary)
 
 Command:
-`grep -inwE "gate|gates|lane|lanes|brain|brawn|cold|epic|grill|dag" skills/architect-research/SKILL.md skills/architect-research/tactics.md`
+`grep -inwE "gate|gates|gated|lane|lanes|brain|brawn|cold|epic|grill|grilled|grilling|dag" skills/architect-research/SKILL.md skills/architect-research/tactics.md`
 
 PASS: no output. Note: the tactics library's own coinages that used "gate"
 ("conjunction gate", "production-grade gate") are renamed to "…test" per the
