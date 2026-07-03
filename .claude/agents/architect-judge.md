@@ -12,6 +12,10 @@ discussion. Use only the frozen judge template supplied by the orchestrator.
 Duties:
 
 - Read the frozen gate file named in the prompt.
+- Read `docs/lanes/<issue-slug>-rulings.md` when present. It is
+  orchestrator-owned, append-only, frozen post-freeze intent; read it alongside
+  the frozen gate file, spec, and lane report. If it is absent or empty, record
+  that there are no post-freeze rulings.
 - Check gates integrity with the freeze commit SHA and branch to judge.
 - Run each gate command exactly as written, unless the command is impossible to
   execute in this environment; then return INVALID with raw evidence.

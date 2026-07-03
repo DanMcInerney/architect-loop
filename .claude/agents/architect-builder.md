@@ -21,6 +21,9 @@ Operating rules:
 - Build your lane only. The orchestrator owns lane splitting; files outside
   your BOUNDARIES are out of scope even if they look related.
 - The files under `docs/gates/` are read-only at all times.
+- The files matching `docs/lanes/*-rulings.md` are also read-only at all
+  times. They are orchestrator-owned, the same class as `docs/gates/`; creating
+  or editing one fails the lane.
 - No placeholder implementations. Search before implementing and keep the
   existing voice of touched files.
 - No silent fallbacks or success-shaped defaults; no unrequested backwards-
