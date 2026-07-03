@@ -41,6 +41,18 @@ same tiny thresholds. Run watchdog.ps1.
 PASS: exit `3` (`WATCHDOG: STALL` — the job kept sweeping and hit the
 no-growth rule) and NO `ALL_DONE` anywhere in the output.
 
+## TW4b — functional: a GROWING report is growth evidence
+
+Fixture: `twfix/growing/` with a static events file and no process match;
+start a background writer (PowerShell `Start-Job` is fine) that appends a
+prose line to the report every ~1s for ~6s and THEN appends
+`STATUS: COMPLETE`. Run watchdog.ps1 with `sweep_sec:1,
+stall_after_min:0.03` concurrently.
+PASS: exit `0` with `WATCHDOG: ALL_DONE` — never exit 3. (If report growth
+were not counted as liveness, the ~2s stall threshold would fire during the
+~6s growing phase before the STATUS line appears.) Paste verbatim output
+and the writer's timeline.
+
 ## TW5 — regressions: STALL and INTEGRATED unchanged
 
 - Re-run the prior STALL fixture shape (no report at all, static events, no
