@@ -913,3 +913,59 @@ The run also produced four diagnoses worth codifying:
   harness-created worktree had a fast-forwarded ref but stale files on disk.
   Freeze commits must precede dispatch, and each lane must verify HEAD and
   required input files before building.
+
+### v5.1 addendum - architect-v5.1
+
+Source pointers: the approved spec is `docs/spec/architect-v5.1.md`; this run's
+trail is epic #20 with issues #21-#25 on `factory/v5.1` from spec approval
+commit `0a60bb6`; the in-repo ruling record is
+`docs/lanes/v51-docs-rulings.md`.
+
+Eight retro findings, paired as R/W summaries:
+
+- **R1/W1.** BLOCKED-with-evidence and respawn worked, but Claude-backend
+  shell-strip made backend choice an intake-time risk.
+- **R2/W2.** PHASE 0 caught an orchestrator defect, while the first harness
+  worktree still proved freeze visibility must be checked before dispatch.
+- **R3/W3.** Cold judge diff-vs-intent caught a masked failure, but the grill
+  missed issue-body, deleted-reference, and ignored-new-file classes.
+- **R4/W4.** One decomposition grill caught five draft defects, yet
+  post-freeze rulings lacked a durable in-repo home.
+- **R5/W5.** INVALID-vs-FAIL discipline held, while codex-backend judge blocks
+  and cache substitutions were still hand-assembled.
+- **R6/W6.** Interface handoff blocks avoided merge conflicts, but monitor
+  teammate spawns idled instead of matching the documented quiet-exit model.
+- **R7/W7.** Raw evidence under tool deprivation stayed honest, while direct
+  builder issue posting was effectively unavailable and required orchestrator
+  mirroring.
+- **R8/W8.** Sonnet-high brawn passed most first-wave lanes, but branch hygiene
+  was improvised by landing pre-factory commits on main before the run branch.
+
+v5.1 design decisions:
+
+- **D1. Backend canary at preflight.** Run a trivial shell canary per candidate
+  backend, mark shell-less backends DEGRADED, and select the verified fallback
+  before decomposition.
+- **D2. Factory branch and freeze-push-dispatch.** Cut `factory/<run>` at spec
+  approval, commit and push the freeze, then verify spawned worktree HEAD and
+  frozen inputs.
+- **D3. Wider decomposition grill.** Grill gates, issue bodies, deleted or
+  renamed references, and committability for new artifact paths.
+- **D4. Rulings file.** Keep post-freeze intent in append-only
+  `docs/lanes/<slug>-rulings.md` files owned by the orchestrator.
+- **D5. Codex judge template and substitution table.** Freeze the codex judge
+  block and sanctioned substitutions in dispatch text.
+- **D6. Monitor spawn semantics.** Treat the monitor as a background subagent;
+  teammate-style monitor spawns require explicit stand-down.
+- **D7. Issue mirror reality.** Accept `MIRROR: ORCHESTRATOR` as normal when
+  builders cannot post to GitHub directly.
+- **D8. Keep-list.** Preserve blocker exits, PHASE 0 duty, cold judging, one
+  grill, interface blocks, raw substitutions, INVALID discipline, and tier
+  outcome logging.
+
+First live D1 exercise: the v5.1 preflight backend canary returned
+`CANARY: DEGRADED` for a Claude haiku architect-builder spawn with
+Glob/Read/Edit/Write/Grep only and no shell; cumulative shell-strip evidence on
+2026-07-02 was 6/6 Claude subagent spawns. The backend selected at preflight for
+the whole v5.1 run was codex/tier-down (`gpt-5.5`, high effort), and no
+mid-wave backend switching occurred.
