@@ -42,3 +42,15 @@
   - SS4 must still pass), (2) the tracker gh call honors the repo root
   (-R/--repo from the target root's origin, or run gh with the target as
   cwd). Fifth judgment; merge on PASS; any further FAIL kills the issue.
+- 2026-07-03 composite live render failed after judgment 5 on two defects
+  invisible to the sandbox (ps1: 2>$null on native gh poisoning try/catch,
+  which also masked PS<=5 stripping embedded quotes from the jq argument;
+  sh: whitespace-IFS collapsing empty TSV fields). Factory parked; HUMAN
+  RULING: "FIX, let the orchestrator take a crack at this" - an explicit,
+  recorded exception to the orchestrator-never-writes-code rule for this
+  fix only. Orchestrator applied four surgical edits (stderr redirect
+  removed + PS<=5 quote escaping + UTF-8 console output in ps1; unit-
+  separator TSV parsing in sh), live-verified both scripts against run #43
+  (correct trees, piped output ESC-free, stub regression green). Judgment
+  still goes to a fresh judge - the no-self-grading invariant holds even
+  for orchestrator-authored code.

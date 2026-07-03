@@ -1,6 +1,9 @@
 param([string]$RepoRoot = (Get-Location).Path)
 
 $ErrorActionPreference = "SilentlyContinue"
+# PS 5.1 defaults redirected output to the OEM codepage, which turns the
+# phase glyphs into '?'. Emit UTF-8 so the tree survives pipes and chat.
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 
 function J($A, $B) { return [System.IO.Path]::Combine($A, $B) }
 function TailText($Path) {
@@ -71,10 +74,16 @@ function TrackerLines() {
     if ($env:STATUS_GH_STUB -and (Test-Path -LiteralPath $env:STATUS_GH_STUB -PathType Leaf)) {
         return @{ Reachable = $true; Lines = @(Get-Content -LiteralPath $env:STATUS_GH_STUB) }
     }
-    if (-not (Get-Command gh)) { return @{ Reachable = $false; Lines = @() } }
+    if (-not (Get-Command gh -ErrorAction SilentlyContinue)) { return @{ Reachable = $false; Lines = @() } }
     try {
         Push-Location -LiteralPath $root
-        try { $out = & gh issue list --state all --limit 200 --json number,title,state,parent,blockedBy --jq $PinnedJq 2>$null }
+        # No stderr redirect: PS 5.1 wraps native stderr in ErrorRecords and
+        # poisons this try/catch even when gh succeeds (run #43 live evidence).
+        # PS <=5 strips embedded double quotes when passing args to native
+        # commands; gh must receive the pinned jq with its quotes intact.
+        $jqArg = $PinnedJq
+        if ($PSVersionTable.PSVersion.Major -le 5) { $jqArg = $PinnedJq -replace '"', '\"' }
+        try { $out = & gh issue list --state all --limit 200 --json number,title,state,parent,blockedBy --jq $jqArg }
         finally { Pop-Location }
         return @{ Reachable = ($LASTEXITCODE -eq 0); Lines = @($out) }
     } catch {

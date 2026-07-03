@@ -79,9 +79,11 @@ tracker_tsv=
 if tracker_tsv=$(tracker_lines 2>/dev/null); then tracker=1; fi
 tracking=
 if [ "$tracker" -eq 1 ]; then
-  while IFS="$(printf '\t')" read -r kind num state blockers title; do
+  # Tab is whitespace to bash IFS: runs collapse and empty TSV fields shift
+  # later columns (run #43 live evidence). Translate to unit separators.
+  while IFS="$(printf '\037')" read -r kind num state blockers title; do
     [ "$kind" = TRACK ] && tracking=$num
-  done <<< "$tracker_tsv"
+  done <<< "$(printf '%s\n' "$tracker_tsv" | tr '\t' '\037')"
 fi
 slugs=$(artifact_slugs)
 if { [ "$tracker" -eq 0 ] || [ -z "$tracking" ]; } && [ -z "$slugs" ]; then
@@ -101,13 +103,13 @@ cfg=$(find "$root/.architect/tmp" -maxdepth 1 -type f -name 'wd-*.json' 2>/dev/n
 ps -eo args= 2>/dev/null | grep 'watchdog\.\(ps1\|sh\)' >/dev/null && proc=True || proc=False
 printf 'WATCHDOG: process=%s config=%s\n' "$proc" "$cfg"
 if [ "$tracker" -eq 1 ] && [ -n "$tracking" ]; then
-  while IFS="$(printf '\t')" read -r kind num state blockers title; do
+  while IFS="$(printf '\037')" read -r kind num state blockers title; do
     [ "$kind" = SUB ] || continue
     slug=$(slugify "$title"); set -- $(phase "$slug" "$state" "$blockers")
     extra=; [ "$2" = QUEUED ] && extra=" blocked-by: $blockers"
     printf '%s #%s %s .architect/wt/%s-01%s\n' "$1" "$num" "$title" "$slug" "$extra"
     [ "$2" = BUILDING ] && last_command "$slug"
-  done <<< "$tracker_tsv"
+  done <<< "$(printf '%s\n' "$tracker_tsv" | tr '\t' '\037')"
 else
   for slug in $slugs; do
     set -- $(phase "$slug")
