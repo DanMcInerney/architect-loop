@@ -61,6 +61,7 @@ function ArtifactSlugs() {
     }
     return @($set.Keys | Sort-Object)
 }
+function OpenBlockerNumbers($Issue) { if (-not $Issue -or -not $Issue.blockedBy) { return @() }; return @($Issue.blockedBy | Where-Object { $_.state -eq "OPEN" } | ForEach-Object { $_.number }) }
 function Phase($Slug, $Issue) {
     if ($Issue -and $Issue.state -eq "CLOSED") { return @($G.Merged, "MERGED") }
     $report = ReportPath $Slug
@@ -70,7 +71,7 @@ function Phase($Slug, $Issue) {
     if ($status.StartsWith("BLOCKED")) { return @($G.Blocked, "BLOCKED") }
     if (Test-Path -LiteralPath $report) { return @($G.Reported, "REPORTED") }
     if (Test-Path -LiteralPath (J (J $root ".architect/wt") "$Slug-01")) { return @($G.Building, "BUILDING") }
-    if ($Issue -and $Issue.blockedBy -and @($Issue.blockedBy).Count -gt 0) { return @($G.Queued, "QUEUED") }
+    if ((OpenBlockerNumbers $Issue).Count -gt 0) { return @($G.Queued, "QUEUED") }
     return @($G.Ready, "READY")
 }
 
@@ -80,30 +81,39 @@ $G = @{ Merged = [char]0x2713; Judging = [char]0x25D0; Blocked = "!"; Reported =
 if (Test-Path -LiteralPath (J $root ".git")) { $branch = (& git -C $root branch --show-current 2>$null) } else { $branch = "" }
 if (-not $branch) { $branch = "unknown" }
 $ghJson = ""
-try { $ghJson = (& gh issue list --json number,title,state,parent,blockedBy,assignees 2>$null) } catch { $ghJson = "" }
+$trackerReachable = $false
+if (Get-Command gh) {
+    try { $ghJson = (& gh issue list --state all --limit 200 --json number,title,state,parent,blockedBy 2>$null); $trackerReachable = ($LASTEXITCODE -eq 0) }
+    catch { $ghJson = ""; $trackerReachable = $false }
+}
 $issues = @()
-if ($LASTEXITCODE -eq 0 -and $ghJson) { try { $issues = @($ghJson | ConvertFrom-Json) } catch { $issues = @() } }
-$parents = @($issues | Where-Object { $_.parent } | ForEach-Object { $_.parent.number } | Select-Object -Unique)
-if ($parents.Count -gt 0) { $tracking = $parents[0]; $issues = @($issues | Where-Object { $_.parent -and $_.parent.number -eq $tracking }) } else { $tracking = "" }
-$trackerOk = $issues.Count -gt 0
+if ($trackerReachable -and $ghJson) { try { $issues = @($ghJson | ConvertFrom-Json) } catch { $issues = @() } }
+$parentRefs = @($issues | Where-Object { $_.parent } | ForEach-Object { $_.parent.number } | Select-Object -Unique)
+$trackingIssue = @($issues | Where-Object { $_.state -eq "OPEN" -and $parentRefs -contains $_.number } | Sort-Object number -Descending | Select-Object -First 1)
+$tracking = ""
+$subIssues = @()
+if ($trackingIssue.Count -gt 0) {
+    $tracking = $trackingIssue[0].number
+    $subIssues = @($issues | Where-Object { $_.parent -and $_.parent.number -eq $tracking })
+}
 $slugs = ArtifactSlugs
-if ((-not $trackerOk) -and $slugs.Count -eq 0) {
+if (((-not $trackerReachable) -or ($trackerReachable -and -not $tracking)) -and $slugs.Count -eq 0) {
     Write-Output "NO ACTIVE FACTORY RUN"
     Write-Output "spec: $(NewestSpec)"
     exit 0
 }
 Write-Output "STATUS TREE spec: $(NewestSpec) branch: $branch"
-if ($trackerOk -and $tracking) { Write-Output "tracker: #$tracking" } elseif ($trackerOk) { Write-Output "tracker: available" } else { Write-Output "tracker: unavailable (local view)" }
+if ($trackerReachable -and $tracking) { Write-Output "tracker: #$tracking" } elseif ($trackerReachable) { Write-Output "tracker: no open run" } else { Write-Output "tracker: unavailable (local view)" }
 Write-Output "ORCHESTRATOR: local view"
 $wdCfg = @(Get-ChildItem -LiteralPath (J $root ".architect/tmp") -Filter "wd-*.json")
 $wdProc = @(Get-WmiObject Win32_Process | Where-Object { $_.CommandLine -match 'watchdog\.(ps1|sh)' })
 Write-Output "WATCHDOG: process=$($wdProc.Count -gt 0) config=$($wdCfg.Count)"
-if ($trackerOk) {
-    foreach ($issue in $issues) {
+if ($trackerReachable -and $tracking) {
+    foreach ($issue in $subIssues) {
         $slug = Slugify $issue.title
         $p = Phase $slug $issue
         $extra = ""
-        if ($p[1] -eq "QUEUED") { $extra = " blocked-by: " + (($issue.blockedBy | ForEach-Object { $_.number }) -join ",") }
+        if ($p[1] -eq "QUEUED") { $extra = " blocked-by: " + ((OpenBlockerNumbers $issue) -join ",") }
         Write-Output "$($p[0]) #$($issue.number) $($issue.title) .architect/wt/$slug-01$extra"
         if ($p[1] -eq "BUILDING") { $last = LastCommand $slug; if ($last) { Write-Output $last } }
     }

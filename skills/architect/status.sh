@@ -30,6 +30,18 @@ tail_text(){ [ -f "$1" ] && tail -c 4096 "$1" | tr -d '\000'; }
 status_line(){
   tail_text "$1" | sed 's/^\xEF\xBB\xBF//' | awk '/^STATUS:/{sub(/^STATUS:[[:space:]]*/,""); s=$0} END{print s}'
 }
+json_objects(){
+  awk 'BEGIN{d=0;s=0;e=0;o=""}{for(i=1;i<=length($0);i++){c=substr($0,i,1);if(s){o=o c;if(e)e=0;else if(c=="\\")e=1;else if(c=="\"")s=0;continue}if(c=="\""){if(d>0)o=o c;s=1;continue}if(c=="{"){d++;o=o c;continue}if(d>0)o=o c;if(c=="}"){d--;if(d==0){print o;o=""}}}}'
+}
+issue_number(){ printf '%s' "$1" | grep -o '"number"[[:space:]]*:[[:space:]]*[0-9][0-9]*' | head -n 1 | sed 's/[^0-9]//g'; }
+issue_title(){ printf '%s' "$1" | grep -o '"title"[[:space:]]*:[[:space:]]*"[^"]*"' | head -n 1 | sed 's/.*"title"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/'; }
+issue_state(){ printf '%s' "$1" | grep -o '"state"[[:space:]]*:[[:space:]]*"[^"]*"' | head -n 1 | sed 's/.*"state"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/'; }
+parent_number(){ printf '%s' "$1" | sed -n 's/.*"parent"[[:space:]]*:[[:space:]]*{[^}]*"number"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | head -n 1; }
+open_blockers(){
+  block=$(printf '%s' "$1" | sed -n 's/.*"blockedBy"[[:space:]]*:[[:space:]]*\[\(.*\)\][[:space:]]*}.*/\1/p')
+  [ -n "$block" ] || return
+  printf '[%s]\n' "$block" | json_objects | while IFS= read -r blocker; do [ "$(issue_state "$blocker")" = OPEN ] && issue_number "$blocker"; done | paste -sd, -
+}
 last_command(){
   ev="$root/.architect/wt/$1-01.events.jsonl"
   cmd=$(tail_text "$ev" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | tail -n 1)
@@ -71,33 +83,63 @@ branch=
 [ -e "$root/.git" ] && branch=$(git -C "$root" branch --show-current 2>/dev/null || true)
 [ -n "$branch" ] || branch=unknown
 gh_json=
-if command -v gh >/dev/null 2>&1; then gh_json=$(gh issue list --json number,title,state,parent,blockedBy,assignees 2>/dev/null || true); fi
 tracker=0
-[ -n "$gh_json" ] && tracker=1
+if command -v gh >/dev/null 2>&1; then
+  if gh_json=$(gh issue list --state all --limit 200 --json number,title,state,parent,blockedBy 2>/dev/null); then
+    tracker=1
+  fi
+fi
+issue_objs=
+tracking=
+if [ "$tracker" -eq 1 ]; then
+  issue_objs=$(printf '%s\n' "$gh_json" | json_objects)
+  parent_refs=' '
+  while IFS= read -r obj; do
+    p=$(parent_number "$obj")
+    [ -n "$p" ] && parent_refs="$parent_refs$p "
+  done <<< "$issue_objs"
+  highest=0
+  while IFS= read -r obj; do
+    num=$(issue_number "$obj")
+    state=$(issue_state "$obj")
+    [ -n "$num" ] || continue
+    [ "$state" = OPEN ] || continue
+    case "$parent_refs" in *" $num "*)
+      if [ "$num" -gt "$highest" ]; then highest=$num; tracking=$num; fi
+      ;;
+    esac
+  done <<< "$issue_objs"
+fi
 slugs=$(artifact_slugs)
-if [ "$tracker" -eq 0 ] && [ -z "$slugs" ]; then
+if { [ "$tracker" -eq 0 ] || [ -z "$tracking" ]; } && [ -z "$slugs" ]; then
   printf 'NO ACTIVE FACTORY RUN\nspec: %s\n' "$(newest_spec)"
   exit 0
 fi
 printf 'STATUS TREE spec: %s branch: %s\n' "$(newest_spec)" "$branch"
-[ "$tracker" -eq 1 ] && printf 'tracker: available\n' || printf 'tracker: unavailable (local view)\n'
+if [ "$tracker" -eq 1 ] && [ -n "$tracking" ]; then
+  printf 'tracker: #%s\n' "$tracking"
+elif [ "$tracker" -eq 1 ]; then
+  printf 'tracker: no open run\n'
+else
+  printf 'tracker: unavailable (local view)\n'
+fi
 printf 'ORCHESTRATOR: local view\n'
 cfg=$(find "$root/.architect/tmp" -maxdepth 1 -type f -name 'wd-*.json' 2>/dev/null | wc -l | tr -d ' ')
 ps -eo args= 2>/dev/null | grep 'watchdog\.\(ps1\|sh\)' >/dev/null && proc=True || proc=False
 printf 'WATCHDOG: process=%s config=%s\n' "$proc" "$cfg"
-if [ "$tracker" -eq 1 ]; then
-  printf '%s\n' "$gh_json" | sed 's/^\[//;s/\]$//;s/},{/}\
-{/g' | while IFS= read -r obj; do
-    num=$(printf '%s' "$obj" | sed -n 's/.*"number":[[:space:]]*\([0-9][0-9]*\).*/\1/p')
-    title=$(printf '%s' "$obj" | sed -n 's/.*"title":[[:space:]]*"\([^"]*\)".*/\1/p')
-    state=$(printf '%s' "$obj" | sed -n 's/.*"state":[[:space:]]*"\([^"]*\)".*/\1/p')
-    blockers=$(printf '%s' "$obj" | grep -o '"blockedBy":[^]]*' | grep -o '"number":[0-9]*' | sed 's/[^0-9]//g' | paste -sd, -)
+if [ "$tracker" -eq 1 ] && [ -n "$tracking" ]; then
+  while IFS= read -r obj; do
+    [ "$(parent_number "$obj")" = "$tracking" ] || continue
+    num=$(issue_number "$obj")
+    title=$(issue_title "$obj")
+    state=$(issue_state "$obj")
+    blockers=$(open_blockers "$obj")
     [ -n "$num" ] || continue
     slug=$(slugify "$title"); set -- $(phase "$slug" "$state" "$blockers")
     extra=; [ "$2" = QUEUED ] && extra=" blocked-by: $blockers"
     printf '%s #%s %s .architect/wt/%s-01%s\n' "$1" "$num" "$title" "$slug" "$extra"
     [ "$2" = BUILDING ] && last_command "$slug"
-  done
+  done <<< "$issue_objs"
 else
   for slug in $slugs; do
     set -- $(phase "$slug")
