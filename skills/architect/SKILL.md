@@ -83,6 +83,14 @@ Preflight is mandatory and has no fallback: a GitHub remote exists, `gh auth
 status` passes, and `gh` is at least 2.94.0 for native `--blocked-by`,
 `--parent`, and `--blocking` support. Fail loudly if any precondition fails.
 
+Before decomposition records the brawn backend, canary every candidate backend
+once with a trivial task: list available tools; run `git log -1 --oneline` if a
+shell exists; reply `CANARY: SHELLS_OK` or `CANARY: DEGRADED`. A backend whose
+canary lacks a working shell executor is DEGRADED: select the fallback backend
+then, record the substitution and canary evidence on the epic, and resolve
+dispatch rules against that verified backend. Do not switch backend mid-wave
+unless a canary-passing backend later degrades; then use the failure ladder.
+
 Apply D9 while shaping the intake: name domain terms precisely, record sparse
 ADRs only for hard-to-reverse surprising trade-offs, and identify testing seams
 up front so builder lanes do not invent seams mid-flight.
@@ -97,6 +105,10 @@ or vetoes assumptions, and approves or rejects the plan. Approval authorizes
 the whole issue DAG; after approval, contact the human only through the epic
 digest or stop rails.
 
+On approval, cut `factory/<run>`. ALL run commits after approval, including
+spec amendments, gates, freeze, and lane merges, land on that branch. Main stays
+untouched until the single closing PR.
+
 Done when the approved spec and assumption rulings are committed or rejection
 is recorded.
 
@@ -109,6 +121,10 @@ Compile the approved spec into GitHub issues:
   may-touch and must-not-touch sets, gate path, raw-report path, and native
   parent plus blocked-by edges.
 - Gates per issue live in `docs/gates/` and freeze in git before dispatch.
+- Dispatch has hard-stop preconditions, in order: freeze committed on the
+  factory branch; factory branch pushed; after each spawn, verify the worktree
+  HEAD equals the freeze commit and spot-check one frozen file exists on disk.
+  Builders still perform FIRST-ACTION input verification as the last defense.
 - Run one cold read-only grill pass over the whole decomposition, not per
   issue. It attacks the DAG, gates, file-touch sets, dependency edges, missing
   context, non-falsifiable checks, and repo-name grep collisions.
@@ -151,6 +167,11 @@ Use `loop.md` `## Factory block procedure` for the detailed event loop.
   Merge only after a passing verdict and clean touch-set evidence.
 - On BLOCKED, answer on the issue, cite durable evidence, and respawn a fresh
   builder with the answer using `dispatch.md` `## Respawn-with-answer template`.
+- Post-freeze rulings live append-only in
+  `docs/lanes/<issue-slug>-rulings.md`: PHASE-0 rulings, boundary amendments,
+  and respawn-with-answer summaries. The orchestrator owns the file, commits it
+  before judge dispatch, mirrors it to the issue thread for humans, and judges
+  read the file rather than thread prose.
 - On gate failure, diagnose from judge evidence, not a large direct diff. Fix
   the input, re-decompose, or stop; do not change tier because of failure.
 - On merge conflict, treat it as decomposition failure: kill the conflicting
