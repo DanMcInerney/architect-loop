@@ -29,9 +29,12 @@ flags in every command; this table is the source of those pins.
 
 Role strings are `<cli>/<model-spec>[:<effort>]`, with `<cli>` in `{claude,
 codex}`. Resolution order per role is repo `.architect/config`, then user
-`~/.architect/config`, then defaults: brain = the running session; brawn =
-tier-down per the alias table. Flat `key = value` lines are the supported
-format for role keys. Unknown keys warn and never fail.
+`~/.architect/config`, then defaults: brain = the running session; brawn is
+codex-first — `codex/best` (gpt-5.5, xhigh) whenever the Codex CLI is on
+PATH, from either harness (a Codex orchestrator trivially satisfies this);
+if the orchestrator is Claude Code and Codex is absent, brawn =
+`claude/tier-down` (Sonnet at high). Flat `key = value` lines are the
+supported format for role keys. Unknown keys warn and never fail.
 
 Optional dispatch-rules lines route task classes to a brawn tier:
 
@@ -44,13 +47,14 @@ when broad ambiguous refactor -> codex/best:xhigh # deeper search and edit budge
 ```
 
 Format: `when <task-class description> -> <cli>/<model-spec>[:<effort>] # why`.
-The trailing reason is optional but preferred. Absent file = tier-down default.
-Absent dispatch rules = tier-down default. A matching rule is still a judgment
-aid; the orchestrator records which rule was used and may override it with a
-reason recorded on the issue.
+The trailing reason is optional but preferred. Absent file = the codex-first
+default above. Absent dispatch rules = the codex-first default. A matching
+rule is still a judgment aid; the orchestrator records which rule was used
+and may override it with a reason recorded on the issue.
 
-Configured brawn CLI absent at preflight -> fall back to the tier-down default
-and write one epic-issue comment naming requested vs substituted. Cross-family
+Configured brawn CLI absent at preflight -> fall back per the codex-first
+default (on Claude Code without Codex: `claude/tier-down`) and write one
+epic-issue comment naming requested vs substituted. Cross-family
 review backend absent -> run review in a fresh same-CLI context and log the
 same-family bias caveat. Never hard-fail on model availability alone. Tier is
 fixed at decomposition by config plus dispatch rules and never moves because a

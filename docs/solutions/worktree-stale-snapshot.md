@@ -1,4 +1,5 @@
 # Worktree Stale Snapshot
+Recorded: 2026-07-02 (architect v5 dogfood run, epic #12)
 
 ## Problem
 
