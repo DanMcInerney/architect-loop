@@ -66,7 +66,7 @@ wiring them into two installable skills with the failure modes closed.
 | **Orchestrator** | the session the human opened | intake, spec, decomposition, check freeze, dispatch, blocker answers, merge decisions, digest |
 | **Builder** | fresh worker agent, one per issue, own worktree | implementation and raw-evidence reporting only |
 | **Judge** | fresh orchestrator-tier agent, read-only | frozen-check verdicts and diff-vs-intent |
-| **Monitor** | cheapest-tier background agent, one per wave | stall detection only — never kills, never decides |
+| **Watchdog** | deterministic script per wave; "monitor" informally | mechanical stall evidence only — never kills, never decides |
 | **Adversarial reviewer** | fresh reviewer, pre-freeze | the stress-test pass (called the *grill* in earlier runs) falsifies the decomposition before it's authorized |
 | **Human** | you | spec approval, hard stops, taste |
 
@@ -161,6 +161,16 @@ loop-hardening research ([docs/research/loop-improvements.md](docs/research/loop
   the factory only through the tracking issue digest or a hard stop. Concentrating
   human attention at the spec is where misdesign is cheapest to fix
   ([PEAR](https://arxiv.org/abs/2510.07505): planner errors dominate).
+- **Approval is explicit, durable, and fail-safe.** The two approval forms
+  are in-session approval or an `APPROVE` comment on the tracking issue;
+  an invocation can also pre-authorize a run only when the exact
+  pre-authorization text is recorded verbatim. Otherwise the factory parks,
+  polls for approval, and stops after 7 days. The evidence is the same
+  shape across deployment systems and agent products: GitHub environments
+  auto-fail unapproved runs after 30 days, Azure timeout-rejects approvals,
+  OWASP fail-safe defaults ban inferred allow, and Copilot treats assignment
+  itself as authorization
+  ([factory-hardening evidence](docs/research/factory-hardening-evidence.md)).
 - **Preflight has no fallback.** A GitHub remote, passing `gh auth status`,
   and `gh` ≥ 2.94.0 are hard preconditions; failing any of them fails
   loudly rather than degrading to a local tracker (no silent fallback, P1).
@@ -180,7 +190,7 @@ loop-hardening research ([docs/research/loop-improvements.md](docs/research/loop
   ([mattpocock/skills](https://github.com/mattpocock/skills) `/to-issues`;
   [Anthropic multi-agent](https://www.anthropic.com/engineering/multi-agent-research-system)).
   The parallel set is always the plan's ready issues, capped at five
-  jobs plus one monitor.
+  jobs plus one watchdog sweep.
 - **Concurrently scheduled issues share nothing mutable.** Not files,
   migrations, lockfiles, generated artifacts, config, schemas, dev servers,
   or databases. Merge conflicts are the top reported multi-agent failure and
@@ -335,13 +345,17 @@ loop-hardening research ([docs/research/loop-improvements.md](docs/research/loop
   still grows. Evidence: the worst scaffold in
   [SWE-Marathon](https://arxiv.org/abs/2606.07682) repeated 32% of its tool
   calls and produced 63/83 timeouts; OpenHands ships the same detector.
-- **The monitor detects; the orchestrator rules (D6).** One cheapest-tier,
-  detection-only background subagent per wave sweeps ~every 10 minutes
-  (file growth, process tree, repeated-command tails) and exits with an
-  evidence report on anomaly. It never kills, nudges, or decides — keeping
-  the kill decision at orchestrator tier keeps a cheap model from destroying an
-  expensive healthy run. Quiet exit on an all-green wave is success, not
-  waste.
+- **The watchdog detects; the orchestrator rules (D6).** Detection is a
+  deterministic script that reads file growth, process activity, and repeated
+  command tails, then exits with typed evidence. Reasoning stays with the
+  orchestrator. Gas Town draws the same boundary between "is session alive?"
+  and "requires reasoning"; GitLab's one-hour no-output rule is the CI
+  precedent; OpenHands ships code-level repeated-action thresholds and also
+  documents the false positive that proves REPEAT is evidence, never an
+  auto-kill. The local run-#30 LLM monitor measured 3 dispatches, 0 true
+  positives, and 2 false positives, so the LLM monitor survives only as a
+  fallback template
+  ([factory-hardening evidence](docs/research/factory-hardening-evidence.md)).
 - **Hard stops (D11).** the `docs/STOP` kill switch before any wave; irreversible actions;
   two consecutive KILLs; a blocker colliding with a recorded assumption
   (a spec-approval decision surfacing late); scope growth beyond the approved
@@ -350,7 +364,7 @@ loop-hardening research ([docs/research/loop-improvements.md](docs/research/loop
 
 ### Model routing
 
-- **Orchestrator, builders, judge, and monitor are configurable roles, not brand
+- **Orchestrator, builders, judge, and watchdog are configurable roles, not brand
   names (D2).** Flat `key = value` lines in `.architect/config` (repo) then
   `~/.architect/config` (user); the alias table in `dispatch.md` is the
   single owned rot point mapping `codex/best`, `claude/best`, and tier-downs
@@ -467,7 +481,7 @@ decisions, from the 2026-06 evidence review and the r2 calibration pass
 | Fabricated status reports | Every status claim audited against a tool result, both sides |
 | Check-passing but unmergeable work | Judge reads diff vs intent, not check output alone (METR) |
 | Builder gaming visible checks | Frozen read-only checks; no iterate-against-judge loop (ImpossibleBench 33%→38%) |
-| Stalled jobs | Detection-only monitor: growth + process + repeated-action checks; orchestrator rules on evidence; no kill ceilings |
+| Stalled jobs | Watchdog script: growth + process + repeated-action checks; orchestrator rules on typed evidence; no kill ceilings |
 | Runaway factory | `docs/STOP` kill switch; two-consecutive-KILL hard stop; assumption-collision hard stop; tracking issue digest as the human channel |
 | Stale worktree snapshots | Freeze → push → dispatch ordering; post-spawn HEAD + file verification |
 | Shell-stripped subagents | Backend canary at preflight; BLOCKED-with-evidence; recorded substitutions (§7) |
@@ -528,6 +542,18 @@ namespaces are load-bearing in shipped text.)
   a fresh headless `claude -p` session for checks the Codex sandbox cannot
   run — Git Bash dies with Win32 error 5 in that sandbox here
   ([docs/solutions/subagent-shell-strip-codex-fallback.md](docs/solutions/subagent-shell-strip-codex-fallback.md)).
+- **D13 — Git Bash under the Codex Windows sandbox (2026-07-03).** This is
+  no longer treated as a machine-local mystery: Git for Windows' MSYS2/Cygwin
+  runtime creates per-user shared sections with `CreateFileMappingW`, while
+  the Codex Windows sandbox runs commands under dedicated restricted users.
+  The mismatch produces `CreateFileMapping ... Win32 error 5` at MSYS2
+  startup. Native `git.exe` and PowerShell work in the sandbox, and POSIX
+  Codex sandboxes are unaffected. Upstream status: [openai/codex#12000](https://github.com/openai/codex/issues/12000)
+  and [openai/codex#21715](https://github.com/openai/codex/issues/21715).
+  The local canary reproduced the MSYS2 failure for `bash.exe`, `grep.exe`,
+  and `sed.exe` while native `git.exe` succeeded
+  ([factory-hardening evidence](docs/research/factory-hardening-evidence.md);
+  [solution note](docs/solutions/git-bash-msys-codex-sandbox.md)).
 - **Codex 0.139 native `spawn_agent` round trip verified.** One thread
   spawned one child instructed to reply `PONG`; the parent surfaced
   `SPAWN_RESULT: PONG` after waiting — also the source of the note that the
