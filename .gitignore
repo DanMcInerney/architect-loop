@@ -4,11 +4,11 @@ Thumbs.db
 # Loop memory files are tracked; everything else under docs/ stays local.
 # docs/STOP is the loop kill switch — never commit it.
 /docs/*
-!/docs/HANDOFF.md
 !/docs/gates/
 !/docs/lanes/
 !/docs/spec/
 !/docs/research/
+!/docs/solutions/
 /.architect/
 /research/
 .gstack/

@@ -1,133 +1,112 @@
-# Loop-block reference
+# Factory-loop reference
 
-The loop is one orchestrator conversation. A block is one pass over one slice:
-ground -> arbitrate -> judge -> integrate -> spec -> freeze -> dispatch -> next
-block. Repo memory makes the conversation disposable; the handoff, gates, lane
-reports, specs, and git are the durable state.
+The loop is one brain session that runs the factory to completion after the
+spec gate approves the issue DAG. GitHub issues carry coordination state;
+git carries specs and frozen gates. The brain dispatches the unblocked
+frontier, sleeps, and wakes only on an event.
 
-## Block procedure
+## Factory block procedure
 
-1. **Ground.** Read `docs/HANDOFF.md`, referenced gates, project operating
-   docs, and the current git/worktree state.
-2. **Reconcile.** Compare handoff claims against reality: branch, HEAD,
-   freeze commits, lane reports, in-flight worktrees, status lines, and gate
-   file diffs. Stale or dead lanes are resolved before new work starts.
-3. **Arbitrate.** Rule every open disagreement ACCEPT / REJECT / MODIFY.
-4. **Judge.** If the previous slice has completed lanes awaiting judgment,
-   send the fixed judge template from `dispatch.md` to one cold judge subagent.
-5. **Rule.** Record KILL / CONTINUE in the judgment ledger. Two consecutive
-   KILLs stop the loop and ask the human.
-6. **Integrate.** Post-flight lane reports and boundaries, then commit and
-   merge only passing lanes.
-7. **Spec.** Define exactly one next slice. Use `ship` lanes for code changes
-   and `scout` lanes for investigation/report-only work.
-8. **Freeze.** Write and commit `docs/gates/<slice>.md`; record the freeze SHA.
-9. **Dispatch.** Check `docs/STOP`, then launch cold builder subagents in
-   background worktrees.
-10. **Carry forward.** Record in-flight lanes, heartbeat cadence, ask-the-human
-   items, and the next expected block.
+1. **Dispatch the frontier.** Compute the unblocked frontier of the approved
+   DAG: up to 5 brawn lanes plus one monitor subagent (see Monitor protocol,
+   and `dispatch.md` "## Monitor dispatch"). Check `docs/STOP` before every
+   wave.
+2. **Sleep.** Zero orchestrator work between dispatch and the next event —
+   no polling.
+3. **Wake on one event**, exactly one of:
+   - **Lane DONE.** Send the fixed judge template from `dispatch.md` to one
+     cold judge subagent; record the verdict in an issue comment (see
+     Verdict comments); merge on PASS, diagnose on FAIL (see Failure
+     ladder).
+   - **Lane BLOCKED.** A blocker comment on the issue is a completion event.
+     Read it, rule an answer, and respawn a fresh brawn lane on the same
+     issue with the answer in its spawn context (see `dispatch.md`
+     "## Respawn-with-answer template"). A running lane never re-reads its
+     own comments — the spawn context is the only delivery channel.
+   - **Monitor ANOMALY.** Read the evidence report and rule one of:
+     healthy-long-run (redispatch the monitor, sleep again), needs a nudge
+     or answer, or wedged (kill the lane, discard its worktree, respawn
+     from the frozen gate with a route-around).
+4. **Recompute the frontier.** Closing an issue may unblock others;
+   recompute and dispatch the next wave.
+5. **Repeat** until no issues remain open, then post the escalation
+   digest's end-of-run summary on the epic issue.
 
-## Judgment ledger
+## Monitor protocol
 
-`docs/HANDOFF.md` owns the judgment ledger. Each slice gets one row with:
+One detection-only subagent (cheapest tier, e.g. haiku:low) is dispatched
+with each wave — see `dispatch.md` "## Monitor dispatch". It sweeps every
+10 min: for each in-flight lane it checks report/output file growth since
+the last sweep, process-tree existence/activity, and a repeated-identical-
+command tail check. All healthy -> keep looping. All lanes done -> exit
+quietly. Anomaly -> exit immediately with an evidence report: lane id,
+minutes since last growth, tail excerpt, process state.
 
-- slice name
-- freeze commit SHA
-- branch judged
-- gate file path
-- judge subagent invocation or report pointer
-- per-gate PASS / FAIL / INVALID
-- gates-integrity verdict
-- diff-vs-intent verdict
-- slice call KILL / CONTINUE
-- decisive reason, tied to raw evidence
-- docs-debt pointer (what shipped -> what product-doc update it needs),
-  appended on CONTINUE
+The monitor never kills, never nudges, never decides — only the brain
+rules on its evidence. Duration hints carried in issue bodies (e.g. "full
+suite ~20m") suppress false flags on legitimately long tests; liveness is
+output growth and process activity, never wall-clock alone, and there are
+no per-command kill ceilings anywhere in this loop.
 
-No judgment row means the next block must not build on that slice as accepted.
-The orchestrator may re-run judgment with a fresh judge if evidence is missing,
-but it may not fill in a verdict from memory.
+## Verdict comments
 
-## Slice counter
+Judgment is recorded on the issue, not in a file. At judgment, one comment
+is posted on the lane's issue with: per-gate PASS/FAIL/INVALID, a
+gates-integrity verdict, a diff-vs-intent verdict, the slice call
+KILL/CONTINUE, and the decisive reason tied to raw evidence — exact `gh`
+commands and comment format live in `dispatch.md` "## Issue conventions".
+The issue is closed on merge. No verdict comment on an issue means the
+next factory block must not build on it as accepted; the brain may re-run
+judgment with a fresh judge if evidence is missing, but may not fill in a
+verdict from memory.
 
-The handoff tracks an unattended-stretch counter:
+## Failure ladder
 
-```text
-Slice counter: <completed>/<cap> this unattended stretch (default cap 10)
-Consecutive KILLs: <n>
-```
-
-Default cap is 10 slices per unattended stretch. At the cap, stop and ask the
-human before dispatching more work. Reset the counter only when the human
-reviews the ledger and explicitly starts a new stretch.
-
-## Heartbeat fallback
-
-Primary continuation comes from background completion notifications or native
-agent wait/resume facilities. Heartbeats are only the stall fallback.
-
-When dispatching a lane, record:
-
-- lane id and shape
-- report path
-- worktree path, when applicable
-- event/log path, when the harness exposes one
-- command ceiling or expected heartbeat deadline
-- last observed growth time
-
-At a heartbeat, inspect lane liveness. A lane silent past its ceiling is
-stalled only when its event/report files stop growing and the last observed
-work is still in progress. Silent model thinking is normal. A low context
-reading is not wedging; harnesses auto-compact and keep going.
-
-If a lane is truly stalled, kill that lane, discard its worktree, record the
-raw evidence, and re-spec or KILL. Never blind-retry the same failing lane
-more than once; a lane that fails twice re-specs or dies.
+First FAIL on an issue: the brain diagnoses from the judge's evidence (not
+the full diff), fixes the input — issue text, missing context, or a
+forbidden-pattern note — and respawns a fresh brawn lane at the same tier.
+The tier is set once, at decomposition (config plus dispatch rules), and
+never changes because a lane failed; a failure is a spec or context problem
+the brain fixes, never a signal to move the tier. Second FAIL on the same
+issue after a brain intervention: re-decompose the issue or escalate it to
+the digest. A merge conflict is a decomposition failure, not a build
+failure: kill the conflicting lane and re-spec; never hand-resolve builder
+conflicts.
 
 ## Escalation digest
 
-When multiple lanes resolve while the human is away, write one escalation
-digest entry instead of interleaving noisy notes. Include:
+Batched on the epic issue instead of interleaved per-lane noise:
 
-- completed lanes and statuses
-- failed/stalled lanes and exact blockers
-- judge verdicts received
-- unresolved disagreements
-- decisions needed from the human
+- completed and failed lanes, with verdicts
+- open blockers and the answers given
+- decisions the approved spec genuinely does not answer
 
-Ask-the-human items are batched in the digest unless a safety rail requires an
+Ask-the-human items are batched here unless a safety rail below requires an
 immediate stop.
 
 ## Safety rails
 
 | Situation | Rail |
 |---|---|
-| Too many unattended slices | Stop at 10 by default and ask the human. |
-| `docs/STOP` exists | Stop before dispatch. |
-| No judgment row for completed work | Do not build on it as accepted. |
-| Builder touched `docs/gates/` | Automatic FAIL for that lane/slice. |
-| Lane fails twice | Re-spec or kill; do not blind-retry. |
-| Two consecutive KILLs | Stop and ask the human. |
-| Lane silent past ceiling | Kill lane, discard worktree, record evidence. |
-| Session context degrades | End the session; next session grounds from repo memory. |
-| High-stakes slice | Add cross-model review before CONTINUE. |
+| `docs/STOP` exists | Stop before dispatching the next wave. |
+| No verdict comment for completed work | Do not build on it as accepted. |
+| Builder touched `docs/gates/` | Automatic FAIL for that lane. |
+| Merge conflict | Decomposition failure: kill the lane, re-spec. |
+| Second FAIL on the same issue | Re-decompose or escalate to the digest. |
+| Two consecutive KILLs | Stop the factory and ask the human. |
+| Monitor reports an anomaly | Brain rules before any further dispatch on that lane. |
+| Blocker collides with a recorded assumption | Ask the human; it is a spec-gate decision surfacing late. |
+| Session context degrades | End the session; the next session grounds from the issue tracker and git. |
+| Scope grows beyond the approved spec | Stop the factory. |
+| High-stakes issue | Add cross-model review before CONTINUE. |
 
 ## Context discipline
 
-- One slice per block.
-- Delegate heavy reading to scout or builder subagents; keep the orchestrator
-  thin.
+- Delegate heavy reading to judge, monitor, or brawn subagents; the brain
+  stays thin and never reads a full diff directly.
+- The issue tracker and git are the memory: specs, frozen gates, verdict
+  comments, and lane reports carry state across sessions, not the
+  conversation.
 - Compact proactively when the harness supports it.
-- Ending a degraded session is free because the handoff is the memory.
-- Do not leave important state in chat. If the next orchestrator needs it,
-  write it to the handoff, a gate, a spec, or a lane report.
-
-## Unattended
-
-Use harness-native mechanisms only:
-
-- Codex: Automations plus `/goal` heartbeats.
-- Claude Code: native background agents and scheduled facilities where
-  available.
-
-This repo ships no extra unattended infrastructure.
+- Ending a degraded session is free because the tracker and git are the
+  memory.
