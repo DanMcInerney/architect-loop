@@ -14,7 +14,8 @@ field(){ printf '%s' "$1" | sed -n "s/.*\"$2\"[[:space:]]*:[[:space:]]*\"\([^\"]
 numfield(){ printf '%s' "$1" | sed -n "s/.*\"$2\"[[:space:]]*:[[:space:]]*\([0-9.]*\).*/\1/p"; }
 fsize(){ stat -c %s "$1" 2>/dev/null || stat -f %z "$1" 2>/dev/null || printf 0; }
 now(){ date +%s; }
-tail_text(){ [ -f "$1" ] && tail -c 4096 "$1" | tr -d '\000'; }
+tail_text(){ [ -f "$1" ] && tail -c 4096 "$1" | tr -d '\000\377\376'; }
+report_done(){ [ -f "$1" ] || return 1; last=$(tail_text "$1" | awk 'NF{line=$0} END{gsub(/^[[:space:]]+|[[:space:]]+$/,"",line); print line}'); case "$last" in STATUS:*) return 0;; *) return 1;; esac; }
 cpu_sum(){
   w=$1
   if [ -d /proc ]; then
@@ -36,7 +37,7 @@ while IFS= read -r job; do
   ids[$i]=$(field "$job" id); events[$i]=$(field "$job" events_file)
   reports[$i]=$(field "$job" report_path); trees[$i]=$(field "$job" worktree)
   hints[$i]=$(numfield "$job" duration_hint_min); done[$i]=0
-  sizes[$i]=$(fsize "${events[$i]}"); growth[$i]=$(now); cpus[$i]=$(cpu_sum "${trees[$i]}")
+  ev=$(fsize "${events[$i]}"); rp=$(fsize "${reports[$i]}"); sizes[$i]=$((ev+rp)); growth[$i]=$(now); cpus[$i]=$(cpu_sum "${trees[$i]}")
   i=$((i+1))
 done <<EOF
 $jobs
@@ -46,12 +47,12 @@ while :; do
   all=1
   for i in "${!ids[@]}"; do
     [ "${done[$i]}" = 1 ] && continue
-    [ -f "${reports[$i]}" ] && { done[$i]=1; continue; }
+    report_done "${reports[$i]}" && { done[$i]=1; continue; }
     all=0
     if [ ! -e "${events[$i]}" ] && [ ! -e "${trees[$i]}" ]; then
       printf 'WATCHDOG: INTEGRATED %s\n' "${ids[$i]}"; exit 2
     fi
-    sz=$(fsize "${events[$i]}"); cpu=$(cpu_sum "${trees[$i]}")
+    ev=$(fsize "${events[$i]}"); rp=$(fsize "${reports[$i]}"); sz=$((ev+rp)); cpu=$(cpu_sum "${trees[$i]}")
     [ "$sz" -gt "${sizes[$i]}" ] && { sizes[$i]=$sz; growth[$i]=$(now); }
     mins=$(awk -v a="$(now)" -v b="${growth[$i]}" 'BEGIN{printf "%.3f",(a-b)/60}')
     delta=$((cpu-cpus[$i])); cpus[$i]=$cpu

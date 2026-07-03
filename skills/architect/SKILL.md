@@ -125,12 +125,12 @@ Approval has exactly two explicit forms:
 Prior conversation is never approval unless it is an explicit authorization
 quoted in the approval record; the fail-safe default is no approval.
 
-If the human is absent, PARK: post `AWAITING APPROVAL` on the tracking issue
-with the spec pointer and assumptions digest, schedule periodic wakeups about
-every 20-30 minutes to poll for the approval comment, and take no build action
-while parked. Stop polling immediately on `REJECT <reason>` or `docs/STOP`.
-After 7 days without approval, post a fail-safe closing digest on the tracking
-issue and stop.
+If the human is absent, ask in-session and wait about 5 minutes: use the
+harness ~60s prompt, schedule one ~4-minute recheck, then rule with the
+orchestrator's best judgment, record the ruling and reasoning on the tracking
+issue for after-the-fact veto, and continue. This applies to every human question
+in the loop, including spec approval, oddity escalations, and rail rulings. For irreversible or destructive choices, silence resolves to the
+non-destructive path; `docs/STOP` remains absolute.
 
 On approval, cut `factory/<run>`. ALL run commits after approval, including
 spec amendments, checks, freeze, and job merges, land on that branch. Main stays
@@ -166,7 +166,11 @@ Embed D9 in the issue graph:
   local wart gets a local patch and issue note. A recurring variation gets a
   structural issue that blocks the behavioral issue. One adapter is a
   hypothetical seam; two is real. Three failed fixes on the same point means
-  stop and question the architecture.
+  stop and question the architecture. Re-planning is orchestrator-owned: on
+  an oddity or failure diagnosis the orchestrator may fan out researcher agents
+  using `research.md` inline mechanics to inform the new plan, then updates the
+  spec, issue, and checks in git and the tracker, then respawns a fresh
+  builder; builders never re-plan.
 - Structural and behavioral changes are separate issues with a blocking edge.
   Structural checks prove existing behavior remains green.
 - Run design-it-twice only for new load-bearing abstractions. Use two or three

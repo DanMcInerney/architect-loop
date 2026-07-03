@@ -164,12 +164,17 @@ loop-hardening research ([docs/research/loop-improvements.md](docs/research/loop
 - **Approval is explicit, durable, and fail-safe.** The two approval forms
   are in-session approval or an `APPROVE` comment on the tracking issue;
   an invocation can also pre-authorize a run only when the exact
-  pre-authorization text is recorded verbatim. Otherwise the factory parks,
-  polls for approval, and stops after 7 days. The evidence is the same
-  shape across deployment systems and agent products: GitHub environments
-  auto-fail unapproved runs after 30 days, Azure timeout-rejects approvals,
-  OWASP fail-safe defaults ban inferred allow, and Copilot treats assignment
-  itself as authorization
+  pre-authorization text is recorded verbatim. The evidence is the same shape
+  across deployment systems and agent products: GitHub environments auto-fail
+  unapproved runs after 30 days, Azure timeout-rejects approvals, OWASP
+  fail-safe defaults ban inferred allow, and Copilot treats assignment itself
+  as authorization. The 2026-07-03 human directive in
+  [docs/spec/loop-tuning.md](docs/spec/loop-tuning.md) overrides the earlier
+  park-and-poll product behavior: absent a human answer, wait about 5 minutes,
+  rule with the orchestrator's best judgment, record the ruling for
+  after-the-fact veto, and continue. Carve-out: irreversible or destructive
+  choices resolve to the non-destructive path on silence; `docs/STOP` remains
+  absolute
   ([factory-hardening evidence](docs/research/factory-hardening-evidence.md)).
 - **Preflight has no fallback.** A GitHub remote, passing `gh auth status`,
   and `gh` ≥ 2.94.0 are hard preconditions; failing any of them fails
@@ -191,6 +196,13 @@ loop-hardening research ([docs/research/loop-improvements.md](docs/research/loop
   [Anthropic multi-agent](https://www.anthropic.com/engineering/multi-agent-research-system)).
   The parallel set is always the plan's ready issues, capped at five
   jobs plus one watchdog sweep.
+  Tracking issue #43's 2026-07-03 DIGEST comment, reflected in
+  [docs/spec/loop-tuning.md](docs/spec/loop-tuning.md) and
+  [docs/jobs/status-scripts-rulings.md](docs/jobs/status-scripts-rulings.md),
+  tightened run mechanics: judges dispatch concurrently for every DONE, the
+  ready-issue frontier recomputes on every merge, independent bookkeeping
+  batches into parallel calls, and merges, synthesis, and stress-testing stay
+  serial.
 - **Concurrently scheduled issues share nothing mutable.** Not files,
   migrations, lockfiles, generated artifacts, config, schemas, dev servers,
   or databases. Merge conflicts are the top reported multi-agent failure and
@@ -356,6 +368,10 @@ loop-hardening research ([docs/research/loop-improvements.md](docs/research/loop
   positives, and 2 false positives, so the LLM monitor survives only as a
   fallback template
   ([factory-hardening evidence](docs/research/factory-hardening-evidence.md)).
+  Done now means the report's last non-blank line starts with `STATUS:`; report
+  existence alone produced twice-observed false `ALL_DONE` evidence in the
+  run #36 respawn case and the run #43 incremental-write case recorded in
+  [docs/spec/loop-tuning.md](docs/spec/loop-tuning.md).
 - **Hard stops (D11).** the `docs/STOP` kill switch before any wave; irreversible actions;
   two consecutive KILLs; a blocker colliding with a recorded assumption
   (a spec-approval decision surfacing late); scope growth beyond the approved
