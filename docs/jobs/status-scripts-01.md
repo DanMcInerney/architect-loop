@@ -204,6 +204,332 @@ Output:
 
 STATUS: COMPLETE
 
+## Re-architecture session
+
+FIRST-ACTION
+
+Command:
+```powershell
+Select-String -Path docs/checks/status-tracker.md -Pattern 'ST6|ST7|ST8'
+Select-String -Path docs/spec/status-tree.md -Pattern 'STATUS_GH_STUB'
+```
+Output:
+```text
+docs\checks\status-tracker.md:42:## ST6-ST8 — third-judgment re-architecture addendum (pinned jq, stub seam)
+docs\checks\status-tracker.md:47:### ST6 — the pinned jq expression appears VERBATIM in both scripts
+docs\checks\status-tracker.md:52:### ST7 — stub-seam render matches the live-verified sample
+docs\checks\status-tracker.md:63:### ST8 — stray-file guard
+docs\spec\status-tree.md:67:Testing seam: if env var `STATUS_GH_STUB` names a readable file, both
+```
+
+Implementation summary:
+```text
+Replaced duplicated tracker JSON graph logic in both scripts with the pinned gh --jq expression.
+Added STATUS_GH_STUB in both scripts.
+Changed artifact row discovery to require an actual .architect/wt/<slug>-01 directory.
+Updated the validator to require STATUS_GH_STUB, --jq, tracker: no open run, and blockedBy.nodes markers.
+```
+
+SS1
+
+Command:
+```powershell
+Test-Path skills/architect/status.ps1
+Test-Path skills/architect/status.sh
+(Select-String -Path skills/architect/status.sh -Pattern 'NO ACTIVE FACTORY RUN').Count
+(Select-String -Path skills/architect/status.ps1 -Pattern 'NO ACTIVE FACTORY RUN').Count
+(Get-Content skills/architect/status.sh -TotalCount 1)
+```
+Output:
+```text
+True
+True
+1
+1
+#!/usr/bin/env bash
+```
+
+SS2
+
+Command:
+```powershell
+$e = $null
+[System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'skills/architect/status.ps1').Path, [ref]$null, [ref]$e) | Out-Null
+if ($e.Count -eq 0) { 'SS2_OK' } else { $e }
+```
+Output:
+```text
+SS2_OK
+```
+
+SS3
+
+Command:
+```powershell
+powershell -NoProfile -File skills/architect/status.ps1 -RepoRoot .architect/tmp/stfix/root1
+powershell -NoProfile -File skills/architect/status.ps1 -RepoRoot .architect/tmp/stfix/root2
+```
+Output:
+```text
+STATUS TREE spec: demo.md branch: unknown
+tracker: unavailable (local view)
+ORCHESTRATOR: local view
+WATCHDOG: process=False config=0
+! demo-blocked .architect/wt/demo-blocked-01
+● demo-build .architect/wt/demo-build-01
+    last: pytest -q age: unknown
+◐ demo-judge .architect/wt/demo-judge-01
+▣ demo-rep .architect/wt/demo-rep-01
+
+NO ACTIVE FACTORY RUN
+spec: unknown
+```
+
+SS4
+
+Command:
+```powershell
+$out = & powershell -NoProfile -File skills/architect/status.ps1 -RepoRoot .architect/tmp/stfix/root1 | Out-String
+([Text.Encoding]::UTF8.GetBytes($out) -contains 27)
+```
+Output:
+```text
+False
+```
+
+SS5
+
+Command:
+```powershell
+(Select-String -Path tests/validate_skills.py -Pattern '"status.ps1"').Count
+(Select-String -Path tests/validate_skills.py -Pattern '"status.sh"').Count
+(Select-String -Path tests/validate_skills.py -Pattern 'check_status_contract').Count
+$env:UV_CACHE_DIR='.architect/tmp/uv-cache-st'; uv run --no-project python -c "import ast; ast.parse(open('tests/validate_skills.py').read()); print('SS5_OK')"
+```
+Output:
+```text
+2
+4
+2
+SS5_OK
+```
+
+SS6
+
+Command:
+```powershell
+Select-String -Path skills/architect/status.ps1,skills/architect/status.sh -Pattern 'Stop-Process|taskkill|Remove-Item|rm -|git (add|commit|push)'
+```
+Output:
+```text
+```
+
+ST1-ST3
+
+Command:
+```powershell
+(Select-String -Path skills/architect/status.ps1 -Pattern '--state all').Count
+(Select-String -Path skills/architect/status.sh -Pattern '--state all').Count
+(Select-String -Path skills/architect/status.ps1,skills/architect/status.sh -Pattern 'blockedBy').Count
+(Select-String -Path skills/architect/status.ps1 -Pattern 'parent').Count
+(Select-String -Path skills/architect/status.sh -Pattern 'parent').Count
+(Select-String -Path skills/architect/status.ps1 -Pattern 'tracker: no open run').Count
+(Select-String -Path skills/architect/status.sh -Pattern 'tracker: no open run').Count
+```
+Output:
+```text
+1
+1
+4
+2
+2
+1
+1
+```
+
+ST2/ST3 shell quote
+
+Command:
+```powershell
+Select-String -Path skills/architect/status.sh -Pattern 'jq_expr=|gh issue list|TRACK|SUB|NO ACTIVE FACTORY RUN|tracker: no open run' | ForEach-Object { "skills/architect/status.sh:$($_.LineNumber):$($_.Line)" }
+```
+Output:
+```text
+skills/architect/status.sh:64:  jq_expr='. as $all | ([ $all[] | select(.parent != null) | .parent.number ] | unique) as $pnums | ([ $all[] | select(.state == "OPEN") | select(.number as $n | $pnums | index($n)) ] | map(.number) | max) as $t | if $t == null then "NOOPENRUN" else ("TRACK\t\($t)", ($all[] | select(.parent != null and .parent.number == $t) | [ "SUB", (.number|tostring), .state, ((.blockedBy.nodes // []) | map(select(.state == "OPEN") | (.number|tostring)) | join(",")), .title ] | @tsv)) end'
+skills/architect/status.sh:70:  gh issue list --state all --limit 200 --json number,title,state,parent,blockedBy --jq "$jq_expr"
+skills/architect/status.sh:82:    [ "$kind" = TRACK ] && tracking=$num
+skills/architect/status.sh:87:  printf 'NO ACTIVE FACTORY RUN\nspec: %s\n' "$(newest_spec)"
+skills/architect/status.sh:94:  printf 'tracker: no open run\n'
+skills/architect/status.sh:104:    [ "$kind" = SUB ] || continue
+```
+
+ST4
+
+PowerShell tracker section:
+```text
+skills/architect/status.ps1:69:function TrackerLines() {
+skills/architect/status.ps1:70:    $PinnedJq = '. as $all | ([ $all[] | select(.parent != null) | .parent.number ] | unique) as $pnums | ([ $all[] | select(.state == "OPEN") | select(.number as $n | $pnums | index($n)) ] | map(.number) | max) as $t | if $t == null then "NOOPENRUN" else ("TRACK\t\($t)", ($all[] | select(.parent != null and .parent.number == $t) | [ "SUB", (.number|tostring), .state, ((.blockedBy.nodes // []) | map(select(.state == "OPEN") | (.number|tostring)) | join(",")), .title ] | @tsv)) end'
+skills/architect/status.ps1:71:    if ($env:STATUS_GH_STUB -and (Test-Path -LiteralPath $env:STATUS_GH_STUB -PathType Leaf)) {
+skills/architect/status.ps1:72:        return @{ Reachable = $true; Lines = @(Get-Content -LiteralPath $env:STATUS_GH_STUB) }
+skills/architect/status.ps1:76:        $out = & gh issue list --state all --limit 200 --json number,title,state,parent,blockedBy --jq $PinnedJq 2>$null
+skills/architect/status.ps1:93:    foreach ($line in $trackerData.Lines) {
+skills/architect/status.ps1:95:        $parts = $line -split "`t", 5
+skills/architect/status.ps1:96:        if ($parts[0] -eq "TRACK" -and $parts.Count -ge 2) { $tracking = $parts[1]; continue }
+skills/architect/status.ps1:97:        if ($parts[0] -eq "SUB" -and $parts.Count -ge 5) {
+```
+
+Shell tracker section:
+```text
+skills/architect/status.sh:63:tracker_lines(){
+skills/architect/status.sh:64:  jq_expr='. as $all | ([ $all[] | select(.parent != null) | .parent.number ] | unique) as $pnums | ([ $all[] | select(.state == "OPEN") | select(.number as $n | $pnums | index($n)) ] | map(.number) | max) as $t | if $t == null then "NOOPENRUN" else ("TRACK\t\($t)", ($all[] | select(.parent != null and .parent.number == $t) | [ "SUB", (.number|tostring), .state, ((.blockedBy.nodes // []) | map(select(.state == "OPEN") | (.number|tostring)) | join(",")), .title ] | @tsv)) end'
+skills/architect/status.sh:65:  if [ -n "${STATUS_GH_STUB:-}" ] && [ -r "$STATUS_GH_STUB" ]; then
+skills/architect/status.sh:70:  gh issue list --state all --limit 200 --json number,title,state,parent,blockedBy --jq "$jq_expr"
+skills/architect/status.sh:78:if tracker_tsv=$(tracker_lines 2>/dev/null); then tracker=1; fi
+skills/architect/status.sh:81:  while IFS="$(printf '\t')" read -r kind num state blockers title; do
+skills/architect/status.sh:82:    [ "$kind" = TRACK ] && tracking=$num
+skills/architect/status.sh:103:  while IFS="$(printf '\t')" read -r kind num state blockers title; do
+skills/architect/status.sh:104:    [ "$kind" = SUB ] || continue
+```
+
+Parity statement:
+```text
+Behavioral difference found: none in tracker-mode graph logic. Both scripts delegate the entire graph decision to the same pinned gh --jq expression, use STATUS_GH_STUB when readable, and only parse TRACK/SUB/NOOPENRUN TSV lines.
+```
+
+ST5
+
+Output:
+```text
+SS1-SS6 re-run above: PASS.
+```
+
+ST6
+
+Command:
+```powershell
+$spec = '. as $all | ([ $all[] | select(.parent != null) | .parent.number ] | unique) as $pnums | ([ $all[] | select(.state == "OPEN") | select(.number as $n | $pnums | index($n)) ] | map(.number) | max) as $t | if $t == null then "NOOPENRUN" else ("TRACK\t\($t)", ($all[] | select(.parent != null and .parent.number == $t) | [ "SUB", (.number|tostring), .state, ((.blockedBy.nodes // []) | map(select(.state == "OPEN") | (.number|tostring)) | join(",")), .title ] | @tsv)) end'
+$ps = (Select-String -Path skills/architect/status.ps1 -Pattern '\$PinnedJq = ''(.*)''' | Select-Object -First 1).Matches[0].Groups[1].Value
+$sh = (Select-String -Path skills/architect/status.sh -Pattern "jq_expr='(.*)'" | Select-Object -First 1).Matches[0].Groups[1].Value
+"ps1 IDENTICAL: $($ps -ceq $spec)"
+"sh IDENTICAL: $($sh -ceq $spec)"
+```
+Output:
+```text
+ps1 IDENTICAL: True
+sh IDENTICAL: True
+```
+
+ST7
+
+Command:
+```powershell
+$env:STATUS_GH_STUB = (Resolve-Path '.architect/tmp/stfix/stub.tsv').Path
+powershell -NoProfile -File skills/architect/status.ps1 -RepoRoot .architect/tmp/stfix/root1
+Remove-Item Env:STATUS_GH_STUB
+$env:STATUS_GH_STUB = (Resolve-Path '.architect/tmp/stfix/noopen.tsv').Path
+powershell -NoProfile -File skills/architect/status.ps1 -RepoRoot .architect/tmp/stfix/root2
+Remove-Item Env:STATUS_GH_STUB
+```
+Output:
+```text
+STATUS TREE spec: demo.md branch: unknown
+tracker: #43
+ORCHESTRATOR: local view
+WATCHDOG: process=False config=0
+⊘ #46 status: docs closure .architect/wt/status-docs-closure-01 blocked-by: 44
+✓ #45 status: skill wiring (10-line cap) .architect/wt/status-skill-wiring-10-line-cap-01
+○ #44 status: scripts + validator contract .architect/wt/status-scripts-validator-contract-01
+
+NO ACTIVE FACTORY RUN
+spec: unknown
+```
+
+NOOPENRUN with artifacts
+
+Command:
+```powershell
+$env:STATUS_GH_STUB = (Resolve-Path '.architect/tmp/stfix/noopen.tsv').Path
+powershell -NoProfile -File skills/architect/status.ps1 -RepoRoot .architect/tmp/stfix/root1
+Remove-Item Env:STATUS_GH_STUB
+```
+Output:
+```text
+STATUS TREE spec: demo.md branch: unknown
+tracker: no open run
+ORCHESTRATOR: local view
+WATCHDOG: process=False config=0
+! demo-blocked .architect/wt/demo-blocked-01
+● demo-build .architect/wt/demo-build-01
+    last: pytest -q age: unknown
+◐ demo-judge .architect/wt/demo-judge-01
+▣ demo-rep .architect/wt/demo-rep-01
+```
+
+ST8
+
+Command:
+```powershell
+Set-Content -LiteralPath '.architect/tmp/stfix/root1/.architect/wt/ghost-01.events.jsonl' -Encoding UTF8 -Value '{"command":"ghost"}'
+$env:STATUS_GH_STUB = (Resolve-Path '.architect/tmp/stfix/stub.tsv').Path
+$out = powershell -NoProfile -File skills/architect/status.ps1 -RepoRoot .architect/tmp/stfix/root1
+$out
+"contains ghost: $($out -match 'ghost')"
+Remove-Item Env:STATUS_GH_STUB
+```
+Output:
+```text
+STATUS TREE spec: demo.md branch: unknown
+tracker: #43
+ORCHESTRATOR: local view
+WATCHDOG: process=False config=0
+⊘ #46 status: docs closure .architect/wt/status-docs-closure-01 blocked-by: 44
+✓ #45 status: skill wiring (10-line cap) .architect/wt/status-skill-wiring-10-line-cap-01
+○ #44 status: scripts + validator contract .architect/wt/status-scripts-validator-contract-01
+contains ghost:
+```
+
+Validator
+
+Command:
+```powershell
+$env:UV_CACHE_DIR='.architect/tmp/uv-cache-st'; uv run --no-project python tests/validate_skills.py
+```
+Output:
+```text
+OK - 2 skills validated, v4 contracts clean
+```
+
+Old duplicated graph parser scan
+
+Command:
+```powershell
+Select-String -Path skills/architect/status.ps1,skills/architect/status.sh -Pattern 'ConvertFrom-Json|parentRefs|json_objects|parent_number|open_blockers|issue_number\('
+```
+Output:
+```text
+```
+
+Touch-set and frozen-check guard
+
+Command:
+```powershell
+git diff --name-only -- docs/checks
+git status --short
+```
+Output:
+```text
+ M skills/architect/status.ps1
+ M skills/architect/status.sh
+ M tests/validate_skills.py
+```
+
+Bash execution note:
+```text
+Not run in this session by instruction: PowerShell + native git only. The shell script was statically checked for the identical pinned jq expression, STATUS_GH_STUB seam, TSV-only parsing, no old graph parser helpers, and read-only command guard.
+```
+
+STATUS: COMPLETE
+
 ## Re-spec session
 
 PRECONDITION

@@ -407,7 +407,14 @@ def check_status_contract() -> None:
             glyph = chr(codepoint)
             if glyph not in text and ps_code not in text:
                 errors.append(f"skills/architect/{name}: missing {label} glyph marker")
-        for marker in ("NO ACTIVE FACTORY RUN", "tracker: unavailable (local view)"):
+        for marker in (
+            "NO ACTIVE FACTORY RUN",
+            "tracker: unavailable (local view)",
+            "tracker: no open run",
+            "STATUS_GH_STUB",
+            "--jq",
+            "blockedBy.nodes",
+        ):
             if marker not in text:
                 errors.append(f"skills/architect/{name}: missing {marker}")
         if name == "status.sh" and not text.startswith("#!"):
