@@ -7,7 +7,7 @@ load-bearing claims and writes the spec itself.
 
 ## Fan out
 
-Resolve the researcher model as brawn, same order as `/architect`: repo
+Resolve the researcher model as builders, same order as `/architect`: repo
 `.architect/config`, then user `~/.architect/config`, then the tier-down
 defaults in `skills/architect/dispatch.md`.
 
@@ -17,7 +17,7 @@ official docs/reference, changelog/breaking changes, community failure reports,
 alternatives/comparisons, security/operational constraints.
 
 One fresh `codex exec` per question, all launched in parallel, in the
-background — this is the default-brawn example (codex/tier-down):
+background — this is the default-builders example (codex/tier-down):
 
 ```bash
 codex exec -C <repo-root> --sandbox read-only -c web_search="live" \
@@ -37,7 +37,7 @@ stdin otherwise.
   `-c tools.web_search=true` (< 0.133). `--search` is TUI-only — exec rejects
   it. Launch ONE canary researcher and confirm it starts cleanly before
   fanning out — these flags have churned three times in 2026 alone.
-- If resolved brawn is a claude row, or Codex is unavailable, run the
+- If resolved builders is a claude row, or Codex is unavailable, run the
   fan-out as read-only Claude subagents with web search — the research
   block template below works verbatim.
 - Effort `high`, not `xhigh` — research is coverage work; xhigh buys nothing
@@ -45,7 +45,7 @@ stdin otherwise.
 - Scope each researcher to ≤5 subjects and put hard context rules in the
   block (snippet over page; quote ≤2 sentences; stop the moment you can
   answer) — a researcher that fills its context window dies without writing
-  its output file. Bisect and re-dispatch dead lanes; don't re-run as-is.
+  its output file. Bisect and re-dispatch dead researchers; don't re-run as-is.
 - Optionally pin `[tools.web_search] allowed_domains` in config for
   prompt-injection-sensitive repos.
 
