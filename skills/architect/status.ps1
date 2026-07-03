@@ -73,7 +73,9 @@ function TrackerLines() {
     }
     if (-not (Get-Command gh)) { return @{ Reachable = $false; Lines = @() } }
     try {
-        $out = & gh issue list --state all --limit 200 --json number,title,state,parent,blockedBy --jq $PinnedJq 2>$null
+        Push-Location -LiteralPath $root
+        try { $out = & gh issue list --state all --limit 200 --json number,title,state,parent,blockedBy --jq $PinnedJq 2>$null }
+        finally { Pop-Location }
         return @{ Reachable = ($LASTEXITCODE -eq 0); Lines = @($out) }
     } catch {
         return @{ Reachable = $false; Lines = @() }
@@ -82,7 +84,21 @@ function TrackerLines() {
 
 $root = [System.IO.Path]::GetFullPath($RepoRoot)
 if (-not (Test-Path -LiteralPath $root -PathType Container)) { Write-Output "unreadable repo: $RepoRoot"; exit 1 }
-$G = @{ Merged = [char]0x2713; Judging = [char]0x25D0; Blocked = "!"; Reported = [char]0x25A3; Building = [char]0x25CF; Queued = [char]0x2298; Ready = [char]0x25CB }
+$useColor = (-not [Console]::IsOutputRedirected) -and (-not $env:NO_COLOR)
+function ColorGlyph($Glyph, $Code) {
+    if (-not $useColor) { return $Glyph }
+    $esc = [char]27
+    return "$esc[$Code" + "m$Glyph$esc[0m"
+}
+$G = @{
+    Merged = ColorGlyph ([char]0x2713) "32"
+    Judging = ColorGlyph ([char]0x25D0) "36"
+    Blocked = ColorGlyph "!" "31"
+    Reported = ColorGlyph ([char]0x25A3) "35"
+    Building = ColorGlyph ([char]0x25CF) "34"
+    Queued = ColorGlyph ([char]0x2298) "33"
+    Ready = ColorGlyph ([char]0x25CB) "37"
+}
 if (Test-Path -LiteralPath (J $root ".git")) { $branch = (& git -C $root branch --show-current 2>$null) } else { $branch = "" }
 if (-not $branch) { $branch = "unknown" }
 $trackerData = TrackerLines

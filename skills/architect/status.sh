@@ -8,7 +8,8 @@ done
 case "$root" in /*) ;; *) root="$(pwd)/$root";; esac
 [ -d "$root" ] || { printf 'unreadable repo: %s\n' "$root"; exit 1; }
 
-g_merged='✓'; g_judging='◐'; g_blocked='!'; g_reported='▣'; g_building='●'; g_queued='⊘'; g_ready='○'
+color_glyph(){ if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then printf '\033[%sm%s\033[0m' "$2" "$1"; else printf '%s' "$1"; fi; }
+g_merged=$(color_glyph '✓' 32); g_judging=$(color_glyph '◐' 36); g_blocked=$(color_glyph '!' 31); g_reported=$(color_glyph '▣' 35); g_building=$(color_glyph '●' 34); g_queued=$(color_glyph '⊘' 33); g_ready=$(color_glyph '○' 37)
 j(){ printf '%s/%s' "$1" "$2"; }
 newest_spec(){
   spec_dir="$root/docs/spec"
@@ -67,7 +68,7 @@ tracker_lines(){
     return 0
   fi
   command -v gh >/dev/null 2>&1 || return 1
-  gh issue list --state all --limit 200 --json number,title,state,parent,blockedBy --jq "$jq_expr"
+  (cd "$root" && gh issue list --state all --limit 200 --json number,title,state,parent,blockedBy --jq "$jq_expr")
 }
 
 branch=
