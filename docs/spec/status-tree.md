@@ -49,22 +49,30 @@ repo); `.architect/wt/<slug>-01.events.jsonl` tails (encoding-aware);
 `.architect/tmp/wd-*.json` config presence.
 
 **Phase derivation (per sub-issue), first match wins:**
-| Glyph | Phase | Rule |
-|---|---|---|
-| `✓` | MERGED | issue CLOSED |
-| `◐` | JUDGING | report exists AND judge output file exists without a verdict recorded on the issue yet, or judge events growing |
-| `!` | BLOCKED | report's STATUS line starts with `BLOCKED` |
-| `●` | BUILDING | worktree exists, no report yet (append `last:` sub-line from the newest command event) |
-| `⊘` | QUEUED | issue OPEN with open blocked-by issues (list them) |
-| `○` | READY | issue OPEN, no open blockers, no worktree |
+| Glyph | Phase | Needs tracker? | Rule |
+|---|---|---|---|
+| `✓` | MERGED | yes | issue CLOSED |
+| `◐` | JUDGING | no | report exists AND judge output file (`.architect/wt/<slug>-01.judge*.md`) exists |
+| `!` | BLOCKED | no | report's STATUS line starts with `BLOCKED` |
+| `▣` | REPORTED | no | report exists, no judge file yet |
+| `●` | BUILDING | no | worktree exists, no report yet (append `last:` sub-line from the newest command event) |
+| `⊘` | QUEUED | yes | issue OPEN with open blocked-by issues (list them) |
+| `○` | READY | yes | issue OPEN, no open blockers, no worktree |
+
+**Degraded mode (tracker data unavailable):** when `gh` is absent OR fails
+(auth, network — treat identically), render only artifact-backed rows
+(`●`/`!`/`◐`/`▣`, keyed by worktree/report slugs) under the header note
+`tracker: unavailable (local view)`; the tracker-dependent phases
+(`✓`/`⊘`/`○`) and issue titles are simply not shown. This is honest, and it
+is what makes the functional checks sandbox-runnable.
 
 **Output rules:** color only when stdout is a TTY AND `NO_COLOR` is unset;
 box-drawing glyphs emitted via `[char]` codes in ps1 (PS 5.1 encoding
-safety) and UTF-8 literals in sh; when `gh` fails or is absent, print the
-tree from local artifacts only with one header note `tracker: unavailable
-(local view)`; when no factory branch and no open tracking issue exists,
-print `NO ACTIVE FACTORY RUN` plus the most recent `docs/spec/` file name.
-Exit 0 in all of these cases; nonzero only on unreadable repo.
+safety) and UTF-8 literals in sh; if the branch cannot be read, header says
+`branch: unknown` and rendering continues; when no factory artifacts and no
+open tracking issue exist, print `NO ACTIVE FACTORY RUN` plus the most
+recent `docs/spec/` file name. Exit 0 in all of these cases; nonzero only
+on unreadable repo.
 
 **Skill text:** SKILL.md Factory Loop step gains one bullet: on a human
 status request, run the status script (path), print its output verbatim in
@@ -85,8 +93,10 @@ naming the script, its data sources, and the piped-no-color behavior.
 - **A1.** Each script stays ≤ ~120 lines; PS 5.1-compatible (no `&&`,
   ternary, `?.`); no dependencies beyond git, optional gh, and the shell.
 - **A2.** Validator adds both files to `REQUIRED_SIBLINGS["architect"]` and
-  a `check_status_contract()` asserting the six phase glyph strings and the
-  `NO ACTIVE FACTORY RUN` marker exist in both scripts.
+  a `check_status_contract()` asserting the seven phase glyph strings and
+  the `NO ACTIVE FACTORY RUN` and `tracker: unavailable` markers exist in
+  both scripts (ps1 may satisfy glyph checks via its `[char]` code forms;
+  the validator greps for either form).
 - **A3.** Functional checks run sandbox-side in degraded mode (gh absent
   there), against synthetic `.architect/wt/` fixtures; the orchestrator
   runs one live gh-backed render at composite.

@@ -19,10 +19,12 @@ Commands (`git grep -c` prints `<path>:<count>`) and PASS criteria:
 ## SW2 — size guard with headroom evidence
 
 ```powershell
-$env:UV_CACHE_DIR='.architect/tmp/uv-cache'
-uv run --no-project python -c "t=sum(1 for p in ['skills/architect/SKILL.md','skills/architect/loop.md','skills/architect/dispatch.md'] for l in open(p,encoding='utf-8') if l.strip()); print(t)"
+$files='skills/architect/SKILL.md','skills/architect/loop.md','skills/architect/dispatch.md'
+$total=($files | ForEach-Object { (Get-Content $_ | Where-Object { $_.Trim() }).Count } | Measure-Object -Sum).Sum
+"TOTAL $total"
 ```
-PASS: printed total ≤ 799 (was 789 at freeze; net addition ≤ 10).
+PASS: `TOTAL` ≤ 799 (measured 789 at freeze; net addition ≤ 10). Pure
+PowerShell on purpose — the shared uv cache is corrupt in this sandbox.
 
 ## SW3 — no collateral edits
 

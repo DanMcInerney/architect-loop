@@ -32,25 +32,33 @@ if ($e.Count -eq 0) { 'SS2_OK' } else { $e }
 ```
 PASS: `SS2_OK`.
 
-## SS3 — functional: fixture tree renders BUILDING, QUEUED, MERGED
+## SS3 — functional: degraded-mode phases render from fixtures
 
-Setup fixtures under `.architect/tmp/stfix/` simulating a run named in the
-job report (a fake worktree dir `wt/demo-job-01` containing no report; an
-events file `wt/demo-job-01.events.jsonl` whose last command event is
-recognizable, e.g. containing `"command":"pytest -q"`). Invoke the script
-with `-RepoRoot` pointed at a fixture root laid out like a repo (the script
-must accept the flag per the spec). Because `gh` is absent, the header must
-carry `tracker: unavailable (local view)`.
+Fixture layout (exact; no git repo needed — branch-read failure must yield
+`branch: unknown` and continue). Root 1 at `.architect/tmp/stfix/root1/`:
+
+```
+root1/.architect/wt/demo-build-01/            (worktree dir, no report inside)
+root1/.architect/wt/demo-build-01.events.jsonl  (last command event contains "command":"pytest -q")
+root1/.architect/wt/demo-blocked-01/docs/jobs/demo-blocked-01.md   (ends: STATUS: BLOCKED (x))
+root1/.architect/wt/demo-judge-01/docs/jobs/demo-judge-01.md      (ends: STATUS: COMPLETE)
+root1/.architect/wt/demo-judge-01.judge.md    (any content)
+root1/.architect/wt/demo-rep-01/docs/jobs/demo-rep-01.md          (ends: STATUS: COMPLETE)
+root1/docs/spec/demo.md                        (any content)
+```
+
+Root 2 at `.architect/tmp/stfix/root2/`: empty directory.
+
+Commands: run the ps1 with `-RepoRoot .architect/tmp/stfix/root1`, then with
+`-RepoRoot .architect/tmp/stfix/root2`. In this sandbox `gh` is present but
+fails auth — the script must treat failing gh identically to absent gh.
 
 PASS criteria (verbatim output pasted):
-- exit code 0
-- output contains `tracker: unavailable (local view)`
-- a `●` (BUILDING) line for the fixture job and a `last:` sub-line
-  containing `pytest -q`
-- with a second fixture where the report exists and ends
-  `STATUS: BLOCKED (x)`, a `!` line appears
-- with no factory artifacts at all (empty fixture root), output contains
-  `NO ACTIVE FACTORY RUN` and exit 0
+- root1: exit 0; header contains `tracker: unavailable (local view)` and
+  `branch: unknown`; a `●` line for demo-build with a `last:` sub-line
+  containing `pytest -q`; a `!` line for demo-blocked; a `◐` line for
+  demo-judge; a `▣` line for demo-rep; NO `✓`/`⊘`/`○` rows.
+- root2: exit 0; output contains `NO ACTIVE FACTORY RUN`.
 
 ## SS4 — piped output contains zero ESC bytes
 
@@ -65,8 +73,10 @@ PASS: `False`. (Same idea for status.sh is composite-side; record that.)
 
 - `(Select-String -Path tests/validate_skills.py -Pattern '"status.ps1"').Count` → ≥1
 - `(Select-String -Path tests/validate_skills.py -Pattern '"status.sh"').Count` → ≥1
-- `(Select-String -Path tests/validate_skills.py -Pattern 'check_status_contract').Count` → ≥2 (definition + call)
-- `$env:UV_CACHE_DIR='.architect/tmp/uv-cache'; uv run --no-project python -c "import ast; ast.parse(open('tests/validate_skills.py').read()); print('SS5_OK')"` → `SS5_OK`
+- `(Select-String -Path tests/validate_skills.py -Pattern 'check_status_contract').Count` → ≥2 (definition + call; full enforcement is proven by the orchestrator's composite validator run)
+- `$env:UV_CACHE_DIR='.architect/tmp/uv-cache-st'; uv run --no-project python -c "import ast; ast.parse(open('tests/validate_skills.py').read()); print('SS5_OK')"` → `SS5_OK`
+  (fresh cache dir — the shared `.architect/tmp/uv-cache` is corrupt in this
+  sandbox: `sdists-v9\.git` access denied)
 
 ## SS6 — read-only guard (static)
 
