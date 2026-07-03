@@ -193,6 +193,8 @@ Use `loop.md` `## Factory block procedure` for the detailed event loop.
 - Sleep between events. Wake only when a job reports DONE, BLOCKED, stalled,
   or killed evidence; when the watchdog exits with anomaly evidence; or when
   the ready issues need recomputation.
+- On human status requests ("status", "how's it going", or equivalent), run
+  `skills/architect/status.ps1` on Windows or `skills/architect/status.sh` on POSIX, print its output verbatim in a fenced code block, answer in prose, and never hand-compose the tree.
 - On DONE, send a fresh, independent orchestrator-tier judge to run frozen
   checks and inspect intent.
   Merge only after a passing verdict and clean touch-set evidence.

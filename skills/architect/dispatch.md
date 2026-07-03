@@ -338,6 +338,11 @@ The watchdog never kills, nudges, or judges. It exits with typed evidence:
 Use the LLM fallback only for backends where the orchestrator cannot launch a
 background process whose exit wakes the loop.
 
+## Status display
+
+`skills/architect/status.ps1` (Windows) and `skills/architect/status.sh` (POSIX) read only run artifacts plus `gh`.
+Piped output is plain text by design; callers print it verbatim instead of hand-composing status.
+
 <!-- architect-monitor-fallback-template:start -->
 ```text
 You are the detection-only fallback monitor for this dispatch wave. Use this
