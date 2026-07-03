@@ -15,6 +15,8 @@ recover from the tracker and the repo instead of depending on chat history.
 
 ## How a run unfolds
 
+![architect flow](assets/architect-flow.png)
+
 You open your repo in Claude Code or Codex and type `/architect`. Then:
 
 1. **Intake.** The brain reads the repo and asks at most about five questions
