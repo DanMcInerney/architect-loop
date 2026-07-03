@@ -40,17 +40,38 @@ question" — following the staged proposal presented in-session. Live
 (`--repo-root` in sh). No other flags.
 
 **Data sources, in order:** current branch (`git branch --show-current`);
-the tracking issue + sub-issues via ONE
-`gh issue list --state all --limit 200 --json number,title,state,parent,blockedBy`
-call when `gh` works — the tracker-mode algorithm, identical in both
-scripts: (1) candidate tracking issues = OPEN issues whose number appears
-as `parent.number` of ≥1 issue in the result; pick the highest-numbered
-candidate (the latest run); (2) sub-issues = issues of ANY state whose
-`parent.number` equals it (closed sub-issues render `✓ MERGED`);
-(3) QUEUED lists only blockers that are still OPEN; (4) an empty result
-`[]`, or no candidate, means the tracker is reachable but no run is active:
-with no local artifacts print `NO ACTIVE FACTORY RUN`; with artifacts,
-render the local view under the header note `tracker: no open run`; `.architect/wt/<slug>-01/` worktrees;
+the tracking issue + sub-issues via ONE gh call whose ENTIRE graph logic
+lives in this pinned `--jq` expression — both scripts embed it VERBATIM
+(single implementation; shells only parse the TSV lines it emits):
+
+```
+gh issue list --state all --limit 200 --json number,title,state,parent,blockedBy --jq '. as $all | ([ $all[] | select(.parent != null) | .parent.number ] | unique) as $pnums | ([ $all[] | select(.state == "OPEN") | select(.number as $n | $pnums | index($n)) ] | map(.number) | max) as $t | if $t == null then "NOOPENRUN" else ("TRACK\t\($t)", ($all[] | select(.parent != null and .parent.number == $t) | [ "SUB", (.number|tostring), .state, ((.blockedBy.nodes // []) | map(select(.state == "OPEN") | (.number|tostring)) | join(",")), .title ] | @tsv)) end'
+```
+
+Live-verified sample output (this repo, run #43, 2026-07-03 — ground truth
+for tests; note `blockedBy` is an OBJECT `{nodes:[...]}` in gh JSON, which
+is why the expression reads `.blockedBy.nodes`):
+
+```
+TRACK	43
+SUB	46	OPEN	44	status: docs closure
+SUB	45	CLOSED		status: skill wiring (10-line cap)
+SUB	44	OPEN		status: scripts + validator contract
+```
+
+Line contract: `TRACK<TAB>n` once; `SUB<TAB>number<TAB>STATE<TAB>open-blocker
+numbers comma-joined (may be empty)<TAB>title` per sub-issue; the single
+line `NOOPENRUN` when no candidate exists. `SUB ... CLOSED` renders
+`✓ MERGED`; OPEN with blockers → `⊘ QUEUED` (list the blockers); OPEN
+without blockers falls through to the artifact-derived phases, else `○`.
+Testing seam: if env var `STATUS_GH_STUB` names a readable file, both
+scripts use its content INSTEAD of calling gh (tests only) — this makes
+tracker-mode rendering sandbox-testable against the sample above. In
+tracker mode, local artifacts only ENRICH tracker rows (matching slugs);
+stray files without a worktree DIRECTORY are never rendered as rows, and
+no glyph outside the seven ever appears. `NOOPENRUN`/empty means: no local
+artifacts → `NO ACTIVE FACTORY RUN`; artifacts → local view under
+`tracker: no open run`; `.architect/wt/<slug>-01/` worktrees;
 `docs/jobs/<slug>-01.md` STATUS lines (checked in worktree first, then
 repo); `.architect/wt/<slug>-01.events.jsonl` tails (encoding-aware);
 `.architect/wt/<slug>-01.judge.md` presence; watchdog process +

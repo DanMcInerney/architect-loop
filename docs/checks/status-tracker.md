@@ -38,3 +38,30 @@ Files owned: unchanged from `docs/checks/status-scripts.md`.
 
 - Re-run every check in `docs/checks/status-scripts.md` and record
   verbatim output (the fixtures and degraded mode must be unaffected).
+
+## ST6-ST8 — third-judgment re-architecture addendum (pinned jq, stub seam)
+
+Added by orchestrator ruling after the third judgment (see rulings file);
+no prior ST results are invalidated.
+
+### ST6 — the pinned jq expression appears VERBATIM in both scripts
+
+- Extract the `--jq` expression from each script and diff it against the
+  spec's pinned block — quote both and state `IDENTICAL` or the diff.
+
+### ST7 — stub-seam render matches the live-verified sample
+
+- Write the spec's four sample lines (TRACK/SUB x3) to
+  `.architect/tmp/stfix/stub.tsv`; run BOTH... the ps1 with
+  `STATUS_GH_STUB` set to that file against fixture root1. PASS: output
+  contains a `✓` row for issue 45, `⊘` (or artifact-phase) rows for 44/46
+  with 46 listing blocker 44, tracker header shows `#43`, and NO `?` or
+  other out-of-contract glyph appears. Verbatim output pasted.
+- Second stub containing only `NOOPENRUN` against empty root2. PASS:
+  `NO ACTIVE FACTORY RUN`.
+
+### ST8 — stray-file guard
+
+- With fixture root1 plus a stray `.architect/wt/ghost-01.events.jsonl`
+  (no `ghost-01/` directory), the render contains NO `ghost` row. Verbatim
+  output pasted.
