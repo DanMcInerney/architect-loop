@@ -16,9 +16,12 @@ Glossary only. No implementation details, no spec content.
 - **Judge** - a fresh-context, read-only agent at orchestrator tier that runs
   an issue's frozen checks and returns verdicts with raw evidence. Same
   capability as the orchestrator, none of its conversation. Not a config key.
-- **Monitor** - a cheap detection-only background subagent that sweeps
-  in-flight jobs (~10 min) and exits with evidence on anomaly. Never kills,
-  never nudges, never judges; its completion is the alert.
+- **Watchdog** - a deterministic script that sweeps in-flight jobs and exits
+  with typed evidence (`ALL_DONE`, `INTEGRATED`, `STALL`, `REPEAT`). It never
+  kills, nudges, or decides; the orchestrator rules on the evidence.
+- **Monitor** - informal name for the watchdog. Historically an LLM subagent;
+  now only a fallback template for harnesses without background-exit
+  notifications.
 - **Stress-test** - a fresh adversarial reviewer of the decomposition before
   the freeze: attacks check commands, issue bodies, and repo reality.
 - **Scout** - a researcher-shaped investigator: reads, researches, reports;
@@ -33,7 +36,7 @@ Glossary only. No implementation details, no spec content.
   preflight record. Sub-issues hang off it with native blocked-by edges.
 - **Plan** - the issue set plus native blocked-by links. The schedulable set is
   always the ready issues, dispatched up to five jobs at once.
-- **Wave** - one ready-issue dispatch: its jobs plus one monitor.
+- **Wave** - one ready-issue dispatch: its jobs plus one watchdog.
 - **Factory run** - everything between spec approval and the closing PR; runs
   unattended on the factory branch (`factory/<run>`).
 
@@ -43,7 +46,10 @@ Glossary only. No implementation details, no spec content.
   assignments, progress and verdicts are comments, the tracking issue carries
   the digest. "Not in the tracker = didn't happen."
 - **Spec approval** - the one human step: review one spec document, edit or
-  veto its recorded assumptions, approve. Approval authorizes the plan.
+  veto its recorded assumptions, approve in-session or by commenting
+  `APPROVE` on the tracking issue. Verbatim pre-approval can authorize a run
+  at invocation; otherwise the factory parks with reminders and fails safe
+  after 7 days.
 - **Check** - a frozen, committed, exact acceptance check
   (`docs/checks/<issue-slug>.md`). Read-only for everyone once frozen.
 - **Freeze commit** - the commit that locks a run's checks; it is pushed before
@@ -83,7 +89,9 @@ Glossary only. No implementation details, no spec content.
   The tracker and git are the memory.
 - **Judgment ledger** - the handoff section that recorded verdicts; replaced
   by verdict comments on issues.
-- **Heartbeat** - the v4 orchestrator stall-check; replaced by the monitor.
+- **Heartbeat** - the v4 orchestrator stall-check; replaced by the watchdog.
+- **LLM monitor sweep** - replaced by the watchdog script. The fallback
+  template remains in `dispatch.md`.
 - **Slice / block** - v4's unit and iteration names; v5 says issue and
   factory-loop event.
 - **Sentinel / `LOOP:` line** - v3 driver-control protocol; deleted in v4.

@@ -17,7 +17,10 @@ specs and frozen checks; job reports keep raw command output. A later
 session can recover from the tracker and the repo instead of depending on
 chat history.
 
-You intervene exactly once: approving the spec. From there the factory
+You intervene exactly once: approving the spec in-session or by commenting
+`APPROVE` on the tracking issue. A run can also carry verbatim pre-approval
+from invocation; otherwise the factory parks with reminders and stops after
+7 days without approval. From there the factory
 creates the issues, dispatches parallel builders, answers their blockers,
 judges every result, and merges what passes — an autonomous software
 factory that only interrupts you for a hard stop or the closing digest.
@@ -40,11 +43,10 @@ You open your repo in Claude Code or Codex and type `/architect`. Then:
    issue's checks under `docs/checks/`, dispatches the ready issues, and
    keeps going until the plan is closed or a hard stop fires.
 
-The factory can run up to five builder jobs at once, plus one cheap
-detection-only monitor. The monitor checks for stalled jobs every roughly
-10 minutes using output growth, process activity, and repeated-command tails.
-It never kills or nudges anything; it exits with evidence, and the orchestrator
-decides what to do.
+The factory can run up to five builder jobs at once, plus one deterministic
+watchdog. The watchdog checks for stalled jobs using output growth, process
+activity, and repeated-command tails. No LLM sits in the detection loop; the
+script exits with evidence, and the orchestrator decides what to do.
 
 On a passing issue, the orchestrator records the judge verdict on the issue and
 merges. On a blocker, the builder job stops, the orchestrator answers on the issue,
@@ -68,7 +70,7 @@ Sources and design evidence are in [DESIGN.md](DESIGN.md).
 | Ready issue dispatch | The orchestrator runs only issues whose blockers are closed, up to five jobs |
 | Frozen checks | Acceptance commands live in `docs/checks/` and cannot be changed after dispatch |
 | Fresh judge owns the merge | A failing verdict cannot be talked around by anyone |
-| Detection-only monitor | Stalls wake the orchestrator with evidence; the monitor never kills or decides |
+| Deterministic watchdog | Stalls wake the orchestrator with evidence; the watchdog never kills or decides |
 | Builder boundaries | Each job gets a may-touch and must-not-touch set, then reports raw evidence |
 | Builders can't commit | Nothing reaches a branch until the orchestrator verifies and the judge rules |
 | Failure-masking ban | No silent fallbacks or unrequested compatibility shims; broken code fails loudly |
@@ -114,13 +116,13 @@ CLI on a ChatGPT plan is optional.
 ```
 
 That's the whole interface. No daemons, no driver scripts, no extra windows.
-Builders, monitors, and judges are subagents living inside the session you're
+Builders, watchdogs, and judges run inside the session you're
 looking at, with durable state mirrored through GitHub issues and repo files.
 
 **Desktop app caveat:** the Claude Code desktop app has had shell-tool grant
 limitations for subagents. Desktop is fine for planning and reviewing; run the
-full factory from a terminal until your harness can give builder, judge, and
-monitor agents the shell tools their checks require.
+full factory from a terminal until your harness can give builder and judge
+agents the shell tools their checks require.
 
 ## Choosing your models
 
@@ -180,12 +182,12 @@ report is the research handoff, and it feeds the build loop's specs.
 |---|---|
 | [DESIGN.md](DESIGN.md) | Every design choice with its cited evidence |
 | [skills/architect/SKILL.md](skills/architect/SKILL.md) | The orchestrator role: intake, spec approval, factory loop, and hard stops |
-| [skills/architect/dispatch.md](skills/architect/dispatch.md) | Model aliases, issue conventions, builder/judge templates, monitor dispatch, and respawn rules |
-| [skills/architect/loop.md](skills/architect/loop.md) | Factory event loop, monitor protocol, failure ladder, and safety rails |
+| [skills/architect/dispatch.md](skills/architect/dispatch.md) | Model aliases, issue conventions, builder/judge templates, watchdog dispatch, and respawn rules |
+| [skills/architect/loop.md](skills/architect/loop.md) | Factory event loop, watchdog protocol, failure ladder, and safety rails |
 | [skills/architect/research.md](skills/architect/research.md) | Slice-scale inline fact-check fan-out |
 | [skills/architect-research/SKILL.md](skills/architect-research/SKILL.md) | Research orchestration: scout -> design -> fan out -> verify -> write |
 | [skills/architect-research/tactics.md](skills/architect-research/tactics.md) | Source-class tactics library for researchers |
-| `.claude/agents/architect-builder.md` / `architect-judge.md` / `architect-monitor.md` | The shipped builder, judge, and monitor agent definitions |
+| `.claude/agents/architect-builder.md` / `architect-judge.md` | The shipped builder and judge agent definitions |
 | [tests/validate_skills.py](tests/validate_skills.py) | Sanity suite: contracts, links, sizes; run `uv run --no-project python tests/validate_skills.py` |
 
 ## FAQ
@@ -202,7 +204,7 @@ fans out when the plan is ready for it.
 have no commit access, their file boundaries are checked after every job,
 and broken worktrees are discarded and respawned from the frozen check.
 
-**Can I watch?** Yes. Builders, monitors, and judges run inside your open
+**Can I watch?** Yes. Builders, watchdogs, and judges run inside your open
 session, and issue comments carry the durable progress trail.
 
 **Why is research a separate skill?** Research fan-out costs far more tokens
