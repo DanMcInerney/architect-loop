@@ -191,9 +191,12 @@ human digest item.
 
 Dispatch one dedicated docs lane before the PR boundary. It consumes docs debt,
 updates product docs, writes any `docs/solutions/<slug>.md` entries, and
-codifies changed domain language or sparse ADRs. Then prepare the PR and write
-the final digest on the epic with shipped issues, skipped work, residual risks,
-and verification evidence.
+codifies changed domain language or sparse ADRs. Then prepare the PR: its body
+says `Closes #<epic>` and lists every shipped issue by number, and each closed
+issue gets one comment naming the shipping PR — issues close at lane-merge
+time, so this back-link is PR-boundary bookkeeping. Write the final digest on
+the epic with shipped issues, skipped work, residual risks, and verification
+evidence.
 
 Done when docs debt is consumed, the PR is ready, the epic digest is posted,
 and no issue remains silently unresolved.
