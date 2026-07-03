@@ -25,7 +25,7 @@ SKILLS = ROOT / "skills"
 MAX_DESC = 1024
 REQUIRED_SIBLINGS = {
     "architect": ["dispatch.md", "research.md", "loop.md"],
-    "architect-research": ["lanes.md"],
+    "architect-research": ["tactics.md"],
 }
 ARCHITECT_HANDOFF_FREE_FILES = [
     SKILLS / "architect" / "SKILL.md",
@@ -105,7 +105,7 @@ def check_siblings(skill_dir: Path) -> None:
     for ref in re.findall(r"`([\w][\w.-]*\.md)`", skill_md):
         if ref in repo_files:
             continue
-        if re.match(r"(docs|lane|gate|spec|research)", ref):
+        if re.match(r"(docs|job|check|spec|research)", ref):
             continue
         if not (skill_dir / ref).exists():
             errors.append(f"{skill_dir.name}: SKILL.md references `{ref}` which doesn't exist")
@@ -174,7 +174,7 @@ def check_model_alias_table() -> None:
             errors.append(f"skills/architect/dispatch.md: Model alias table has empty Flags for {alias}")
 
 
-ROLE_CONFIG_RE = re.compile(r"^(brain|brawn)\s*=\s*(claude|codex)/[^\s/#]+(:[^\s/#]+)?$")
+ROLE_CONFIG_RE = re.compile(r"^(orchestrator|builders)\s*=\s*(claude|codex)/[^\s/#]+(:[^\s/#]+)?$")
 DISPATCH_RULE_RE = re.compile(
     r"^when\s+.+\s+->\s+(claude|codex)/[^\s/#]+(:[^\s/#]+)?(\s+#\s*.+)?$"
 )
@@ -189,11 +189,11 @@ def check_config_example() -> None:
     target = None
     for block in blocks:
         lines = [line.strip() for line in block.splitlines()]
-        if any(line.startswith(("brain =", "brawn =", "when ")) for line in lines):
+        if any(line.startswith(("orchestrator =", "builders =", "when ")) for line in lines):
             target = block
             break
     if target is None:
-        errors.append("skills/architect: no fenced C2/C2' config example with brain/brawn or dispatch rules")
+        errors.append("skills/architect: no fenced C2/C2' config example with orchestrator/builders or dispatch rules")
         return
     saw_dispatch_rule = False
     for line in target.splitlines():
@@ -225,13 +225,13 @@ def check_judge_template() -> None:
         return
     block = m.group(1)
     for required in (
-        "Frozen gate file path:",
+        "Frozen check file path:",
         "Freeze commit SHA:",
         "Branch to judge:",
         "Verdict format:",
-        "Gates integrity:",
+        "Checks integrity:",
         "Diff vs intent:",
-        "Per gate:",
+        "Per check:",
     ):
         if required not in block:
             errors.append(f"skills/architect/dispatch.md: C5 judge template missing {required}")
