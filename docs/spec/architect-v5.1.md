@@ -1,6 +1,6 @@
 # Spec: architect v5.1 — hardening from the first factory run
 
-Status: DRAFT — awaiting human review at the spec gate.
+Status: APPROVED at the spec gate 2026-07-02 (human: "go"). A1-A5 stand unvetoed.
 Author: brain session, 2026-07-02 (same-day retro of the v5 dogfood run).
 Evidence base: epic #12 and issues #13–#18 (full verdict/ruling trail),
 `docs/solutions/` (4 codified diagnoses), `docs/lanes/v5-*-01.md` (raw lane
