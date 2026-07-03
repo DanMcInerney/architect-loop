@@ -29,9 +29,10 @@ Commands and PASS criteria:
 - `git grep -c "APPROVE" -- README.md` → count ≥ 1
 - No sentence still claims an LLM/agent performs stall detection as primary
   — quote the monitor-related sentences.
-- `git grep -in "architect-monitor" -- README.md DESIGN.md CONTEXT.md` → no
-  output (the deleted agent definition is no longer referenced; the sibling
-  issue deleted the file, this issue removes the mentions).
+- `git grep -inE "architect-monitor\.md" -- README.md DESIGN.md CONTEXT.md` → no
+  output (the deleted agent definition FILE is no longer referenced; the
+  sibling issue deleted it, this issue removes the mentions — the fallback
+  template's marker name is not such a reference).
 
 ## DD3 — CONTEXT updates
 

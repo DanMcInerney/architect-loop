@@ -34,10 +34,11 @@ Commands and PASS criteria:
 
 Commands and PASS criteria:
 - `Test-Path .claude/agents/architect-monitor.md` → `False`
-- `git grep -in "architect-monitor" -- ':!docs/spec' ':!docs/research' ':!docs/solutions' ':!docs/adr' ':!docs/checks' ':!docs/jobs' ':!docs/gates' ':!docs/lanes' ':!README.md' ':!DESIGN.md' ':!CONTEXT.md'` → no output.
-  (README/DESIGN/CONTEXT are the docs issue's files; it removes their
-  references after this issue merges — its DD2 check covers that, and the
-  composite repo-wide sweep proves the end state.)
+- `git grep -inE "architect-monitor\.md" -- ':!docs/spec' ':!docs/research' ':!docs/solutions' ':!docs/adr' ':!docs/checks' ':!docs/jobs' ':!docs/gates' ':!docs/lanes' ':!README.md' ':!DESIGN.md' ':!CONTEXT.md'` → no output.
+  (The pattern targets references to the deleted definition FILE; the
+  `architect-monitor-fallback-template` marker name is not such a reference.
+  README/DESIGN/CONTEXT are the docs issue's files; its DD2 check covers
+  them, and the composite repo-wide sweep proves the end state.)
 
 ## DB4 — executor-truth note
 
