@@ -67,7 +67,7 @@ retry-at-a-different-tier job (see `loop.md` "## Failure ladder").
 |---|---|---|
 | Builder | Agent tool with `.claude/agents/architect-builder.md`; `disallowedTools` denies `Bash(git commit *)` and `Bash(git push *)`; `isolation: worktree`; `background: true`; model may be passed per invocation from the alias table. On the desktop app, the harness auto-creates the agent's isolation worktree (`.claude/worktrees/agent-<id>`) and its branch — integrate from that branch. On the CLI, spawns have been observed to run UNISOLATED in the orchestrator's checkout despite `isolation: worktree` frontmatter (D11) — pass isolation explicitly per invocation if supported, and never run two Claude-backend builder jobs concurrently unless each is verified to have its own worktree (`git worktree list` after spawn). In all cases, never pre-create a job worktree for Claude-backend jobs (a pre-made one is ignored); do not use `.architect/wt/<slice>-<NN>` (that pattern is Codex-backend only, below). | `spawn_agent` with defensive framing: "Your task is: ..."; worktree created by the orchestrator via git; use `/goal` semantics for persistent job completion. |
 | Judge | Agent tool with `.claude/agents/architect-judge.md`; read-only tools plus Bash for check commands; orchestrator tier via `model: inherit` or per-invocation model. | Fresh `spawn_agent` with read-only instructions and the fixed judge template. |
-| Monitor | Agent tool with `.claude/agents/architect-monitor.md`; cheapest tier (e.g. `claude/haiku:low`); read-only tools plus Bash/PowerShell restricted to file-growth and process-tree checks (see "Monitor dispatch"); `background: true`; one per dispatch wave, never one per job. | Fresh `spawn_agent` at the cheapest tier with the same detection-only instructions; counts as one of the 6 `max_threads`, same as any builder thread. |
+| Monitor | Script watchdog (`watchdog.ps1` on Windows, `watchdog.sh` on POSIX) when the orchestrator can run background processes and receive exit notifications; LLM fallback template only otherwise. | Script watchdog (`watchdog.ps1` on Windows, `watchdog.sh` on POSIX) when background process exits wake the orchestrator; LLM fallback template only otherwise and it counts as one of the 6 `max_threads`. |
 | Parallelism | Background subagents; permission prompts surface to the main session. | Native subagents, `max_threads` 6, `max_depth` 1 (root session is depth 0; a spawned child may not spawn further — no nested orchestrators, the orchestrator dispatches builders directly), `wait_agent` for completion (the live collab event stream names the underlying tool call `wait`, not `wait_agent` — evidence: v4-codex CG4 architect-run canary `events.jsonl`). |
 | Review (high-stakes) | `codex review --base` when Codex is installed; otherwise a fresh same-CLI subagent with bias caveat. | `/review` / `review_model`; Claude reviewer when installed. |
 | Skill packaging | `skills/architect/` plus Claude skill install locations. | `.agents/skills/architect/SKILL.md` (and any other `skills/*/`); same source text copied by installer. |
@@ -309,42 +309,67 @@ answer reaches the builder only through a fresh respawn's spawn context (see
 
 ## Monitor dispatch
 
-One detection-only monitor subagent runs alongside each dispatch wave, at the
-cheapest tier (e.g. `claude/haiku:low`). It never kills, nudges, or decides;
-its sweep loop and the orchestrator's ruling options on an anomaly report are in
-`loop.md` "## Monitor protocol" — this section covers only how it is
-dispatched.
+The orchestrator writes one watchdog config JSON per dispatch wave, then
+launches the platform script as a background process: `watchdog.ps1` on
+Windows, `watchdog.sh` on POSIX. The config uses the spec's Interface
+contract:
 
-Inputs the orchestrator gives the monitor at dispatch: the list of in-flight
-jobs (issue number, job report path `docs/jobs/<issue-slug>-01.md`,
-worktree path), any duration hints carried on the issue or check file, and the
-~10-minute sweep interval.
-
-Monitor spawn template:
-
-```text
-You are the detection-only monitor for this dispatch wave. You never kill,
-nudge, or decide - you only observe and report.
-
-In-flight jobs:
-- Issue #<n>, report <docs/jobs/<issue-slug>-01.md>, worktree <path>,
-  duration hint <hint or none>.
-  (one line per job)
-
-Every ~10 minutes, for each job still in flight: check report/output file
-growth since the last sweep (encoding-aware - Windows PowerShell writes
-UTF-16), check process-tree existence/activity, and check the tail of the
-output for a repeated identical command or query.
-
-All jobs healthy -> keep looping. All jobs done -> exit quietly. Any
-anomaly on any job -> exit immediately with an evidence report: job id,
-minutes since last growth, tail excerpt, process state. Do not wait for the
-other jobs to finish before reporting it.
+```json
+{
+  "sweep_sec": 120,
+  "stall_after_min": 10,
+  "jobs": [
+    { "id": "issue-31", "events_file": "<path>", "report_path": "<path>",
+      "worktree": "<path>", "duration_hint_min": 0 }
+  ]
+}
 ```
 
+The watchdog detects mechanically; the orchestrator supplies the reasoning.
+The watchdog never kills, nudges, or judges. It exits with typed evidence:
+
+| Exit | Prefix | Meaning |
+|---|---|---|
+| 0 | `WATCHDOG: ALL_DONE` | every job report exists, with path and byte size evidence |
+| 2 | `WATCHDOG: INTEGRATED` | a job worktree or events file vanished because the orchestrator integrated it mid-sweep |
+| 3 | `WATCHDOG: STALL` | file growth and process activity both stopped beyond `stall_after_min` plus any duration hint |
+| 4 | `WATCHDOG: REPEAT` | the last four parsed command events were identical and need an intentional-vs-stuck ruling |
+
+Use the LLM fallback only for backends where the orchestrator cannot launch a
+background process whose exit wakes the loop.
+
+<!-- architect-monitor-fallback-template:start -->
+```text
+You are the detection-only fallback monitor for this dispatch wave. Use this
+template only when the backend cannot wake the orchestrator from a background
+watchdog process exit. You never kill, nudge, or decide - you only observe and
+report evidence.
+
+In-flight jobs:
+- Issue #<n>, events <path>, report <docs/jobs/<issue-slug>-01.md>,
+  worktree <path>, duration hint <hint or none>.
+  (one line per job)
+
+Sweep every ~10 minutes. For each job, check events/report byte growth,
+process activity by command-line/worktree match, and repeated identical
+commands in the tail. A quiet events file on a single sweep is normal model
+thinking, not a stall.
+
+Quiet exit is allowed ONLY when, for every job, you list the report path and
+byte size as evidence. If a worktree or events file vanished because the
+orchestrator integrated the job mid-sweep, exit `INTEGRATED_BY_ORCHESTRATOR`
+and list the vanished path. If you cannot verify something from this sandbox,
+state what you cannot verify instead of assuming the job is done.
+
+Any stall or repeat concern exits immediately with the job id, minutes since
+last growth, CPU/process activity evidence, repeated command if present, and
+tail excerpt. Do not wait for other jobs to finish before reporting it.
+```
+<!-- architect-monitor-fallback-template:end -->
+
 Codex backend note: `max_threads` is 6. Five builder jobs plus one monitor is
-exactly at that cap — never add a sixth concurrent subagent while the
-monitor is running.
+exactly at that cap only when the LLM fallback is used - never add a sixth
+concurrent subagent while that fallback monitor is running.
 
 ## Duration hints and liveness
 
@@ -355,11 +380,29 @@ informative context for the monitor, never a ceiling anything enforces.
 
 Sanctioned substitutions:
 
+Executor truth for sandboxed jobs: MSYS2/Cygwin-runtime binaries (Git for
+Windows `bash.exe`, `usr/bin/grep.exe`, `sed.exe`) die at startup under the
+Codex Windows sandbox because Cygwin's named shared-memory `CreateFileMapping`
+is denied with Win32 error 5 under the sandbox's dedicated-user restricted
+token. Native `git.exe` and PowerShell are unaffected; POSIX/macOS/Linux
+sandboxes are unaffected. Known upstream: openai/codex#12000 and
+openai/codex#21715. Therefore check files name the platform-native executor
+primary for sandboxed jobs: PowerShell + native git subcommands on Windows,
+bash on POSIX; the recorded same-pattern substitution rule stays for
+everything else.
+
 | Condition | Substitution | Citation |
 |---|---|---|
-| Git Bash CreateFileMapping Win32 error 5 in Codex sandbox | PowerShell same-pattern, recorded per check | `docs/solutions/subagent-shell-strip-codex-fallback.md` |
+| Git Bash CreateFileMapping Win32 error 5 in Codex Windows sandbox | PowerShell + native git same-pattern, recorded per check | `docs/research/factory-hardening-evidence.md` |
 | `uv` AppData cache denial (os error 5) | `UV_CACHE_DIR=.architect/tmp/uv-cache`, recorded | `docs/solutions/uv-cache-sandbox-redirect.md` |
 | `gh` unavailable in sandbox | `MIRROR: ORCHESTRATOR` in the report | `docs/solutions/subagent-shell-strip-codex-fallback.md` |
+
+## Orchestrator shell hygiene
+
+Use absolute paths in every orchestrator shell command. Write dispatch,
+judge, and config blocks with file tools, never heredocs. Never rely on a
+persisted cwd across commands; run #30 lost three commands to current-directory
+drift before this rule was written down.
 
 Liveness is judged from report/output file growth plus process-tree
 activity — never from wall-clock alone:
