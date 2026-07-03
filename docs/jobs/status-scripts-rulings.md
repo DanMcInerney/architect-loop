@@ -20,3 +20,19 @@
   frozen addendum docs/checks/status-tracker.md pins it statically (ST1-ST5,
   parity across both scripts). Fresh builder dispatched against the
   re-spec; live tracker-mode proof remains a composite check.
+- 2026-07-03 third judgment: all SS/ST checks PASS; diff-vs-intent FAIL on
+  a third distinct defect - ps1 tracker-candidate identification broken
+  under real gh. ORCHESTRATOR LIVE CONFIRMATION: with gh working and run
+  #43 open, status.ps1 printed `tracker: no open run` (judge upheld by
+  direct evidence). Oddity-rule ruling (three failures on one point =
+  question the architecture): the architecture was wrong - graph logic
+  implemented twice in two shells that cannot execute it in-sandbox. The
+  discovered gh shape (`blockedBy` is an object with `.nodes`) proves the
+  class. Re-architecture: ALL graph logic moves into one pinned gh --jq
+  expression, live-verified by the orchestrator and frozen in the spec
+  with sample output; shells parse TSV only; STATUS_GH_STUB testing seam
+  added so tracker rendering is sandbox-testable; stray-file guard and
+  no-out-of-contract-glyph rules pinned (live render also showed `?`
+  glyphs and stale-file rows). ST6-ST8 appended to the addendum checks.
+  SELF-IMPOSED RAIL: a fourth FAIL on this issue stops the factory and
+  escalates to the human.
