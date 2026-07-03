@@ -735,3 +735,82 @@ True
 
 
 STATUS: COMPLETE
+
+## Respawn session
+
+### Required artifact fix
+
+Hit found and fixed:
+
+```text
+C:\Users\danhm\architect-loop\.architect\wt\rename-product-docs-01\assets\architect-flow.html:42:      <div class="does">cuts a the plan<br>freezes checks in git<br>one fresh stress-test attacks it all</div>
+```
+
+Fix applied:
+
+```text
+assets/architect-flow.html:42 changed "cuts a the plan" to "cuts the plan"
+```
+
+No legitimate pre-existing doubled-article hits were found.
+
+### Doubled-article sweep
+
+Command:
+
+```text
+Select-String -Path README.md,DESIGN.md,CONTEXT.md,assets\architect-flow.html,assets\research-flow.html -Pattern '\b(a|an|the)\s+the\s+|\ba\s+a\s+' -CaseSensitive:$false | ForEach-Object { "$($_.Path):$($_.LineNumber):$($_.Line)" }
+```
+
+Output:
+
+```text
+```
+
+### PD1.1
+
+Executor: PowerShell
+
+Command:
+
+```text
+git grep -inwE "gate|gates|gated|lane|lanes|brain|brawn|cold|epic|grill|grilled|grilling|dag" -- README.md assets/architect-flow.html assets/research-flow.html
+```
+
+Output:
+
+```text
+```
+
+### PD1.2 Listed Command
+
+Executor: PowerShell
+
+Command:
+
+```text
+git grep -inE "frontier" -- README.md assets/architect-flow.html assets/research-flow.html | grep -ivE "frontier (model|codex|row|tier)|frontier-tier"
+```
+
+Output:
+
+```text
+      0 [main] grep (37548) C:\Program Files\Git\usr\bin\grep.exe: *** fatal error - CreateFileMapping S-1-5-21-940813291-4134638421-1989498454-1002.1, Win32 error 5.  Terminating.
+```
+
+### PD1.2 Same-Pattern Substitution
+
+Executor: PowerShell
+
+Command:
+
+```text
+$out = git grep -inE "frontier" -- README.md assets/architect-flow.html assets/research-flow.html; $out | Select-String -Pattern "frontier (model|codex|row|tier)|frontier-tier" -NotMatch
+```
+
+Output:
+
+```text
+```
+
+STATUS: COMPLETE
