@@ -1,20 +1,20 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { width:1500px; height:520px; background:#0d1117; font-family:"Cascadia Code",Consolas,monospace; color:#e6edf3; padding:36px 26px; }
+  body { width:1500px; height:545px; background:#0d1117; font-family:"Cascadia Code",Consolas,monospace; color:#e6edf3; padding:36px 26px; }
   .row { display:flex; align-items:stretch; justify-content:center; gap:9px; margin-top:6px; }
   .box { border-radius:14px; padding:18px 12px; text-align:center; width:224px; display:flex; flex-direction:column; justify-content:flex-start; }
   .fable { background:#1c1410; border:3px solid #d97757; }
   .human { background:#161022; border:3px solid #a371f7; }
-  .cold  { background:#0d1826; border:3px solid #58a6ff; }
+  .fresh  { background:#0d1826; border:3px solid #58a6ff; }
   .build { background:#0e1a16; border:3px solid #10a37f; }
   .who { font-size:22px; font-weight:700; }
-  .fable .who { color:#d97757; } .cold .who { color:#79b8ff; } .build .who { color:#3fd0a4; } .human .who { color:#c69df9; }
+  .fable .who { color:#d97757; } .fresh .who { color:#79b8ff; } .build .who { color:#3fd0a4; } .human .who { color:#c69df9; }
   .step { font-size:14px; color:#8b949e; letter-spacing:2px; margin-bottom:5px; }
   .does { font-size:16px; color:#c9d1d9; margin-top:8px; line-height:1.45; }
   .arrow { font-size:32px; color:#6e7681; align-self:center; }
-  .lanes { display:flex; flex-direction:column; gap:5px; margin-top:9px; }
-  .lane { border:1.5px solid #1f6f58; border-radius:8px; padding:2px 7px; font-size:13px; color:#7ee2c3; background:#0a221b; }
+  .jobs { display:flex; flex-direction:column; gap:5px; margin-top:9px; }
+  .job { border:1.5px solid #1f6f58; border-radius:8px; padding:2px 7px; font-size:13px; color:#7ee2c3; background:#0a221b; }
   .mon  { border:1.5px solid #3a4b8a; border-radius:8px; padding:2px 7px; font-size:13px; color:#9db7ff; background:#0c1226; }
   .loop { text-align:center; color:#6e7681; font-size:15px; margin-top:14px; letter-spacing:1px; }
   .repo { margin:20px auto 0; width:1290px; background:#1a1607; border:3px solid #e3b341; border-radius:14px; padding:14px; text-align:center; }
@@ -26,48 +26,48 @@
   <div class="row">
     <div class="box fable">
       <div class="step">1 · INTAKE</div>
-      <div class="who">BRAIN</div>
+      <div class="who">ORCHESTRATOR</div>
       <div class="does">reads the repo<br>asks ≤5 questions, once<br>writes spec + assumptions</div>
     </div>
     <div class="arrow">⟶</div>
     <div class="box human">
-      <div class="step">2 · SPEC GATE</div>
+      <div class="step">2 · SPEC APPROVAL</div>
       <div class="who">YOU</div>
       <div class="does">read one document<br>edit or veto assumptions<br><b>approve → walk away</b></div>
     </div>
     <div class="arrow">⟶</div>
     <div class="box fable">
       <div class="step">3 · ISSUES ❄</div>
-      <div class="who">BRAIN</div>
-      <div class="does">cuts a GitHub issue DAG<br>freezes gates in git<br>one cold grill attacks it all</div>
+      <div class="who">ORCHESTRATOR</div>
+      <div class="does">cuts the plan<br>freezes checks in git<br>one fresh stress-test attacks it all</div>
     </div>
     <div class="arrow">⟶</div>
     <div class="box build">
       <div class="step">4 · BUILD ❄</div>
-      <div class="who">BRAWN ×≤5</div>
-      <div class="does">code the unblocked issues<br>can't commit, can't touch gates</div>
-      <div class="lanes">
-        <div class="lane">worktree lane 1 … 5</div>
+      <div class="who">BUILDERS ×≤5</div>
+      <div class="does">code the ready issues<br>can't commit, can't touch checks</div>
+      <div class="jobs">
+        <div class="job">worktree job 1 … 5</div>
         <div class="mon">monitor · watches, never acts</div>
       </div>
     </div>
     <div class="arrow">⟶</div>
-    <div class="box cold">
+    <div class="box fresh">
       <div class="step">5 · JUDGE ❄</div>
-      <div class="who">COLD JUDGE</div>
-      <div class="does">runs the frozen gates<br>reads diff vs intent<br>a FAIL can't be overruled</div>
+      <div class="who">FRESH JUDGE</div>
+      <div class="does">runs the frozen checks<br>reads diff vs intent<br>a FAIL can't be overruled</div>
     </div>
     <div class="arrow">⟶</div>
     <div class="box fable">
       <div class="step">6 · MERGE</div>
-      <div class="who">BRAIN</div>
-      <div class="does">merges on PASS<br>answers blockers, respawns<br>next frontier → one PR</div>
+      <div class="who">ORCHESTRATOR</div>
+      <div class="does">merges on PASS<br>answers blockers, respawns<br>next ready issues → one PR</div>
     </div>
   </div>
-  <div class="loop">⟲ steps 4–6 repeat, unattended, until every issue in the DAG is closed</div>
+  <div class="loop">⟲ steps 4–6 repeat, unattended, until every issue in the plan is closed</div>
   <div class="repo">
     <div class="who">GITHUB + GIT REMEMBER</div>
-    <div class="does">epic + issue DAG · spec + frozen gates + rulings in git · lane reports · verdicts on issues — not in the tracker = didn't happen</div>
+    <div class="does">tracking issue + the issues · spec + frozen checks + rulings in git · job reports · verdicts on issues — not in the tracker = didn't happen</div>
   </div>
   <div class="legend"><span class="snow">❄</span> = a fresh agent that never saw the conversation — nobody grades their own work&nbsp;&nbsp;·&nbsp;&nbsp;<span class="you">purple</span> = the only step that needs you</div>
 </body></html>
