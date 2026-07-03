@@ -38,9 +38,12 @@ to it. No API keys.
 
 That's the whole interface — no daemons, no extra windows. Your one job is
 approving the spec: in-session, or by commenting `APPROVE` on the tracking
-issue from your phone. If you're away, the factory parks with reminders and
-shuts itself down after 7 days rather than guessing. Everything else runs
-without you, and the run ends in a single PR plus a digest of what shipped.
+issue from your phone. If you're away, the factory waits about 5 minutes, then
+uses the orchestrator's best judgment, records the ruling for after-the-fact
+veto, and continues. Irreversible or destructive choices are the carve-out:
+silence resolves to the non-destructive path, and `docs/STOP` stays absolute.
+Everything else runs without you, and the run ends in a single PR plus a
+digest of what shipped.
 
 The build factory needs a GitHub repo: a remote, `gh auth status` passing,
 and `gh` ≥ 2.94.0 (native sub-issue and blocked-by flags). Missing
@@ -89,8 +92,11 @@ survives unless its URL was actually fetched. One author writes the report.
 2. **Spec approval — the only human step.** Approve in-session or comment
    `APPROVE` (or `APPROVE with edits: ...` / `REJECT ...`) on the tracking
    issue. A run can carry verbatim pre-approval from your invocation.
-   Absent a human: park, remind, fail-safe stop at 7 days. The factory never
-   infers a yes from earlier conversation.
+   Absent a human: wait about 5 minutes, rule with the orchestrator's best
+   judgment, record the ruling for after-the-fact veto, and continue. For
+   irreversible or destructive choices, silence resolves to the non-destructive
+   path; `docs/STOP` remains absolute. The factory never infers a yes from
+   earlier conversation.
 3. **The plan.** The spec compiles into sub-issues — vertical slices with
    acceptance criteria, may-touch/must-not-touch file boundaries, and native
    blocked-by links. Issues scheduled in parallel share no files, schemas,
@@ -108,8 +114,9 @@ survives unless its URL was actually fetched. One author writes the report.
      compliance is a defect. Each ruling gets an explicit accept/reject.
    - **A deterministic watchdog** — a ~70-line script, not a model — sweeps
      for stalls (output-byte growth, process CPU, repeated-command tails)
-     and exits with typed evidence. It never kills and never decides; the
-     orchestrator rules on what it reports.
+     and exits with typed evidence. Done means the job report's final
+     non-blank line starts with `STATUS:`. It never kills and never decides;
+     the orchestrator rules on what it reports.
    - **Stuck builders stop instead of thrashing.** A blocker is posted on
      the issue; the orchestrator answers durably there and respawns a fresh
      builder with the answer in its starting context.
@@ -121,7 +128,9 @@ survives unless its URL was actually fetched. One author writes the report.
    - **Failures fix inputs, not models.** First failure: diagnose from the
      judge's evidence, amend the issue, respawn at the same tier. Second:
      re-plan or escalate. A merge conflict means the plan was wrong — kill
-     the job and re-slice, never hand-merge builder work.
+     the job and re-slice, never hand-merge builder work. Oddity re-planning
+     is orchestrator-owned and may fan out researchers before the orchestrator
+     updates the plan, issues, and checks.
 5. **Finish.** A docs job consumes the run's documentation debt and codifies
    reusable diagnoses into `docs/solutions/` (read back at the start of
    every future run). One PR closes the tracking issue; the digest lists

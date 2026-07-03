@@ -18,7 +18,8 @@ Glossary only. No implementation details, no spec content.
   capability as the orchestrator, none of its conversation. Not a config key.
 - **Watchdog** - a deterministic script that sweeps in-flight jobs and exits
   with typed evidence (`ALL_DONE`, `INTEGRATED`, `STALL`, `REPEAT`). It never
-  kills, nudges, or decides; the orchestrator rules on the evidence.
+  kills, nudges, or decides; the orchestrator rules on the evidence. A job is
+  done only when its report's final non-blank line starts with `STATUS:`.
 - **Monitor** - informal name for the watchdog. Historically an LLM subagent;
   now only a fallback template for harnesses without background-exit
   notifications.
@@ -50,8 +51,10 @@ Glossary only. No implementation details, no spec content.
 - **Spec approval** - the one human step: review one spec document, edit or
   veto its recorded assumptions, approve in-session or by commenting
   `APPROVE` on the tracking issue. Verbatim pre-approval can authorize a run
-  at invocation; otherwise the factory parks with reminders and fails safe
-  after 7 days.
+  at invocation; otherwise the factory waits about 5 minutes, rules with the
+  orchestrator's best judgment, records the ruling for after-the-fact veto,
+  and continues. Irreversible or destructive silence takes the non-destructive
+  path; `docs/STOP` remains absolute.
 - **Check** - a frozen, committed, exact acceptance check
   (`docs/checks/<issue-slug>.md`). Read-only for everyone once frozen.
 - **Freeze commit** - the commit that locks a run's checks; it is pushed before
