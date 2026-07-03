@@ -9,9 +9,18 @@ isolated worktrees. A separate **judge** agent has to pass the work against
 gates that were locked in before the code existed, and the brain is not
 allowed to overrule a failing verdict.
 
-The coordination state lives in GitHub issues. Git keeps the approved specs
-and frozen gates. Lane reports keep raw command output. A later session can
-recover from the tracker and the repo instead of depending on chat history.
+GitHub is the issue tracker and the audit trail. The approved spec becomes
+an epic with sub-issues and native blocked-by links; rulings, blocker
+answers, judge verdicts, and the end-of-run digest all land as issue
+comments, so you can follow a run from GitHub alone. Git keeps the approved
+specs and frozen gates; lane reports keep raw command output. A later
+session can recover from the tracker and the repo instead of depending on
+chat history.
+
+You intervene exactly once: approving the spec. From there the factory
+creates the issues, dispatches parallel builders, answers their blockers,
+judges every result, and merges what passes — an autonomous software
+factory that only interrupts you for a stop rail or the closing digest.
 
 ## How a run unfolds
 
