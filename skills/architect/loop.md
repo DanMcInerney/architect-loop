@@ -35,11 +35,17 @@ frontier, sleeps, and wakes only on an event.
 ## Monitor protocol
 
 One detection-only subagent (cheapest tier, e.g. haiku:low) is dispatched
+as a background subagent whose completion re-invokes the orchestrator; the
+exit is the alert channel. Teammate-style spawns idle instead of exiting
+and require a formal `shutdown_request` to stand down, so use that
+mechanism only when a teammate spawn is unavoidable. The monitor is sent
 with each wave — see `dispatch.md` "## Monitor dispatch". It sweeps every
 10 min: for each in-flight lane it checks report/output file growth since
 the last sweep, process-tree existence/activity, and a repeated-identical-
 command tail check. All healthy -> keep looping. All lanes done -> exit
-quietly. Anomaly -> exit immediately with an evidence report: lane id,
+quietly. In a normal all-green wave, harness notifications cover every
+event and the monitor's quiet exit is its only output; that is success,
+not waste. Anomaly -> exit immediately with an evidence report: lane id,
 minutes since last growth, tail excerpt, process state.
 
 The monitor never kills, never nudges, never decides — only the brain
@@ -55,6 +61,11 @@ is posted on the lane's issue with: per-gate PASS/FAIL/INVALID, a
 gates-integrity verdict, a diff-vs-intent verdict, the slice call
 KILL/CONTINUE, and the decisive reason tied to raw evidence — exact `gh`
 commands and comment format live in `dispatch.md` "## Issue conventions".
+The judge's intent context is exactly the frozen gate file, spec, lane
+report, and `docs/lanes/<issue-slug>-rulings.md`. That rulings file is
+orchestrator-owned, append-only, and committed before judge dispatch; if it
+is absent, there are no post-freeze rulings. Judge dispatch blocks carry no
+ruling prose.
 The issue is closed on merge. No verdict comment on an issue means the
 next factory block must not build on it as accepted; the brain may re-run
 judgment with a fresh judge if evidence is missing, but may not fill in a
