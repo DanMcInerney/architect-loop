@@ -36,3 +36,9 @@
   glyphs and stale-file rows). ST6-ST8 appended to the addendum checks.
   SELF-IMPOSED RAIL: a fourth FAIL on this issue stops the factory and
   escalates to the human.
+- 2026-07-03 fourth judgment FAIL fired the self-imposed rail; factory
+  parked and escalated. HUMAN RULING: "one final respawn" - fix (1) ANSI
+  color emitted when stdout is a TTY and NO_COLOR unset (plain when piped
+  - SS4 must still pass), (2) the tracker gh call honors the repo root
+  (-R/--repo from the target root's origin, or run gh with the target as
+  cwd). Fifth judgment; merge on PASS; any further FAIL kills the issue.
