@@ -84,15 +84,20 @@ or reports the gate BLOCKED — never silently skips a gate or invents output.
 
 ## C5 judge delegation template
 
-The orchestrator must send this template as-is except for replacing the three
-placeholder values. It must not add slice-specific prose, encouragement,
-summaries, or interpretation.
+The orchestrator must send this template as-is except for replacing
+placeholders. It must not add slice-specific prose, encouragement, summaries,
+or interpretation. Judge intent context is pointer-only: frozen gate file,
+spec pointer, lane report, and `docs/lanes/<issue-slug>-rulings.md`
+(orchestrator-owned, append-only; absent = no post-freeze rulings).
 
 <!-- architect-judge-template:start -->
 ```text
 Frozen gate file path: <docs/gates/<slice>.md>
 Freeze commit SHA: <freeze-sha>
 Branch to judge: <branch>
+Spec pointer: <spec path named by the frozen gate>
+Lane report: <docs/lanes/<issue-slug>-01.md>
+Rulings file: docs/lanes/<issue-slug>-rulings.md (absent = no post-freeze rulings)
 
 Verdict format:
 - Gates integrity: PASS | FAIL | INVALID
@@ -108,26 +113,77 @@ Verdict format:
 ```
 <!-- architect-judge-template:end -->
 
+## Codex judge delegation template
+
+The orchestrator must send this template as-is except for replacing the gate
+file path, freeze SHA, branch, and worktree note. It must not add slice-specific
+prose, encouragement, summaries, or interpretation.
+
+<!-- architect-codex-judge-template:start -->
+```text
+Frozen gate file path: <docs/gates/<slice>.md>
+Freeze commit SHA: <freeze-sha>
+Branch to judge: <branch>
+Worktree note: <worktree note>
+
+You are a cold read-only judge. You did not build this lane. Flag only gaps
+that affect correctness, the stated requirements, or documented project
+invariants -- cite file:line evidence for every finding. Do not report
+stylistic preferences.
+
+Tree audit: workspace-write exists only so validators can run. Any tracked-file
+modification during judgment means the verdict is discarded INVALID.
+
+Sanctioned substitutions, recorded per gate: Git Bash CreateFileMapping Win32
+error 5 -> PowerShell same-pattern; uv AppData cache denial -> run with
+`UV_CACHE_DIR=.architect/tmp/uv-cache`; gh unavailable -> report
+`MIRROR: ORCHESTRATOR`.
+
+Intent context pointers: frozen gate file above; spec pointer named by the
+frozen gate; lane report named by the issue/gate; rulings file
+`docs/lanes/<issue-slug>-rulings.md` (absent = no post-freeze rulings).
+
+Verdict format:
+- Gates integrity: PASS | FAIL | INVALID
+  Raw evidence: <git diff <freeze-sha>..HEAD -- docs/gates/>
+- Diff vs intent: PASS | FAIL | INVALID
+  Raw evidence: <file:line evidence from the diff and frozen gate/spec text>
+- Per gate:
+  - <gate id>: PASS | FAIL | INVALID
+    Command: <exact command from the frozen gate>
+    Executor: <executor used>
+    Raw evidence: <verbatim stdout/stderr and exit code>
+- Slice verdict: PASS | FAIL | INVALID
+  Decisive reason: <one sentence tied to raw evidence>
+```
+<!-- architect-codex-judge-template:end -->
+
 ## Grill delegation template
 
-The orchestrator must send this template as-is except for replacing the two
-placeholder values. It must not add slice-specific prose, encouragement,
-summaries, or interpretation.
+The orchestrator must send this template as-is except for replacing
+placeholders. It must not add slice-specific prose, encouragement, summaries,
+or interpretation.
 
 <!-- architect-grill-template:start -->
 ```text
 Draft gate file path: <docs/gates/<slice>.md>
 Branch: <branch>
+Issue bodies: <pasted issue bodies for this DAG>
 
 Task: try to falsify this draft. Execute each gate command against the
 current tree, verify every referenced path/SHA/pointer resolves, attack each
-acceptance criterion for non-falsifiability and for patterns that collide
-with repo realities (e.g. a grep pattern matching the repo's own name), and
-flag any assumption not evidenced in the repo.
+acceptance criterion and pasted issue bodies against the spec for
+contradictions and non-falsifiability, including patterns that collide with
+repo realities (e.g. a grep pattern matching the repo's own name), and flag any
+assumption not evidenced in the repo. For every file a lane deletes or renames,
+grep the whole repo for references and verify the owning lane's boundary covers
+them or a dependency edge orders the fix. For every NEW artifact path a lane
+will create, run `git check-ignore <path>` and flag the plan if ignored.
 
 Defect report format:
 - <gate id or clause>: FALSIFIED | HOLDS
   Evidence: <command run and verbatim output, or file:line>
+- DAG findings: <delete/rename reference and ignored-new-path findings, or none>
 - Assumptions not evidenced in the repo: <list or none>
 ```
 <!-- architect-grill-template:end -->
@@ -204,6 +260,11 @@ Claim is an orchestrator action, never a builder action: the orchestrator is
 the single dispatcher and assigns exactly one issue per lane immediately
 before spawning its builder. A builder never self-claims or picks its own
 next issue.
+
+On current backends, builders usually cannot post to issues: Codex has no
+network, and Claude subagents have a shell-strip watch item. `MIRROR:
+ORCHESTRATOR` is the normal mode; the orchestrator mirrors at event boundaries
+it already occupies. Direct builder posting stays permitted where supported.
 
 ```bash
 gh issue edit <n> --add-assignee "@me"   # orchestrator claims, before dispatch
@@ -287,6 +348,14 @@ There are no per-command kill ceilings. Long test suites are legitimate work,
 not stalls. Issue bodies and gate files may carry duration *hints* (e.g.
 "full suite ~ 20m") so the monitor does not flag a lane early; a hint is
 informative context for the monitor, never a ceiling anything enforces.
+
+Sanctioned substitutions:
+
+| Condition | Substitution | Citation |
+|---|---|---|
+| Git Bash CreateFileMapping Win32 error 5 in Codex sandbox | PowerShell same-pattern, recorded per gate | `docs/solutions/subagent-shell-strip-codex-fallback.md` |
+| `uv` AppData cache denial (os error 5) | `UV_CACHE_DIR=.architect/tmp/uv-cache`, recorded | `docs/solutions/uv-cache-sandbox-redirect.md` |
+| `gh` unavailable in sandbox | `MIRROR: ORCHESTRATOR` in the report | `docs/solutions/subagent-shell-strip-codex-fallback.md` |
 
 Liveness is judged from report/output file growth plus process-tree
 activity — never from wall-clock alone:
