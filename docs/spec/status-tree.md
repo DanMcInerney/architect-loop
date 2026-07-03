@@ -40,9 +40,17 @@ question" — following the staged proposal presented in-session. Live
 (`--repo-root` in sh). No other flags.
 
 **Data sources, in order:** current branch (`git branch --show-current`);
-the open tracking issue + sub-issues via ONE
-`gh issue list --json number,title,state,parent,blockedBy,assignees`
-call when `gh` works; `.architect/wt/<slug>-01/` worktrees;
+the tracking issue + sub-issues via ONE
+`gh issue list --state all --limit 200 --json number,title,state,parent,blockedBy`
+call when `gh` works — the tracker-mode algorithm, identical in both
+scripts: (1) candidate tracking issues = OPEN issues whose number appears
+as `parent.number` of ≥1 issue in the result; pick the highest-numbered
+candidate (the latest run); (2) sub-issues = issues of ANY state whose
+`parent.number` equals it (closed sub-issues render `✓ MERGED`);
+(3) QUEUED lists only blockers that are still OPEN; (4) an empty result
+`[]`, or no candidate, means the tracker is reachable but no run is active:
+with no local artifacts print `NO ACTIVE FACTORY RUN`; with artifacts,
+render the local view under the header note `tracker: no open run`; `.architect/wt/<slug>-01/` worktrees;
 `docs/jobs/<slug>-01.md` STATUS lines (checked in worktree first, then
 repo); `.architect/wt/<slug>-01.events.jsonl` tails (encoding-aware);
 `.architect/wt/<slug>-01.judge.md` presence; watchdog process +
