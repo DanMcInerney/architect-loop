@@ -1,97 +1,18 @@
 # architect-loop
 
-Turn one AI chat session into a small dev team that checks its own work.
+**A research and software-engineering factory with the best practices built
+in.** You describe what you want; the model you're already talking to — the
+**orchestrator** — writes a spec, you approve it once, and the factory takes
+it from there: the spec becomes GitHub issues, fresh builder agents build
+them in parallel, an independent judge verifies every result against checks
+that were frozen before any code existed, and error correction is built in —
+stuck builders are answered and relaunched, failures are diagnosed and
+retried with fixed inputs, and nothing merges over a failing verdict.
+Research works the same way: parallel researchers gather evidence under hard
+budgets, and every load-bearing claim is double-checked against its sources
+before it can enter the report.
 
-The model you're talking to, Claude or Codex, acts as the **orchestrator**: it
-understands the goal, writes the spec, cuts the work into issues, answers
-blockers, and judges results. Disposable **builder** agents write the code in
-isolated worktrees. A separate **judge** agent has to pass the work against
-checks that were locked in before the code existed, and the orchestrator is not
-allowed to overrule a failing verdict.
-
-GitHub is the issue tracker and the audit trail. The approved spec becomes
-a tracking issue with sub-issues and native blocked-by links; rulings, blocker
-answers, judge verdicts, and the end-of-run digest all land as issue
-comments, so you can follow a run from GitHub alone. Git keeps the approved
-specs and frozen checks; job reports keep raw command output. A later
-session can recover from the tracker and the repo instead of depending on
-chat history.
-
-You intervene exactly once: approving the spec in-session or by commenting
-`APPROVE` on the tracking issue. A run can also carry verbatim pre-approval
-from invocation; otherwise the factory parks with reminders and stops after
-7 days without approval. From there the factory
-creates the issues, dispatches parallel builders, answers their blockers,
-judges every result, and merges what passes — an autonomous software
-factory that only interrupts you for a hard stop or the closing digest.
-
-## How a run unfolds
-
-![architect flow](assets/architect-flow.png)
-
-You open your repo in Claude Code or Codex and type `/architect`. Then:
-
-1. **Intake.** The orchestrator reads the repo and asks at most about five questions
-   in one batch. A question has to matter: the answer would change
-   implementation or validation. Everything else becomes a recorded
-   assumption in the spec.
-2. **Spec approval.** You review one document under `docs/spec/`. You can edit
-   assumptions, veto them, or approve the plan. Approval authorizes the whole
-   factory run.
-3. **Factory loop.** The orchestrator turns the approved spec into a GitHub issue
-   plan: one tracking issue, sub-issues, and native blocked-by links. It freezes each
-   issue's checks under `docs/checks/`, dispatches the ready issues, and
-   keeps going until the plan is closed or a hard stop fires.
-
-The factory can run up to five builder jobs at once, plus one deterministic
-watchdog. The watchdog checks for stalled jobs using output growth, process
-activity, and repeated-command tails. No LLM sits in the detection loop; the
-script exits with evidence, and the orchestrator decides what to do.
-
-On a passing issue, the orchestrator records the judge verdict on the issue and
-merges. On a blocker, the builder job stops, the orchestrator answers on the issue,
-and a fresh job is respawned with the answer in its starting context. On a
-check failure, the orchestrator diagnoses the input and respawns at the same tier;
-failures are treated as spec, context, or architecture problems, not as a
-signal to automatically change models.
-
-Why all the fresh agents: an agent reviewing its own work in the same
-conversation measurably misses more. Every review role here runs in a separate
-context that has never seen the discussion, so nobody grades their own work.
-Sources and design evidence are in [DESIGN.md](DESIGN.md).
-
-## Everything the loop does for you
-
-| Feature | What it means in practice |
-|---|---|
-| Materiality-tested intake | The orchestrator asks only the few questions that can change the build or validation plan |
-| One spec approval | You review one spec document, then the factory is authorized to run |
-| GitHub issue plan | Tracking issue, sub-issues, and native blocked-by links are the durable coordination state |
-| Ready issue dispatch | The orchestrator runs only issues whose blockers are closed, up to five jobs |
-| Frozen checks | Acceptance commands live in `docs/checks/` and cannot be changed after dispatch |
-| Fresh judge owns the merge | A failing verdict cannot be talked around by anyone |
-| Deterministic watchdog | Stalls wake the orchestrator with evidence; the watchdog never kills or decides |
-| Builder boundaries | Each job gets a may-touch and must-not-touch set, then reports raw evidence |
-| Builders can't commit | Nothing reaches a branch until the orchestrator verifies and the judge rules |
-| Failure-masking ban | No silent fallbacks or unrequested compatibility shims; broken code fails loudly |
-| Docs debt | One final docs job updates product docs and records reusable lessons |
-| `docs/STOP` | Drop the kill switch in the repo and the factory halts before its next dispatch |
-| Size guard | The skill text itself is tested to stay small enough for models to follow |
-
-## Preconditions
-
-The build loop uses GitHub as its tracker. Before `/architect` can run the
-factory, the repo needs:
-
-- a GitHub remote;
-- `gh auth status` passing;
-- `gh` version 2.94.0 or newer, for native sub-issue and dependency flags.
-
-Preflight also runs a backend canary before dispatch so the factory records a
-working builder backend instead of switching mid-wave.
-
-If any precondition is missing, the skill fails loudly instead of falling back
-to a local tracker.
+Ask for work. Come back when it's done.
 
 ## Install (30 seconds)
 
@@ -101,12 +22,12 @@ cd architect-loop && ./install.sh        # Windows: .\install.ps1
 npm i -g @openai/codex@latest            # optional: Codex CLI (>= 0.133)
 ```
 
-One installer, both ecosystems: it copies the same skill text to Claude
-Code's skills directory and to Codex's `.agents/skills`, so `/architect`
-works in whichever you open. Use `./install.sh --project` (or
-`.\install.ps1 -Project`) to install into the current repo only. You need
-[Claude Code](https://claude.com/claude-code) on any paid plan; the Codex
-CLI on a ChatGPT plan is optional.
+One installer, both ecosystems: the same skills land in Claude Code and in
+Codex's `.agents/skills`, so the commands work in whichever you open. Use
+`--project` (`-Project` on Windows) to install into the current repo only.
+You need [Claude Code](https://claude.com/claude-code) on any paid plan; the
+Codex CLI on a ChatGPT plan is optional but recommended — builders default
+to it. No API keys.
 
 ## Use
 
@@ -115,100 +36,193 @@ CLI on a ChatGPT plan is optional.
 /architect-research <what you're considering>   # the research loop
 ```
 
-That's the whole interface. No daemons, no driver scripts, no extra windows.
-Builders, watchdogs, and judges run inside the session you're
-looking at, with durable state mirrored through GitHub issues and repo files.
+That's the whole interface — no daemons, no extra windows. Your one job is
+approving the spec: in-session, or by commenting `APPROVE` on the tracking
+issue from your phone. If you're away, the factory parks with reminders and
+shuts itself down after 7 days rather than guessing. Everything else runs
+without you, and the run ends in a single PR plus a digest of what shipped.
 
-**Desktop app caveat:** the Claude Code desktop app has had shell-tool grant
-limitations for subagents. Desktop is fine for planning and reviewing; run the
-full factory from a terminal until your harness can give builder and judge
-agents the shell tools their checks require.
+The build factory needs a GitHub repo: a remote, `gh auth status` passing,
+and `gh` ≥ 2.94.0 (native sub-issue and blocked-by flags). Missing
+preconditions fail loudly — there is no silent local-tracker fallback.
 
-## Choosing your models
+## The two patterns
 
-Zero-config defaults: the orchestrator is whatever session you launched; builders are
-codex-first — GPT-5.5 at xhigh effort whenever the Codex CLI is installed,
-falling back to Sonnet at high reasoning only when it isn't.
+Both skills are the same shape: **one orchestrator that plans and judges,
+many disposable agents that do the work, and evidence rules that make
+self-deception mechanically hard.** Fresh context everywhere it matters —
+an agent reviewing its own work in the same conversation measurably misses
+more, so nobody here grades their own work.
 
-| Harness you launched | Codex CLI on PATH? | Orchestrator | Default builders |
-|---|---|---|---|
-| Claude Code | yes | your session's model | `codex/best` (gpt-5.5, xhigh) |
-| Claude Code | no | your session's model | `claude/tier-down` (Sonnet, high) |
-| Codex | — | your session's model | `codex/best` (gpt-5.5, xhigh) |
+### The build factory
 
-Override with flat `key = value` lines in `.architect/config` (repo) or
-`~/.architect/config` (user); repo wins. Optional routing rules send task
-classes to specific tiers:
+![architect flow](assets/architect-flow.png)
+
+Two loops, drawn as the rails: the gray loop cycles through **ready
+issues** — every issue whose blockers are closed, up to five builders at
+once — until the plan is done. The green loop is **error correction**: when
+a builder gets stuck or a judge fails a result, the orchestrator adapts the
+*issue* (answers the blocker, amends the instructions, forbids the failed
+path) and launches a fresh builder — but never touches the frozen acceptance
+checks, so recovery can't drift into moving the goalposts.
+
+### The research loop
+
+![research flow](assets/research-flow.png)
+
+Gathering is parallel; synthesis never is. A scout maps the topic, the
+orchestrator designs researcher assignments along the topic's own fault
+lines, budgeted researchers gather findings in parallel, and the draft's
+thin sections aim a targeted second wave. Verification is a separate pass —
+every load-bearing claim needs two independent sources, and no citation
+survives unless its URL was actually fetched. One author writes the report.
+
+## Max detail
+
+### /architect, step by step
+
+1. **Intake.** The orchestrator reads the repo and asks at most ~5 questions
+   in one batch — each must pass a materiality test (would the answer change
+   the build or how it's validated?). Everything else becomes a recorded
+   assumption you can veto. It writes the spec to `docs/spec/` and opens the
+   tracking issue that carries the spec pointer and approval instructions.
+2. **Spec approval — the only human step.** Approve in-session or comment
+   `APPROVE` (or `APPROVE with edits: ...` / `REJECT ...`) on the tracking
+   issue. A run can carry verbatim pre-approval from your invocation.
+   Absent a human: park, remind, fail-safe stop at 7 days. The factory never
+   infers a yes from earlier conversation.
+3. **The plan.** The spec compiles into sub-issues — vertical slices with
+   acceptance criteria, may-touch/must-not-touch file boundaries, and native
+   blocked-by links. Issues scheduled in parallel share no files, schemas,
+   or other mutable state. Each issue's acceptance checks are frozen in git
+   under `docs/checks/` *before* any builder exists; a builder editing a
+   check file fails automatically. Then a fresh adversarial reviewer
+   **stress-tests the whole plan** — executing draft check commands,
+   attacking criteria for contradictions and non-falsifiability — so bad
+   specs die before they cost a build.
+4. **The factory loop.** The orchestrator dispatches every ready issue (≤5
+   builders, one issue each, own git worktree, no commit rights) and sleeps
+   until an event:
+   - **Builders must argue first.** Before coding, each builder states its
+     plan and every disagreement with the spec, citing real files — silent
+     compliance is a defect. Each ruling gets an explicit accept/reject.
+   - **A deterministic watchdog** — a ~70-line script, not a model — sweeps
+     for stalls (output-byte growth, process CPU, repeated-command tails)
+     and exits with typed evidence. It never kills and never decides; the
+     orchestrator rules on what it reports.
+   - **Stuck builders stop instead of thrashing.** A blocker is posted on
+     the issue; the orchestrator answers durably there and respawns a fresh
+     builder with the answer in its starting context.
+   - **A fresh judge owns every merge.** It reruns the frozen checks itself
+     (builder claims are hearsay) and reads the diff against the spec's
+     intent — passing checks with wrong code still fails. Verdicts land as
+     issue comments: PASS / FAIL / INVALID. The orchestrator cannot overrule
+     a FAIL.
+   - **Failures fix inputs, not models.** First failure: diagnose from the
+     judge's evidence, amend the issue, respawn at the same tier. Second:
+     re-plan or escalate. A merge conflict means the plan was wrong — kill
+     the job and re-slice, never hand-merge builder work.
+5. **Finish.** A docs job consumes the run's documentation debt and codifies
+   reusable diagnoses into `docs/solutions/` (read back at the start of
+   every future run). One PR closes the tracking issue; the digest lists
+   what shipped, what was skipped, and the evidence.
+
+Hard stops — the factory halts and asks you — include `docs/STOP` (the kill
+switch), irreversible actions, two consecutive killed jobs, scope growing
+beyond the approved spec, and blockers that collide with an approved
+assumption.
+
+**GitHub is the memory.** Specs and frozen checks live in git; disagreements,
+blocker answers, verdicts, and the digest live as issue comments. Not in the
+tracker = didn't happen, and any later session can recover the run from
+GitHub alone.
+
+**Models.** Zero-config: the orchestrator is whatever session you launched;
+builders are codex-first (GPT-5.5 xhigh when the Codex CLI is installed,
+Sonnet-high otherwise). Override in `.architect/config`:
 
 ```ini
-# same-family default is used when this file is absent
 orchestrator = claude/best
-
-# cross-family example
 builders = codex/best:xhigh
-
 when trivial mechanical edit -> claude/haiku:low # cheap exact patch
 when broad ambiguous refactor -> codex/best:xhigh # deeper search and edit budget
 ```
 
-Tier is fixed at decomposition by config plus dispatch rules. The factory does
-not automatically move a failed job to a stronger model; the orchestrator diagnoses
-the failure and fixes the input or decomposition.
+Tiers are fixed when the plan is cut — a failed job never silently escalates
+to a stronger model. High-stakes changes get a cross-family review when both
+CLIs are installed, because same-family review shares blind spots.
 
-High-stakes slices get a cross-family review when the other CLI is installed,
-because same-family review shares blind spots.
+### /architect-research, step by step
 
-UNVERIFIED gray-zone recipe: Claude Code can be pointed at z.ai's
-Anthropic-compatible GLM endpoint via `ANTHROPIC_BASE_URL` and
-`ANTHROPIC_AUTH_TOKEN`. z.ai supports the route; Anthropic does not bless
-non-Claude routing. Canary it with your own key before relying on it.
+1. **Scout.** One cheap agent (~10 searches) maps the topic: canonical
+   terminology, the load-bearing systems and papers, the named people, where
+   experts disagree. Skipped for quick fact-finds and comparisons.
+2. **Design.** The orchestrator turns the map into 3–6 researcher
+   assignments — perspective-diverse, overlap-checked, each drawing tactics
+   for its source class: citation snowballing for papers,
+   dependents-not-stars for repos, production post-mortems, expert tracking.
+3. **Gather, in parallel, under budgets.** Each researcher gets 10–25 tool
+   calls and at most 5 subjects, and returns ≤~2,500 tokens of compact
+   findings against a numbered source list. Every finding carries a URL, a
+   date, and an exact quote; "NOT FOUND" is a first-class answer;
+   researchers are forbidden from making recommendations.
+4. **Draft as state.** The orchestrator sketches a skeleton report and marks
+   each section SUPPORTED / THIN / EMPTY. Thin sections aim a targeted
+   second wave (max 2 rounds) — never re-chasing what's already found.
+   Expert-opinion researchers join in wave two, seeded by the names wave one
+   surfaced.
+5. **Verify, separately.** Load-bearing claims need ≥2 independent sources;
+   the orchestrator runs adversarial falsification searches; citations are
+   allowed only from URLs actually fetched this session, because even
+   search-grounded agents fabricate 3–13% of URLs.
+6. **One author writes.** Answer-first, decision-oriented, with open
+   questions stated. The committed report is the handoff — it feeds
+   `/architect`'s specs directly.
 
-## /architect-research
-
-![research flow](assets/research-flow.png)
-
-For when you're still deciding *what* to build. A cheap scout maps the
-topic; Fable designs 3-6 researchers along the topic's own fault lines;
-parallel researchers, resolved from the same orchestrator/builders config as the
-build loop, gather evidence under explicit tool-call budgets. Every finding
-needs a URL, a date, and a quote; "NOT FOUND" beats a guess. After the first
-wave, Fable sketches a skeleton draft; its thin or empty sections steer the
-follow-up round instead of re-covering ground already found. The committed
-report is the research handoff, and it feeds the build loop's specs.
+Research is a separate skill on purpose: fan-out costs ~15× chat-level
+tokens, so it should be a deliberate act, not a side effect of building.
 
 ## What's in the box
 
 | File | What it is |
 |---|---|
 | [DESIGN.md](DESIGN.md) | Every design choice with its cited evidence |
-| [skills/architect/SKILL.md](skills/architect/SKILL.md) | The orchestrator role: intake, spec approval, factory loop, and hard stops |
-| [skills/architect/dispatch.md](skills/architect/dispatch.md) | Model aliases, issue conventions, builder/judge templates, watchdog dispatch, and respawn rules |
-| [skills/architect/loop.md](skills/architect/loop.md) | Factory event loop, watchdog protocol, failure ladder, and safety rails |
-| [skills/architect/research.md](skills/architect/research.md) | Slice-scale inline fact-check fan-out |
-| [skills/architect-research/SKILL.md](skills/architect-research/SKILL.md) | Research orchestration: scout -> design -> fan out -> verify -> write |
+| [skills/architect/SKILL.md](skills/architect/SKILL.md) | The orchestrator role: intake, spec approval, factory loop, hard stops |
+| [skills/architect/dispatch.md](skills/architect/dispatch.md) | Model aliases, issue conventions, builder/judge templates, watchdog dispatch, respawn rules |
+| [skills/architect/loop.md](skills/architect/loop.md) | Factory event loop, watchdog protocol, failure ladder, safety rails |
+| [skills/architect/watchdog.ps1](skills/architect/watchdog.ps1) / [watchdog.sh](skills/architect/watchdog.sh) | The deterministic stall watchdog (typed evidence exits) |
+| [skills/architect/research.md](skills/architect/research.md) | Slice-scale inline fact-check fan-out inside the build loop |
+| [skills/architect-research/SKILL.md](skills/architect-research/SKILL.md) | Research orchestration: scout → design → gather → verify → write |
 | [skills/architect-research/tactics.md](skills/architect-research/tactics.md) | Source-class tactics library for researchers |
 | `.claude/agents/architect-builder.md` / `architect-judge.md` | The shipped builder and judge agent definitions |
-| [tests/validate_skills.py](tests/validate_skills.py) | Sanity suite: contracts, links, sizes; run `uv run --no-project python tests/validate_skills.py` |
+| [tests/validate_skills.py](tests/validate_skills.py) | Sanity suite: contracts, links, sizes — `uv run --no-project python tests/validate_skills.py` |
 
 ## FAQ
 
-**Do I need API keys?** No. Claude Code runs on your Claude plan; Codex CLI
-on your ChatGPT plan.
+**Do I need API keys?** No. Claude Code runs on your Claude plan; the Codex
+CLI on your ChatGPT plan.
 
-**What does a run cost?** Orchestrator judgment is minutes of a frontier model;
-building happens on the configured builder tier. A long multi-job run is a
-meaningful fraction of a weekly plan quota, which is why the factory only
-fans out when the plan is ready for it.
+**What does a run cost?** Orchestrator judgment is minutes of a frontier
+model; building happens on the configured builder tier. A long multi-job run
+is a meaningful fraction of a weekly plan quota — which is why nothing fans
+out until the plan is approved and stress-tested.
 
 **What if a builder wrecks something?** It can't reach a branch: builders
 have no commit access, their file boundaries are checked after every job,
-and broken worktrees are discarded and respawned from the frozen check.
+and broken worktrees are discarded and respawned from the frozen checks.
 
-**Can I watch?** Yes. Builders, watchdogs, and judges run inside your open
-session, and issue comments carry the durable progress trail.
+**Can I watch?** Yes. Everything runs inside your open session, and the
+issue comments carry the durable progress trail — or just wait for the
+digest.
 
-**Why is research a separate skill?** Research fan-out costs far more tokens
-than chat. It should be a deliberate act, not a side effect of building.
+**Desktop app caveat:** the Claude Code desktop app has had shell-tool grant
+limitations for subagents. Desktop is fine for planning and reviewing; run
+the full factory from a terminal.
+
+**Gray-zone model routing (unverified):** Claude Code can be pointed at
+z.ai's Anthropic-compatible GLM endpoint via `ANTHROPIC_BASE_URL` and
+`ANTHROPIC_AUTH_TOKEN`. z.ai supports the route; Anthropic does not bless
+non-Claude routing. Canary it with your own key before relying on it.
 
 ## Origin
 
