@@ -203,3 +203,127 @@ Output:
 ```
 
 STATUS: COMPLETE
+
+## Respawn session
+
+Ruling addressed: `skills/architect/status.sh` no longer selects the lexically last `docs/spec/*.md`; it scans spec files and chooses the newest numeric mtime using `stat -c %Y` with `stat -f %m` fallback.
+
+MTIME FIXTURE
+
+Command:
+```
+$base = '.architect/tmp/stfix'
+New-Item -ItemType Directory -Force -Path "$base/root1/docs/spec" | Out-Null
+Set-Content -LiteralPath "$base/root1/docs/spec/zzz-old.md" -Encoding UTF8 -Value 'old lexical winner'
+Start-Sleep -Milliseconds 25
+Set-Content -LiteralPath "$base/root1/docs/spec/aaa-new.md" -Encoding UTF8 -Value 'new mtime winner'
+Set-Content -LiteralPath "$base/root1/docs/spec/demo.md" -Encoding UTF8 -Value 'demo older than both'
+(Get-Item -LiteralPath "$base/root1/docs/spec/demo.md").LastWriteTimeUtc = [datetime]'2024-01-01T00:00:00Z'
+(Get-Item -LiteralPath "$base/root1/docs/spec/zzz-old.md").LastWriteTimeUtc = [datetime]'2025-01-01T00:00:00Z'
+(Get-Item -LiteralPath "$base/root1/docs/spec/aaa-new.md").LastWriteTimeUtc = [datetime]'2026-01-01T00:00:00Z'
+Get-ChildItem -LiteralPath "$base/root1/docs/spec" -Filter '*.md' | Sort-Object Name | ForEach-Object { "$($_.Name) $($_.LastWriteTimeUtc.ToString('o'))" }
+```
+Output:
+```
+aaa-new.md 2026-01-01T00:00:00.0000000Z
+demo.md 2024-01-01T00:00:00.0000000Z
+zzz-old.md 2025-01-01T00:00:00.0000000Z
+```
+
+STATUS.SH MTIME STATIC PROOF
+
+Command:
+```
+Select-String -Path skills/architect/status.sh -Pattern 'stat -c %Y|stat -f %m|find "\$root/docs/spec".*\|\s*sort'
+```
+Output:
+```
+
+skills\architect\status.sh:20:    mtime=$(stat -c %Y "$spec" 2>/dev/null || stat -f %m "$spec" 2>/dev/null || printf 0)
+
+```
+
+Shell functional note: per respawn instruction, MSYS binaries die in this sandbox and `skills/architect/status.sh` cannot be executed here. I did not run Bash. The shell script is validated statically here; the orchestrator composite runner must execute the shell functional pass.
+
+SS1
+
+Command:
+```
+Test-Path skills/architect/status.ps1
+Test-Path skills/architect/status.sh
+(Select-String -Path skills/architect/status.sh -Pattern 'NO ACTIVE FACTORY RUN').Count
+(Select-String -Path skills/architect/status.ps1 -Pattern 'NO ACTIVE FACTORY RUN').Count
+(Get-Content skills/architect/status.sh -TotalCount 1)
+```
+Output:
+```
+True
+True
+1
+1
+#!/usr/bin/env bash
+```
+
+SS3 ROOT1
+
+Command:
+```
+powershell -NoProfile -File skills/architect/status.ps1 -RepoRoot .architect/tmp/stfix/root1
+```
+Output:
+```
+STATUS TREE spec: aaa-new.md branch: unknown
+tracker: unavailable (local view)
+ORCHESTRATOR: local view
+WATCHDOG: process=False config=0
+! demo-blocked .architect/wt/demo-blocked-01
+● demo-build .architect/wt/demo-build-01
+    last: pytest -q age: unknown
+◐ demo-judge .architect/wt/demo-judge-01
+▣ demo-rep .architect/wt/demo-rep-01
+```
+
+SS3 ROOT2
+
+Command:
+```
+powershell -NoProfile -File skills/architect/status.ps1 -RepoRoot .architect/tmp/stfix/root2
+```
+Output:
+```
+NO ACTIVE FACTORY RUN
+spec: unknown
+```
+
+SS6
+
+Command:
+```
+Select-String -Path skills/architect/status.ps1,skills/architect/status.sh -Pattern 'Stop-Process|taskkill|Remove-Item|rm -|git (add|commit|push)'
+```
+Output:
+```
+```
+
+VALIDATOR
+
+Command:
+```
+$env:UV_CACHE_DIR='.architect/tmp/uv-cache-st'; uv run --no-project python tests/validate_skills.py
+```
+Output:
+```
+OK - 2 skills validated, v4 contracts clean
+```
+
+DOCS CHECKS DIFF
+
+Command:
+```
+git diff --name-only -- docs/checks
+```
+Output:
+```
+```
+
+STATUS: COMPLETE

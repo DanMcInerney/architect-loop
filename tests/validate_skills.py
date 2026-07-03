@@ -412,6 +412,11 @@ def check_status_contract() -> None:
                 errors.append(f"skills/architect/{name}: missing {marker}")
         if name == "status.sh" and not text.startswith("#!"):
             errors.append("skills/architect/status.sh: missing shebang")
+        if name == "status.sh":
+            if "stat -c %Y" not in text or "stat -f %m" not in text:
+                errors.append("skills/architect/status.sh: NewestSpec must use mtime with stat -c/stat -f fallback")
+            if re.search(r'find "\$root/docs/spec".*\|\s*sort', text):
+                errors.append("skills/architect/status.sh: NewestSpec must not select spec by lexical sort")
 
 
 def check_retired_loop_terms() -> None:

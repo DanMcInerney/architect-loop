@@ -11,8 +11,20 @@ case "$root" in /*) ;; *) root="$(pwd)/$root";; esac
 g_merged='✓'; g_judging='◐'; g_blocked='!'; g_reported='▣'; g_building='●'; g_queued='⊘'; g_ready='○'
 j(){ printf '%s/%s' "$1" "$2"; }
 newest_spec(){
-  spec=$(find "$root/docs/spec" -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort | tail -n 1)
-  [ -n "$spec" ] && basename "$spec" || printf unknown
+  spec_dir="$root/docs/spec"
+  newest=
+  newest_mtime=
+  [ -d "$spec_dir" ] || { printf unknown; return; }
+  for spec in "$spec_dir"/*.md; do
+    [ -f "$spec" ] || continue
+    mtime=$(stat -c %Y "$spec" 2>/dev/null || stat -f %m "$spec" 2>/dev/null || printf 0)
+    case "$mtime" in ''|*[!0-9]*) mtime=0;; esac
+    if [ -z "$newest" ] || [ "$mtime" -gt "$newest_mtime" ]; then
+      newest=$spec
+      newest_mtime=$mtime
+    fi
+  done
+  [ -n "$newest" ] && basename "$newest" || printf unknown
 }
 tail_text(){ [ -f "$1" ] && tail -c 4096 "$1" | tr -d '\000'; }
 status_line(){
