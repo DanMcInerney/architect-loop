@@ -132,6 +132,24 @@ switch), irreversible actions, two consecutive killed jobs, scope growing
 beyond the approved spec, and blockers that collide with an approved
 assumption.
 
+**Ask it how it's going.** During a run, any status-flavored question prints
+the live status tree beside the prose answer. It is plain text, so it works
+in every surface; color auto-disables when piped. The script is also directly
+runnable from the repo root (`skills/architect/status.ps1` or
+`skills/architect/status.sh`), or from elsewhere by passing `-RepoRoot`.
+
+```text
+factory/status-tree
+orchestrator  running
+watchdog      idle
+✓ MERGED      status: skill wiring
+◐ JUDGING     status: scripts contract
+▣ REPORTED    status: docs closure
+● BUILDING    status: validator
+⊘ QUEUED      status: digest blocked by #46
+○ READY       status: follow-up
+```
+
 **GitHub is the memory.** Specs and frozen checks live in git; disagreements,
 blocker answers, verdicts, and the digest live as issue comments. Not in the
 tracker = didn't happen, and any later session can recover the run from

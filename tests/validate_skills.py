@@ -24,7 +24,15 @@ ROOT = Path(__file__).resolve().parent.parent
 SKILLS = ROOT / "skills"
 MAX_DESC = 1024
 REQUIRED_SIBLINGS = {
-    "architect": ["dispatch.md", "research.md", "loop.md", "watchdog.ps1", "watchdog.sh"],
+    "architect": [
+        "dispatch.md",
+        "research.md",
+        "loop.md",
+        "watchdog.ps1",
+        "watchdog.sh",
+        "status.ps1",
+        "status.sh",
+    ],
     "architect-research": ["tactics.md"],
 }
 ARCHITECT_HANDOFF_FREE_FILES = [
@@ -379,6 +387,45 @@ def check_watchdog_contract() -> None:
         errors.append("skills/architect/watchdog.ps1: missing ConvertFrom-Json")
 
 
+def check_status_contract() -> None:
+    required = (
+        ("MERGED", 0x2713, "[char]0x2713"),
+        ("JUDGING", 0x25D0, "[char]0x25D0"),
+        ("BLOCKED", 0x21, '"!"'),
+        ("REPORTED", 0x25A3, "[char]0x25A3"),
+        ("BUILDING", 0x25CF, "[char]0x25CF"),
+        ("QUEUED", 0x2298, "[char]0x2298"),
+        ("READY", 0x25CB, "[char]0x25CB"),
+    )
+    for name in ("status.ps1", "status.sh"):
+        path = SKILLS / "architect" / name
+        if not path.exists():
+            errors.append(f"skills/architect/{name}: missing status script")
+            continue
+        text = read_text(path)
+        for label, codepoint, ps_code in required:
+            glyph = chr(codepoint)
+            if glyph not in text and ps_code not in text:
+                errors.append(f"skills/architect/{name}: missing {label} glyph marker")
+        for marker in (
+            "NO ACTIVE FACTORY RUN",
+            "tracker: unavailable (local view)",
+            "tracker: no open run",
+            "STATUS_GH_STUB",
+            "--jq",
+            "blockedBy.nodes",
+        ):
+            if marker not in text:
+                errors.append(f"skills/architect/{name}: missing {marker}")
+        if name == "status.sh" and not text.startswith("#!"):
+            errors.append("skills/architect/status.sh: missing shebang")
+        if name == "status.sh":
+            if "stat -c %Y" not in text or "stat -f %m" not in text:
+                errors.append("skills/architect/status.sh: NewestSpec must use mtime with stat -c/stat -f fallback")
+            if re.search(r'find "\$root/docs/spec".*\|\s*sort', text):
+                errors.append("skills/architect/status.sh: NewestSpec must not select spec by lexical sort")
+
+
 def check_retired_loop_terms() -> None:
     for path in SKILLS.rglob("*.md"):
         text = read_text(path)
@@ -410,6 +457,7 @@ def main() -> int:
     check_agent_definitions()
     check_codex_install_step()
     check_watchdog_contract()
+    check_status_contract()
     check_architect_handoff_free()
     check_retired_loop_terms()
     check_skill_text_size()
