@@ -1,65 +1,73 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { width:1500px; height:580px; background:#0d1117; font-family:"Cascadia Code",Consolas,monospace; color:#e6edf3; padding:40px 36px; }
-  .row { display:flex; align-items:stretch; justify-content:center; gap:12px; margin-top:6px; }
-  .box { border-radius:16px; padding:22px 18px; text-align:center; width:252px; display:flex; flex-direction:column; justify-content:flex-start; }
+  body { width:1500px; height:520px; background:#0d1117; font-family:"Cascadia Code",Consolas,monospace; color:#e6edf3; padding:36px 26px; }
+  .row { display:flex; align-items:stretch; justify-content:center; gap:9px; margin-top:6px; }
+  .box { border-radius:14px; padding:18px 12px; text-align:center; width:224px; display:flex; flex-direction:column; justify-content:flex-start; }
   .fable { background:#1c1410; border:3px solid #d97757; }
+  .human { background:#161022; border:3px solid #a371f7; }
   .cold  { background:#0d1826; border:3px solid #58a6ff; }
   .build { background:#0e1a16; border:3px solid #10a37f; }
-  .who { font-size:24px; font-weight:700; }
-  .fable .who { color:#d97757; } .cold .who { color:#79b8ff; } .build .who { color:#3fd0a4; }
-  .step { font-size:15px; color:#8b949e; letter-spacing:2px; margin-bottom:6px; }
-  .does { font-size:18px; color:#c9d1d9; margin-top:9px; line-height:1.45; }
-  .arrow { font-size:36px; color:#6e7681; align-self:center; }
-  .lanes { display:flex; flex-direction:column; gap:6px; margin-top:10px; }
-  .lane { border:1.5px solid #1f6f58; border-radius:8px; padding:3px 8px; font-size:14px; color:#7ee2c3; background:#0a221b; }
-  .repo { margin:34px auto 0; width:1180px; background:#1a1607; border:3px solid #e3b341; border-radius:16px; padding:16px; text-align:center; }
-  .repo .who { color:#e3b341; font-size:22px; }
-  .repo .does { font-size:17px; }
-  .updown { text-align:center; color:#6e7681; font-size:26px; margin-top:12px; letter-spacing:30px; }
-  .legend { text-align:center; color:#8b949e; font-size:16px; margin-top:16px; }
-  .legend .snow { color:#79b8ff; }
+  .who { font-size:22px; font-weight:700; }
+  .fable .who { color:#d97757; } .cold .who { color:#79b8ff; } .build .who { color:#3fd0a4; } .human .who { color:#c69df9; }
+  .step { font-size:14px; color:#8b949e; letter-spacing:2px; margin-bottom:5px; }
+  .does { font-size:16px; color:#c9d1d9; margin-top:8px; line-height:1.45; }
+  .arrow { font-size:32px; color:#6e7681; align-self:center; }
+  .lanes { display:flex; flex-direction:column; gap:5px; margin-top:9px; }
+  .lane { border:1.5px solid #1f6f58; border-radius:8px; padding:2px 7px; font-size:13px; color:#7ee2c3; background:#0a221b; }
+  .mon  { border:1.5px solid #3a4b8a; border-radius:8px; padding:2px 7px; font-size:13px; color:#9db7ff; background:#0c1226; }
+  .loop { text-align:center; color:#6e7681; font-size:15px; margin-top:14px; letter-spacing:1px; }
+  .repo { margin:20px auto 0; width:1290px; background:#1a1607; border:3px solid #e3b341; border-radius:14px; padding:14px; text-align:center; }
+  .repo .who { color:#e3b341; font-size:20px; }
+  .repo .does { font-size:16px; }
+  .legend { text-align:center; color:#8b949e; font-size:15px; margin-top:14px; }
+  .legend .snow { color:#79b8ff; } .legend .you { color:#c69df9; }
 </style></head><body>
   <div class="row">
     <div class="box fable">
-      <div class="step">1 · SPEC</div>
-      <div class="who">FABLE</div>
-      <div class="does">picks one PR-sized slice<br>drafts the pass/fail gates</div>
+      <div class="step">1 · INTAKE</div>
+      <div class="who">BRAIN</div>
+      <div class="does">reads the repo<br>asks ≤5 questions, once<br>writes spec + assumptions</div>
     </div>
     <div class="arrow">⟶</div>
-    <div class="box cold">
-      <div class="step">2 · GRILL ❄</div>
-      <div class="who">SPEC GRILL</div>
-      <div class="does">attacks the draft gates<br>runs the commands, checks paths<br><b>then the gates freeze</b></div>
+    <div class="box human">
+      <div class="step">2 · SPEC GATE</div>
+      <div class="who">YOU</div>
+      <div class="does">read one document<br>edit or veto assumptions<br><b>approve → walk away</b></div>
+    </div>
+    <div class="arrow">⟶</div>
+    <div class="box fable">
+      <div class="step">3 · ISSUES ❄</div>
+      <div class="who">BRAIN</div>
+      <div class="does">cuts a GitHub issue DAG<br>freezes gates in git<br>one cold grill attacks it all</div>
     </div>
     <div class="arrow">⟶</div>
     <div class="box build">
-      <div class="step">3 · BUILD ❄</div>
-      <div class="who">BUILDERS ×1–4</div>
-      <div class="does">write the code + raw report<br>can't commit, can't touch gates</div>
+      <div class="step">4 · BUILD ❄</div>
+      <div class="who">BRAWN ×≤5</div>
+      <div class="does">code the unblocked issues<br>can't commit, can't touch gates</div>
       <div class="lanes">
-        <div class="lane">isolated lane 1</div>
-        <div class="lane">isolated lane N</div>
+        <div class="lane">worktree lane 1 … 5</div>
+        <div class="mon">monitor · watches, never acts</div>
       </div>
     </div>
     <div class="arrow">⟶</div>
     <div class="box cold">
-      <div class="step">4 · JUDGE ❄</div>
+      <div class="step">5 · JUDGE ❄</div>
       <div class="who">COLD JUDGE</div>
-      <div class="does">runs the frozen gates itself<br>PASS / FAIL —<br>Fable can't overrule a FAIL</div>
+      <div class="does">runs the frozen gates<br>reads diff vs intent<br>a FAIL can't be overruled</div>
     </div>
     <div class="arrow">⟶</div>
     <div class="box fable">
-      <div class="step">5 · MERGE</div>
-      <div class="who">FABLE</div>
-      <div class="does">merges on PASS<br>logs everything, next slice</div>
+      <div class="step">6 · MERGE</div>
+      <div class="who">BRAIN</div>
+      <div class="does">merges on PASS<br>answers blockers, respawns<br>next frontier → one PR</div>
     </div>
   </div>
-  <div class="updown">⇣⇡</div>
+  <div class="loop">⟲ steps 4–6 repeat, unattended, until every issue in the DAG is closed</div>
   <div class="repo">
-    <div class="who">THE REPO REMEMBERS</div>
-    <div class="does">HANDOFF.md diary · gates/ frozen tests · lanes/ evidence · git — not written down = didn't happen</div>
+    <div class="who">GITHUB + GIT REMEMBER</div>
+    <div class="does">epic + issue DAG · spec + frozen gates + rulings in git · lane reports · verdicts on issues — not in the tracker = didn't happen</div>
   </div>
-  <div class="legend"><span class="snow">❄</span> = a fresh agent with no memory of the conversation — nobody grades their own work</div>
+  <div class="legend"><span class="snow">❄</span> = a fresh agent that never saw the conversation — nobody grades their own work&nbsp;&nbsp;·&nbsp;&nbsp;<span class="you">purple</span> = the only step that needs you</div>
 </body></html>
