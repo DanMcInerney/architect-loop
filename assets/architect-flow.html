@@ -1,73 +1,86 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { width:1500px; height:545px; background:#0d1117; font-family:"Cascadia Code",Consolas,monospace; color:#e6edf3; padding:36px 26px; }
-  .row { display:flex; align-items:stretch; justify-content:center; gap:9px; margin-top:6px; }
-  .box { border-radius:14px; padding:18px 12px; text-align:center; width:224px; display:flex; flex-direction:column; justify-content:flex-start; }
-  .fable { background:#1c1410; border:3px solid #d97757; }
-  .human { background:#161022; border:3px solid #a371f7; }
-  .fresh  { background:#0d1826; border:3px solid #58a6ff; }
-  .build { background:#0e1a16; border:3px solid #10a37f; }
-  .who { font-size:22px; font-weight:700; }
-  .fable .who { color:#d97757; } .fresh .who { color:#79b8ff; } .build .who { color:#3fd0a4; } .human .who { color:#c69df9; }
-  .step { font-size:14px; color:#8b949e; letter-spacing:2px; margin-bottom:5px; }
-  .does { font-size:16px; color:#c9d1d9; margin-top:8px; line-height:1.45; }
-  .arrow { font-size:32px; color:#6e7681; align-self:center; }
-  .jobs { display:flex; flex-direction:column; gap:5px; margin-top:9px; }
-  .job { border:1.5px solid #1f6f58; border-radius:8px; padding:2px 7px; font-size:13px; color:#7ee2c3; background:#0a221b; }
-  .mon  { border:1.5px solid #3a4b8a; border-radius:8px; padding:2px 7px; font-size:13px; color:#9db7ff; background:#0c1226; }
-  .loop { text-align:center; color:#6e7681; font-size:15px; margin-top:14px; letter-spacing:1px; }
-  .repo { margin:20px auto 0; width:1290px; background:#1a1607; border:3px solid #e3b341; border-radius:14px; padding:14px; text-align:center; }
-  .repo .who { color:#e3b341; font-size:20px; }
-  .repo .does { font-size:16px; }
-  .legend { text-align:center; color:#8b949e; font-size:15px; margin-top:14px; }
-  .legend .snow { color:#79b8ff; } .legend .you { color:#c69df9; }
+  body { width:780px; background:#0d1117; font-family:"Cascadia Code",Consolas,monospace; color:#e6edf3; padding:30px 34px 26px; }
+  .g { display:grid; grid-template-columns: 22px 22px 1fr 200px; column-gap:11px; }
+  .g > .bx, .g > .dn { grid-column:3; }
+  .g > .note { grid-column:4; }
+  .bx { border-radius:12px; padding:12px 15px; text-align:center; }
+  .orch  { background:#1c1410; border:2.5px solid #d97757; }
+  .human { background:#161022; border:2.5px solid #a371f7; }
+  .fresh { background:#0d1826; border:2.5px solid #58a6ff; }
+  .build { background:#0e1a16; border:2.5px solid #10a37f; }
+  .memo  { background:#1a1607; border:2.5px solid #e3b341; }
+  .who { font-size:16px; font-weight:700; letter-spacing:0.5px; }
+  .orch .who { color:#d97757; } .human .who { color:#c69df9; }
+  .fresh .who { color:#79b8ff; } .build .who { color:#3fd0a4; } .memo .who { color:#e3b341; }
+  .txt { font-size:13px; color:#c9d1d9; margin-top:4px; line-height:1.5; }
+  .txt b { color:#e6edf3; }
+  .dn { text-align:center; color:#6e7681; font-size:16px; line-height:1; padding:6px 0; }
+  .note { align-self:center; font-size:11.5px; line-height:1.55; border-radius:9px;
+    padding:8px 10px; color:#adbac7; background:#10141a; border:1.5px solid #2d333b; }
+  .note b { font-size:10.5px; letter-spacing:1.5px; display:block; margin-bottom:2px; }
+  .n-fresh b { color:#79b8ff; } .n-build b { color:#3fd0a4; } .n-orch b { color:#d97757; }
+  .n-mon b { color:#9db7ff; } .n-memo b { color:#e3b341; } .n-you b { color:#c69df9; }
+  .railo, .raili { border:2px solid #6e7681; border-right:none; border-radius:12px 0 0 12px;
+    position:relative; display:flex; align-items:center; justify-content:center; margin:24px 0; }
+  .railo { grid-column:1; border-style:dashed; }
+  .raili { grid-column:2; border-color:#2ea87e; }
+  .railo::before, .raili::before { content:"▶"; position:absolute; top:-7px; right:-9px; font-size:11px; }
+  .railo::before { color:#6e7681; } .raili::before { color:#2ea87e; }
+  .raillbl { writing-mode:vertical-rl; font-size:10px; letter-spacing:1.5px; padding:8px 0; }
+  .railo .raillbl { color:#8b949e; } .raili .raillbl { color:#7ee2c3; }
+  .legend { text-align:center; color:#8b949e; font-size:12.5px; margin-top:18px; line-height:1.6; }
+  .legend .sn { color:#79b8ff; } .legend .yu { color:#c69df9; }
 </style></head><body>
-  <div class="row">
-    <div class="box fable">
-      <div class="step">1 · INTAKE</div>
-      <div class="who">ORCHESTRATOR</div>
-      <div class="does">reads the repo<br>asks ≤5 questions, once<br>writes spec + assumptions</div>
-    </div>
-    <div class="arrow">⟶</div>
-    <div class="box human">
-      <div class="step">2 · SPEC APPROVAL</div>
+  <div class="g">
+    <div class="bx human" style="grid-row:1;">
       <div class="who">YOU</div>
-      <div class="does">read one document<br>edit or veto assumptions<br><b>approve → walk away</b></div>
+      <div class="txt">ask · then <b>approve the spec</b> — in-session, or comment
+      <b>APPROVE</b> on the tracking issue from anywhere</div>
     </div>
-    <div class="arrow">⟶</div>
-    <div class="box fable">
-      <div class="step">3 · ISSUES ❄</div>
+    <div class="note n-you" style="grid-row:1;"><b>AWAY?</b>the factory parks, posts AWAITING APPROVAL, reminds itself, and fail-safes after 7 days — it never infers a yes</div>
+    <div class="dn" style="grid-row:2;">↓</div>
+    <div class="bx orch" style="grid-row:3;">
       <div class="who">ORCHESTRATOR</div>
-      <div class="does">cuts the plan<br>freezes checks in git<br>one fresh stress-test attacks it all</div>
+      <div class="txt">reads the repo · asks ≤5 questions once<br>spec + assumptions → GitHub issues<br>linked with blocked-by · <b>checks frozen in git</b></div>
     </div>
-    <div class="arrow">⟶</div>
-    <div class="box build">
-      <div class="step">4 · BUILD ❄</div>
-      <div class="who">BUILDERS ×≤5</div>
-      <div class="does">code the ready issues<br>can't commit, can't touch checks</div>
-      <div class="jobs">
-        <div class="job">worktree job 1 … 5</div>
-        <div class="mon">monitor · watches, never acts</div>
-      </div>
-    </div>
-    <div class="arrow">⟶</div>
-    <div class="box fresh">
-      <div class="step">5 · JUDGE ❄</div>
-      <div class="who">FRESH JUDGE</div>
-      <div class="does">runs the frozen checks<br>reads diff vs intent<br>a FAIL can't be overruled</div>
-    </div>
-    <div class="arrow">⟶</div>
-    <div class="box fable">
-      <div class="step">6 · MERGE</div>
+    <div class="note n-fresh" style="grid-row:3;"><b>STRESS-TEST ❄</b>a fresh reviewer attacks the plan before checks freeze — bad specs die here, not in a job</div>
+    <div class="dn" style="grid-row:4;">↓</div>
+
+    <div class="railo" style="grid-row:5/12;"><span class="raillbl">NEXT READY ISSUES ⟲</span></div>
+    <div class="bx orch" style="grid-row:5;">
       <div class="who">ORCHESTRATOR</div>
-      <div class="does">merges on PASS<br>answers blockers, respawns<br>next ready issues → one PR</div>
+      <div class="txt">dispatches every ready issue, ≤5 at once</div>
     </div>
+    <div class="note n-mon" style="grid-row:5;"><b>WATCHDOG</b>a script, not a model — byte growth, CPU, repeated commands · exits with evidence · never acts</div>
+    <div class="dn" style="grid-row:6;">↓</div>
+
+    <div class="raili" style="grid-row:7/12;"><span class="raillbl">FRESH BUILDER ❄</span></div>
+    <div class="bx build" style="grid-row:7;">
+      <div class="who">BUILDERS ×≤5 ❄</div>
+      <div class="txt">one issue per agent · own git worktree<br>no commit rights · checks are read-only<br><b>must argue with the spec before coding</b></div>
+    </div>
+    <div class="note n-build" style="grid-row:7;"><b>STUCK?</b>posts BLOCKED on its issue and stops — it never thrashes</div>
+    <div class="dn" style="grid-row:8;">↓</div>
+    <div class="bx fresh" style="grid-row:9;">
+      <div class="who">FRESH JUDGE ❄</div>
+      <div class="txt">runs the frozen checks itself<br>reads the diff against the spec's intent</div>
+    </div>
+    <div class="note n-fresh" style="grid-row:9;"><b>VERDICT</b>PASS / FAIL / INVALID posted on the issue — a FAIL can't be talked around</div>
+    <div class="dn" style="grid-row:10;">↓</div>
+    <div class="bx orch" style="grid-row:11;">
+      <div class="who">ORCHESTRATOR</div>
+      <div class="txt"><b>PASS</b> → merge · close the issue<br><b>FAIL / BLOCKED</b> → adapt the issue, respawn</div>
+    </div>
+    <div class="note n-orch" style="grid-row:11;"><b>ADAPT =</b>answer the blocker, amend the issue, forbid the failed path — <b>never</b> edit a frozen check</div>
+
+    <div class="dn" style="grid-row:12;">↓</div>
+    <div class="bx memo" style="grid-row:13;">
+      <div class="who">GITHUB REMEMBERS</div>
+      <div class="txt">every issue closed → docs job → <b>one PR closes the tracking issue</b> → digest</div>
+    </div>
+    <div class="note n-memo" style="grid-row:13;"><b>MEMORY</b>not in the tracker = didn't happen — any session recovers from GitHub + git</div>
   </div>
-  <div class="loop">⟲ steps 4–6 repeat, unattended, until every issue in the plan is closed</div>
-  <div class="repo">
-    <div class="who">GITHUB + GIT REMEMBER</div>
-    <div class="does">tracking issue + the issues · spec + frozen checks + rulings in git · job reports · verdicts on issues — not in the tracker = didn't happen</div>
-  </div>
-  <div class="legend"><span class="snow">❄</span> = a fresh agent that never saw the conversation — nobody grades their own work&nbsp;&nbsp;·&nbsp;&nbsp;<span class="you">purple</span> = the only step that needs you</div>
+  <div class="legend"><span class="sn">❄</span> fresh context — nobody grades their own work &nbsp;·&nbsp; <span class="yu">purple</span> = the only step that needs you</div>
 </body></html>

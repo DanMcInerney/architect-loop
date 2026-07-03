@@ -1,61 +1,77 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { width:1500px; height:560px; background:#0d1117; font-family:"Cascadia Code",Consolas,monospace; color:#e6edf3; padding:44px 40px 0; }
-  .row { display:flex; align-items:center; justify-content:center; gap:14px; }
-  .box { border-radius:16px; padding:22px 18px; text-align:center; }
-  .fable { background:#1c1410; border:3px solid #d97757; width:262px; }
-  .agent { background:#0e1a16; border:3px solid #10a37f; width:282px; }
-  .who { font-size:24px; font-weight:700; }
-  .fable .who { color:#d97757; } .agent .who { color:#3fd0a4; }
-  .does { font-size:17px; color:#c9d1d9; margin-top:8px; line-height:1.45; }
-  .arrow { font-size:38px; color:#6e7681; align-self:center; }
-  .jobs { display:flex; flex-direction:column; gap:6px; margin-top:10px; }
-  .job { border:1.5px solid #1f6f58; border-radius:8px; padding:3px 8px; font-size:14px; color:#7ee2c3; background:#0a221b; }
-  .out { background:#1a1607; border:3px solid #e3b341; width:262px; }
-  .out .who { color:#e3b341; font-size:21px; }
-  .loopwrap { width:360px; margin:14px 0 0 660px; }
-  .loopline { height:26px; border:2px solid #6e7681; border-top:none; border-radius:0 0 14px 14px; }
-  .loopback { color:#6e7681; font-size:24px; text-align:left; margin-left:6px; margin-top:-38px; }
-  .looplabel { width:100%; text-align:center; color:#8b949e; font-size:16px; margin-top:10px; }
-  .looplabel b { color:#c9d1d9; }
-  .legend { text-align:center; color:#8b949e; font-size:16px; margin-top:22px; }
-  .legend .snow { color:#79b8ff; }
+  body { width:780px; background:#0d1117; font-family:"Cascadia Code",Consolas,monospace; color:#e6edf3; padding:30px 34px 26px; }
+  .g { display:grid; grid-template-columns: 22px 22px 1fr 200px; column-gap:11px; }
+  .g > .bx, .g > .dn { grid-column:3; }
+  .g > .note { grid-column:4; }
+  .bx { border-radius:12px; padding:12px 15px; text-align:center; }
+  .orch  { background:#1c1410; border:2.5px solid #d97757; }
+  .human { background:#161022; border:2.5px solid #a371f7; }
+  .fresh { background:#0d1826; border:2.5px solid #58a6ff; }
+  .build { background:#0e1a16; border:2.5px solid #10a37f; }
+  .memo  { background:#1a1607; border:2.5px solid #e3b341; }
+  .who { font-size:16px; font-weight:700; letter-spacing:0.5px; }
+  .orch .who { color:#d97757; } .human .who { color:#c69df9; }
+  .fresh .who { color:#79b8ff; } .build .who { color:#3fd0a4; } .memo .who { color:#e3b341; }
+  .txt { font-size:13px; color:#c9d1d9; margin-top:4px; line-height:1.5; }
+  .txt b { color:#e6edf3; }
+  .dn { text-align:center; color:#6e7681; font-size:16px; line-height:1; padding:6px 0; }
+  .note { align-self:center; font-size:11.5px; line-height:1.55; border-radius:9px;
+    padding:8px 10px; color:#adbac7; background:#10141a; border:1.5px solid #2d333b; }
+  .note b { font-size:10.5px; letter-spacing:1.5px; display:block; margin-bottom:2px; }
+  .n-fresh b { color:#79b8ff; } .n-build b { color:#3fd0a4; } .n-orch b { color:#d97757; }
+  .n-memo b { color:#e3b341; }
+  .raili { border:2px solid #2ea87e; border-right:none; border-radius:12px 0 0 12px;
+    position:relative; display:flex; align-items:center; justify-content:center; margin:24px 0; grid-column:2; }
+  .raili::before { content:"▶"; position:absolute; top:-7px; right:-9px; font-size:11px; color:#2ea87e; }
+  .raillbl { writing-mode:vertical-rl; font-size:10px; letter-spacing:1.5px; padding:8px 0; color:#7ee2c3; }
+  .legend { text-align:center; color:#8b949e; font-size:12.5px; margin-top:18px; line-height:1.6; }
+  .legend .sn { color:#79b8ff; } .legend .yu { color:#c69df9; }
 </style></head><body>
-  <div class="row">
-    <div class="box agent">
+  <div class="g">
+    <div class="bx human" style="grid-row:1;">
+      <div class="who">YOU</div>
+      <div class="txt">ask what you're considering building</div>
+    </div>
+    <div class="dn" style="grid-row:2;">↓</div>
+    <div class="bx build" style="grid-row:3;">
       <div class="who">SCOUT ❄</div>
-      <div class="does">cheap agent<br>maps the topic</div>
+      <div class="txt">cheap agent, ~10 searches<br>maps terminology, key systems, named people,<br>the topic's natural fault lines</div>
     </div>
-    <div class="arrow">⟶</div>
-    <div class="box fable">
-      <div class="who">FABLE</div>
-      <div class="does">designs researchers<br>sets tool-call budgets</div>
+    <div class="note n-build" style="grid-row:3;"><b>SKIPPED</b>for quick fact-finds and comparisons — recon that tells you nothing is pure latency</div>
+    <div class="dn" style="grid-row:4;">↓</div>
+    <div class="bx orch" style="grid-row:5;">
+      <div class="who">ORCHESTRATOR</div>
+      <div class="txt">designs 3–6 researcher assignments from the map<br>perspective-diverse · overlap-checked</div>
     </div>
-    <div class="arrow">⟶</div>
-    <div class="box agent">
+    <div class="note n-orch" style="grid-row:5;"><b>TACTICS</b>per source class: citation snowballing for papers, dependents-not-stars for repos, expert tracking, production post-mortems</div>
+    <div class="dn" style="grid-row:6;">↓</div>
+
+    <div class="raili" style="grid-row:7/10;"><span class="raillbl">GAP ROUND ⟲ MAX 2</span></div>
+    <div class="bx build" style="grid-row:7;">
       <div class="who">RESEARCHERS ×3–6 ❄</div>
-      <div class="does">gather in parallel<br>URL + date + quote required<br>return ≤~2,500 tokens<br>+ numbered source list</div>
-      <div class="jobs">
-        <div class="job">researcher 1</div>
-        <div class="job">researcher N</div>
-      </div>
+      <div class="txt">gather in parallel under hard budgets<br>every finding: <b>URL + date + exact quote</b><br>NOT FOUND beats a guess · no recommendations</div>
     </div>
-    <div class="arrow">⟶</div>
-    <div class="box fable">
-      <div class="who">FABLE</div>
-      <div class="does">sketches skeleton draft<br>verifies claims<br>writes the report</div>
+    <div class="note n-build" style="grid-row:7;"><b>BUDGETS</b>10–25 tool calls · ≤5 subjects each · ≤2,500-token compact return against a numbered source list</div>
+    <div class="dn" style="grid-row:8;">↓</div>
+    <div class="bx orch" style="grid-row:9;">
+      <div class="who">ORCHESTRATOR</div>
+      <div class="txt">sketches a skeleton draft<br>marks sections SUPPORTED / THIN / EMPTY</div>
     </div>
-    <div class="arrow">⟶</div>
-    <div class="box out">
+    <div class="note n-orch" style="grid-row:9;"><b>SECOND WAVE</b>thin sections steer it · expert researchers join here, roster-seeded by wave one</div>
+    <div class="dn" style="grid-row:10;">↓</div>
+    <div class="bx fresh" style="grid-row:11;">
+      <div class="who">VERIFICATION</div>
+      <div class="txt">≥2 independent sources per load-bearing claim<br>adversarial falsification searches<br><b>citations only from URLs actually fetched</b></div>
+    </div>
+    <div class="note n-fresh" style="grid-row:11;"><b>WHY</b>even search-grounded agents fabricate 3–13% of URLs — an unfetched citation never survives</div>
+    <div class="dn" style="grid-row:12;">↓</div>
+    <div class="bx memo" style="grid-row:13;">
       <div class="who">CITED REPORT</div>
-      <div class="does">the research handoff —<br>feeds the build loop;<br>a later session resumes<br>from its open questions</div>
+      <div class="txt"><b>one author writes</b> — answer-first, decision-oriented<br>committed = the handoff into the build factory's specs</div>
     </div>
+    <div class="note n-memo" style="grid-row:13;"><b>RULE</b>gathering parallelizes; synthesis never does — no summaries of summaries</div>
   </div>
-  <div class="loopwrap">
-    <div class="loopline"></div>
-    <div class="loopback">⇡</div>
-  </div>
-  <div class="looplabel">gap round, <b>max 2</b> — the draft's <b>THIN / EMPTY</b> sections send a targeted second wave; NOT FOUNDs are never re-chased</div>
-  <div class="legend"><span class="snow">❄</span> = a fresh agent with no memory of the conversation · researchers use the same orchestrator/builders config as the build loop</div>
+  <div class="legend"><span class="sn">❄</span> fresh context, hard budgets &nbsp;·&nbsp; <span class="yu">purple</span> = you — everything after is autonomous</div>
 </body></html>
