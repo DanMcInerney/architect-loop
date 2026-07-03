@@ -9,6 +9,12 @@ Codex CLI documentation, and widely used community harness skills. Prescriptive
 claims below cite their sources. This document is the "why"; the skill files in
 `skills/architect/` are the "how".
 
+Sections 1–11 are the historical evidence trail (v2 → v4 eras); §12 describes
+the current v5 system. Historical sections cite run artifacts that were later
+cleaned from the working tree (`docs/HANDOFF.md`, per-run `docs/gates/` and
+`docs/lanes/` files, superseded specs) — those anchors resolve in git history,
+not on disk.
+
 ---
 
 ## 1. The problem this design solves
