@@ -74,6 +74,9 @@ factory, the repo needs:
 - `gh auth status` passing;
 - `gh` version 2.94.0 or newer, for native sub-issue and dependency flags.
 
+Preflight also runs a backend canary before dispatch so the factory records a
+working brawn backend instead of switching mid-wave.
+
 If any precondition is missing, the skill fails loudly instead of falling back
 to a local tracker.
 
