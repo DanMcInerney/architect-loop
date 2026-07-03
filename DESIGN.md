@@ -812,3 +812,104 @@ codex judge (gpt-5.5 xhigh, workspace-write, tree audited untouched after)
 for the shell-dependent gates, plus a cold headless `claude -p` session for
 the one gate the codex sandbox cannot run at all — Git Bash dies with
 Win32 error 5 under the codex sandbox on this machine.
+
+---
+
+## 12. v5 - the autonomous factory
+
+v5 is the approved replacement for the interactive per-slice loop described in
+the older sections above. The source of truth is
+`docs/spec/architect-v5.md`, backed by
+`docs/research/autonomous-software-factory.md` and
+`docs/research/skill-prompt-patterns.md`. Earlier v4 notes remain historical
+evidence; where they conflict with v5, the v5 spec and shipped skill files win.
+
+### D1-D11 summary
+
+- **D1 roles.** The running session is the brain: intake, spec, issue DAG,
+  blocker answers, judge dispatch, merge decisions, and final digest. Brawn
+  lanes code only. Judges are cold brain-tier verdict agents. Monitors detect
+  stalls only.
+- **D2 model config.** `.architect/config`, then `~/.architect/config`, then
+  dispatch defaults resolve brain, brawn, monitor, and judge roles. Default
+  brawn is same-family tier-down. Cross-family brawn is explicit config, not a
+  hidden default.
+- **D3 intake.** The brain asks at most about five materiality-gated questions
+  in one batch; unanswered or lower-value gaps become spec assumptions for the
+  human to veto.
+- **D4 spec gate.** The human reviews one `docs/spec/<project>.md` file.
+  Approval authorizes the whole issue DAG.
+- **D5 decomposition.** The brain compiles the spec into one epic plus
+  sub-issues, native parent links, and native blocked-by edges. Gates freeze in
+  git under `docs/gates/`; one grill pass attacks the whole decomposition.
+- **D6 monitoring.** Each dispatch wave can run up to five brawn lanes plus one
+  cheap monitor. The monitor sweeps roughly every 10 minutes for output growth,
+  process activity, and repeated-command tails; it exits with evidence and
+  never kills or decides.
+- **D7 failure and blocker handling.** Brawn posts an exact blocker and stops.
+  The brain answers durably on the issue and respawns a fresh lane with the
+  answer. Judge failures drive input fixes or re-decomposition, not automatic
+  tier movement.
+- **D8 communication.** GitHub issues are the durable coordination log:
+  PHASE-0 comments, blocker comments, rulings, verdicts, and the epic digest.
+  Lane reports remain raw evidence artifacts and are mirrored when direct `gh`
+  access is unavailable.
+- **D9 design-quality doctrine.** The brain applies the oddity rule,
+  tidy-first issue splitting, design-it-twice for new load-bearing
+  abstractions, interface handoff blocks, reviewer calibration, and the codify
+  step to `docs/solutions/`.
+- **D10 skill-writing craft.** `SKILL.md` stays thin and pointer-based;
+  operational detail lives in `dispatch.md` and `loop.md`, with the
+  800-non-blank-line size guard retained.
+- **D11 safety rails.** `docs/STOP`, irreversible actions, two consecutive
+  KILLs, assumption-colliding blockers, builder gate edits, scope growth, and
+  high-stakes review requirements remain hard stops.
+
+### Human rulings, 2026-07-02
+
+- No automatic tier movement. Tier is fixed at decomposition by config and
+  dispatch rules; a failure is diagnosed as a spec, context, or architecture
+  problem. This supersedes section 10's P6 tier-up-over-retry note.
+- No per-command kill ceilings. Issues and gates may carry duration hints;
+  liveness is output growth plus process activity, not elapsed time alone.
+- The monitor is detection-only. It runs about every 10 minutes, exits with
+  anomaly evidence, and wakes the brain to rule the next action.
+- The scope-challenge rubric from the research pass was removed from D9.
+- TDD lessons are sourced from Matt Pocock's `tdd` skill: confirm seams in the
+  spec and issue body, write behavior tests through public interfaces, use
+  tracer-bullet slices, never refactor while RED, and name the highest-value
+  behaviors rather than pretending every path can be tested.
+
+### Dogfood evidence from issues #12-#18
+
+The v5 build was dogfooded as a real GitHub issue DAG. Issue #12 was the epic
+and raw coordination trail. Issue #13 shipped the top-level architect skill
+rewrite (`docs/lanes/v5-skill-core-01.md`). Issue #14 shipped the factory loop
+reference (`docs/lanes/v5-loop-factory-01.md`). Issue #15 shipped dispatch,
+model routing, issue conventions, monitor dispatch, and respawn guidance
+(`docs/lanes/v5-dispatch-01.md`). Issue #16 shipped the builder, judge, and
+monitor agent definitions (`docs/lanes/v5-agents-01.md`). Issue #17 retired
+the old handoff machinery from shipped skill/install surfaces
+(`docs/lanes/v5-handoff-retire-01.md`). Issue #18 is this dedicated docs-debt
+lane.
+
+The run also produced four diagnoses worth codifying:
+
+- **D12 recurred beyond judges.** Multiple Claude-backend subagent spawns lost
+  both Bash and PowerShell during the 2026-07-02 v5 session: grill/judge work
+  plus builder lanes reported shell-dependent gates as unrunnable. The durable
+  rule is explicit BLOCKED-with-evidence for shell-stripped builders, and
+  recorded Codex-backend or PowerShell same-pattern substitutions for lanes and
+  judges that can execute them.
+- **uv cache needed a sandbox redirect.** `uv run --no-project python
+  tests/validate_skills.py` failed when uv tried to write under AppData in the
+  Codex sandbox; `UV_CACHE_DIR=.architect/tmp/uv-cache` kept cache writes
+  inside the workspace and let validator gates run.
+- **Touch-set disjointness was insufficient.** A later docs lane still linked a
+  file that issue #17 deleted. The fix is a reference sweep for deleted or
+  renamed files before freezing boundaries, and suspicion of any builder-added
+  validator exception.
+- **Worktree snapshots must be verified after spawn.** The first
+  harness-created worktree had a fast-forwarded ref but stale files on disk.
+  Freeze commits must precede dispatch, and each lane must verify HEAD and
+  required input files before building.
