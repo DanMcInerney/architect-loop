@@ -115,13 +115,15 @@ monitor agents the shell tools their gates require.
 
 ## Choosing your models
 
-Zero-config defaults: the brain is whatever session you launched; brawn runs
-one same-family tier down.
+Zero-config defaults: the brain is whatever session you launched; brawn is
+codex-first — GPT-5.5 at xhigh effort whenever the Codex CLI is installed,
+falling back to Sonnet at high reasoning only when it isn't.
 
-| Harness you launched | Brain | Default brawn |
-|---|---|---|
-| Claude Code | your session's model | `claude/tier-down` |
-| Codex | your session's model | `codex/tier-down` |
+| Harness you launched | Codex CLI on PATH? | Brain | Default brawn |
+|---|---|---|---|
+| Claude Code | yes | your session's model | `codex/best` (gpt-5.5, xhigh) |
+| Claude Code | no | your session's model | `claude/tier-down` (Sonnet, high) |
+| Codex | — | your session's model | `codex/best` (gpt-5.5, xhigh) |
 
 Override with flat `key = value` lines in `.architect/config` (repo) or
 `~/.architect/config` (user); repo wins. Optional routing rules send task
