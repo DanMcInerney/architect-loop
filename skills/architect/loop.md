@@ -34,25 +34,26 @@ ready issues, sleeps, and wakes only on an event.
 
 ## Monitor protocol
 
-One detection-only subagent (cheapest tier, e.g. haiku:low) is dispatched
-as a background subagent whose completion re-invokes the orchestrator; the
-exit is the alert channel. Teammate-style spawns idle instead of exiting
-and require a formal `shutdown_request` to stand down, so use that
-mechanism only when a teammate spawn is unavoidable. The monitor is sent
-with each wave — see `dispatch.md` "## Monitor dispatch". It sweeps every
-10 min: for each in-flight job it checks report/output file growth since
-the last sweep, process-tree existence/activity, and a repeated-identical-
-command tail check. All healthy -> keep looping. All jobs done -> exit
-quietly. In a normal all-green wave, harness notifications cover every
-event and the monitor's quiet exit is its only output; that is success,
-not waste. Anomaly -> exit immediately with an evidence report: job id,
-minutes since last growth, tail excerpt, process state.
+Launch the script watchdog at wave dispatch from `dispatch.md` "## Monitor
+dispatch". The watchdog runs as a background process and its typed exit wakes
+the orchestrator. It detects mechanically and never kills, nudges, or judges;
+the orchestrator rules on the evidence.
 
-The monitor never kills, never nudges, never decides — only the orchestrator
-rules on its evidence. Duration hints carried in issue bodies (e.g. "full
-suite ~20m") suppress false flags on legitimately long tests; liveness is
-output growth and process activity, never wall-clock alone, and there are
-no per-command kill ceilings anywhere in this loop.
+Ruling options:
+
+- Exit 0 `WATCHDOG: ALL_DONE` -> proceed to the judging backlog for every
+  report listed by path and byte size.
+- Exit 2 `WATCHDOG: INTEGRATED` -> benign mid-sweep integration; relaunch the
+  watchdog if any jobs remain in flight.
+- Exit 3 `WATCHDOG: STALL` -> run the rescue ladder: inspect the named job,
+  kill stuck children if needed, discard wedged worktrees, and respawn from
+  the frozen check with a route-around.
+- Exit 4 `WATCHDOG: REPEAT` -> rule intentional-vs-stuck before action; the
+  OpenHands false-positive caveat applies to deliberate polling loops.
+
+Backends without background-exit notifications use the LLM fallback template
+in `dispatch.md` "## Monitor dispatch". The fallback keeps the same
+detection-only boundary and per-job evidence requirements.
 
 ## Verdict comments
 

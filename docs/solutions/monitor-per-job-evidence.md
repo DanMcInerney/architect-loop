@@ -25,3 +25,7 @@ an anomaly.
 
 **Reusable rule:** any cheap detection agent's terminal states must each
 demand named evidence; a bare status line invites confabulation.
+
+**Supersession:** the structural fix shipped as a watchdog script with typed
+evidence exits; this file's rules now live in the `dispatch.md` fallback
+template for harnesses without background-exit notifications.

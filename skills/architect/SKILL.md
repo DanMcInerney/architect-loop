@@ -12,7 +12,7 @@ effort: high
 You are the orchestrator. The repo is memory; GitHub issues are the durable
 coordination state. Your work is grounding, intake, spec, decomposition, check
 freeze, dispatch, blocker answers, judgment, merge decisions, and the final
-digest. Builders implement. Monitors detect stalls. Judges return frozen-check
+digest. Builders implement. Watchdogs detect stalls. Judges return frozen-check
 verdicts. Do not collapse those roles.
 
 Full rationale and citations live in `DESIGN.md`. Exact mechanics and
@@ -96,8 +96,15 @@ Apply D9 while shaping the intake: name domain terms precisely, record sparse
 ADRs only for hard-to-reverse surprising trade-offs, and identify testing seams
 up front so builder jobs do not invent seams mid-flight.
 
+At the end of intake, before approval, create the tracking issue. Its body
+carries the spec pointer, assumptions digest, and approve-by-comment
+instructions: the repo owner comments exactly `APPROVE`, `APPROVE with edits:
+<text>`, or `REJECT <reason>`.
+
 Done when the spec contains goal, non-goals, assumptions, validation strategy,
-domain language, preflight evidence, and any open human decisions.
+domain language, preflight evidence, any open human decisions, and the tracking
+issue exists with the spec pointer, assumptions digest, and approve-by-comment
+instructions.
 
 ### 2. Spec Approval
 
@@ -106,18 +113,38 @@ or vetoes assumptions, and approves or rejects the plan. Approval authorizes
 the whole issue plan; after approval, contact the human only through the
 tracking issue digest or hard stops.
 
+Approval has exactly two explicit forms:
+
+- In-session approval: the human explicitly authorizes the run in the current
+  session, including the invocation itself. Record that authorization VERBATIM
+  in the spec's approval record before proceeding.
+- Tracking-issue approval: the repo owner comments on the tracking issue with
+  exactly `APPROVE`, or `APPROVE with edits: <text>`. A repo-owner comment
+  beginning exactly `REJECT <reason>` rejects the plan.
+
+Prior conversation is never approval unless it is an explicit authorization
+quoted in the approval record; the fail-safe default is no approval.
+
+If the human is absent, PARK: post `AWAITING APPROVAL` on the tracking issue
+with the spec pointer and assumptions digest, schedule periodic wakeups about
+every 20-30 minutes to poll for the approval comment, and take no build action
+while parked. Stop polling immediately on `REJECT <reason>` or `docs/STOP`.
+After 7 days without approval, post a fail-safe closing digest on the tracking
+issue and stop.
+
 On approval, cut `factory/<run>`. ALL run commits after approval, including
 spec amendments, checks, freeze, and job merges, land on that branch. Main stays
 untouched until the single closing PR.
 
-Done when the approved spec and assumption rulings are committed or rejection
-is recorded.
+Done when the approved spec and assumption rulings are committed, the approval
+record quotes the explicit authorization, or rejection is recorded.
 
 ### 3. Decompose
 
 Compile the approved spec into GitHub issues:
 
-- One tracking issue is the dashboard and digest target.
+- Add sub-issues under the existing tracking issue, which is the dashboard and
+  digest target.
 - Each sub-issue is one vertical slice with acceptance criteria, boundaries,
   may-touch and must-not-touch sets, check path, raw-report path, and native
   parent plus blocked-by edges.
@@ -161,9 +188,10 @@ issues.
 Use `loop.md` `## Factory block procedure` for the detailed event loop.
 
 - Dispatch the ready issues, up to five build jobs, plus one
-  detection-only monitor from `dispatch.md` `## Monitor dispatch`.
+  detection-only watchdog from `dispatch.md` `## Monitor dispatch`; rule on
+  its typed exits.
 - Sleep between events. Wake only when a job reports DONE, BLOCKED, stalled,
-  or killed evidence; when the monitor exits with anomaly evidence; or when
+  or killed evidence; when the watchdog exits with anomaly evidence; or when
   the ready issues need recomputation.
 - On DONE, send a fresh, independent orchestrator-tier judge to run frozen
   checks and inspect intent.
