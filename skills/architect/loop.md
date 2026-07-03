@@ -4,6 +4,7 @@ The loop is one orchestrator session that runs the factory to completion after
 the spec approval approves the issue plan. GitHub issues carry coordination
 state; git carries specs and frozen checks. The orchestrator dispatches the
 ready issues, sleeps, and wakes only on an event.
+Parallel rules: judges dispatch immediately and run concurrently for every DONE, never queued behind another judgment; the ready-issue frontier recomputes on EVERY merge, not at wave boundaries; independent orchestrator bookkeeping batches into parallel calls; merges, synthesis, and the stress-test stay serial by design.
 
 ## Factory block procedure
 
@@ -75,8 +76,9 @@ verdict from memory.
 ## Failure ladder
 
 First FAIL on an issue: the orchestrator diagnoses from the judge's evidence (not
-the full diff), fixes the input — issue text, missing context, or a
-forbidden-pattern note — and respawns a fresh builder job at the same tier.
+the full diff), may fan out researcher agents to inform the diagnosis, fixes
+the input — issue text, missing context, or a forbidden-pattern note — and
+respawns a fresh builder job at the same tier.
 The tier is set once, at decomposition (config plus dispatch rules), and
 never changes because a job failed; a failure is a spec or context problem
 the orchestrator fixes, never a signal to move the tier. Second FAIL on the same
