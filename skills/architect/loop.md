@@ -4,7 +4,7 @@ The loop is one orchestrator session that runs the factory to completion after
 the spec approval approves the issue plan. Tracker issues carry coordination
 state; git carries specs and frozen checks. The orchestrator dispatches the
 ready issues, sleeps, and wakes only on an event.
-Parallel rules: judges dispatch immediately and run concurrently for every DONE, never queued behind another judgment; the ready-issue frontier recomputes on EVERY merge, not at wave boundaries; independent orchestrator bookkeeping batches into parallel calls; merges, synthesis, and the stress-test stay serial by design.
+Parallel rules: harness-native judge subagents (Claude Agent tool) dispatch synchronously with `run_in_background: false` so the verdict returns as the tool result; codex-backend judges keep the background `codex exec -o <file>` typed-exit path, whose process exit wakes the loop; the ready-issue frontier recomputes on EVERY merge, not at wave boundaries; independent orchestrator bookkeeping batches into parallel calls; merges, synthesis, and the stress-test stay serial by design.
 
 ## Factory block procedure
 
@@ -16,7 +16,7 @@ Parallel rules: judges dispatch immediately and run concurrently for every DONE,
    no polling.
 3. **Wake on one event**, exactly one of:
    - **Job DONE.** Ordering: write the runner config; launch `check-runner.ps1`
-     or `check-runner.sh` as a background process whose exit is the next wake; commit the checkrun artifact `docs/jobs/<issue-slug>-checkrun.md`; then send the fixed judge template from `dispatch.md` to one fresh judge subagent with the evidence path. Record the verdict in an issue comment (see Verdict comments). On PASS, run `postflight.ps1` or `postflight.sh`: exit 0 `POSTFLIGHT: OK` means merge completed with clean touch-set evidence; exit 2 `POSTFLIGHT: VIOLATION` is automatic FAIL evidence for the job; exit 3 `POSTFLIGHT: CONFLICT` is the merge-conflict decomposition-failure rail; exit 5 `POSTFLIGHT: ERROR` falls back to the recorded manual integration sequence in `dispatch.md`. On FAIL, diagnose (see Failure ladder).
+     or `check-runner.sh` as a background process whose exit is the next wake; commit the checkrun artifact `docs/jobs/<issue-slug>-checkrun.md`; then dispatch the fixed judge template from `dispatch.md` by backend: Claude Agent-tool judges run synchronously with `run_in_background: false`, while codex-backend judges run the background `codex exec -o <file>` typed-exit path and wake on that process exit. Record the verdict in an issue comment (see Verdict comments). On PASS, run `postflight.ps1` or `postflight.sh`: exit 0 `POSTFLIGHT: OK` means merge completed with clean touch-set evidence; exit 2 `POSTFLIGHT: VIOLATION` is automatic FAIL evidence for the job; exit 3 `POSTFLIGHT: CONFLICT` is the merge-conflict decomposition-failure rail; exit 5 `POSTFLIGHT: ERROR` falls back to the recorded manual integration sequence in `dispatch.md`. On FAIL, diagnose (see Failure ladder).
    - **Job BLOCKED.** A blocker comment on the issue is a completion event.
      Read it, rule an answer, and respawn a fresh builder job on the same
      issue with the answer in its spawn context (see `dispatch.md`
@@ -66,6 +66,16 @@ The issue is closed on merge. No verdict comment on an issue means the
 next factory block must not build on it as accepted; the orchestrator may re-run
 judgment with a fresh judge if evidence is missing, but may not fill in a
 verdict from memory.
+
+For ANY backgrounded subagent that goes idle without its expected deliverable,
+use the recovery ladder in order: retrieve its output via the harness task-output
+mechanism; nudge once asking it to deliver the artifact; discard it and respawn
+fresh. The orchestrator never authors a missing verdict.
+
+Close-out: after consuming a subagent result or a background process's typed
+exit, stop or close that subagent or shell task in the same turn, batching
+independent close-outs into parallel calls; no polling and no per-close
+commentary. Kill any lingering job processes when a job is discarded.
 
 ## Failure ladder
 

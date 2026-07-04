@@ -197,7 +197,7 @@ Use `loop.md` `## Factory block procedure` for the detailed event loop.
   the ready issues need recomputation.
 - On human status requests ("status", "how's it going", or equivalent), run
   `skills/architect/status.ps1` on Windows or `skills/architect/status.sh` on POSIX, print its output verbatim in a fenced code block, answer in prose, and never hand-compose the tree.
-- On DONE, write the runner config, launch the check-runner in the background, let its exit wake the loop, commit the checkrun evidence file, then send a fresh, independent orchestrator-tier judge with the evidence path.
+- On DONE, write the runner config, launch the check-runner in the background, let its exit wake the loop, commit the checkrun evidence file, then send a fresh, independent orchestrator-tier judge with the evidence path: Claude Agent-tool judges dispatch synchronously with `run_in_background: false`; codex-backend judges use the background typed-exit path.
   Merge through postflight only after a passing verdict; `POSTFLIGHT: OK` exit
   0 is the clean touch-set evidence.
 - On BLOCKED, answer on the issue, cite durable evidence, and respawn a fresh
@@ -224,9 +224,13 @@ human digest item.
 
 ### 5. Finish
 
-Dispatch one dedicated docs job before the finish boundary. It consumes docs debt,
-updates product docs, writes `docs/solutions/<slug>.md` entries, and codifies
-changed domain language or sparse ADRs. In github mode prepare the PR with
+Dispatch one dedicated builder docs job before the finish boundary; the
+orchestrator never writes those docs directly. Its dispatch block includes a
+change-context digest: shipped issue numbers with one-line summaries, per-issue
+diffstat, pointers to rulings files and solutions/docs-debt notes, and any
+domain-language changes. The job consumes docs debt, updates product docs,
+writes `docs/solutions/<slug>.md` entries, and codifies changed domain language
+or sparse ADRs. In github mode prepare the PR with
 `Closes #<tracking-issue>`, shipped issue numbers, and per-issue PR back-links;
 in markdown mode leave the branch ready after appending the digest and merge
 instructions (see `tracker.md` `## Finish per mode`). Final digest names shipped
