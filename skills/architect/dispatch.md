@@ -15,7 +15,7 @@ flags; `codex exec` is non-interactive; Goal Mode subcommands are bare
 | Alias | Flags | Notes |
 |---|---|---|
 | `codex/best` | `-m gpt-5.5 -c model_reasoning_effort="xhigh"` | Frontier Codex row. Watch for a possible gpt-5.6 rollout before changing this pin. |
-| `claude/best` | `--model opus --effort xhigh` | Best Claude Code judgment/build row. |
+| `claude/best` | `--model fable --effort xhigh` | Frontier Claude row (Fable 5). If Fable is unavailable on the account, pin `--model opus` (Opus 4.8) and record the substitution on the tracking issue. |
 | `codex/tier-down` | `-m gpt-5.5 -c model_reasoning_effort="high"` | Effort-down on the frontier model; high is the quota-saving tier-down, not a model downgrade. Watch the codex rows per model generation. |
 | `claude/tier-down` | `--model sonnet --effort high` | Model-down at high effort. |
 
