@@ -36,7 +36,13 @@ orchestrator; the scripts only execute and report facts.
   falls back to the manual sequence it uses today.
 - No conflict resolution: a merge conflict aborts cleanly and exits typed —
   it is a decomposition-failure signal, never something a script fixes.
-- No changes to check-runner, watchdog, or status scripts.
+- No changes to watchdog or status scripts. (AMENDED 2026-07-04, human-approved
+  in-session at the scope hard stop: check-runner IS in scope for exactly one
+  defect — the first live run exposed quote-stripping in the ps1 runner's
+  child `powershell -Command` invocation, voiding evidence for quoted
+  multi-word patterns. D5 and slice OS5 carry the fix; original evidence:
+  docs/jobs/os-wiring-checkrun.md on job/os-wiring-01, #68 run-finding
+  comment.)
 - Preflight's worktree creation is the Codex-backend path only; the existing
   per-harness rule (Claude-backend jobs never pre-create worktrees) stands
   and the wiring text must restate it.
@@ -102,6 +108,17 @@ Config: see Interface contract. Behavior, in order:
 against repo-relative forward-slash paths: `docs/jobs/` matches any path
 under it (prefix rule when the entry ends with `/`); `skills/architect/*.md`
 matches by glob. Matching is case-sensitive. No regex.
+
+### D5. check-runner quoting fix (amendment)
+
+The runner must deliver each RUN command to its executor byte-identical to
+the frozen text. ps1: replace the quote-lossy child invocation with a
+quote-safe mechanism (encoded command or temp-script-file execution — builder
+chooses, judge quotes it). sh: verify `bash -c` preserves quoting; fix only
+if proven broken. New quoted-pattern fixtures live in NEW files
+(`fixture-checks-quoted-*`, `config-quoted-*`) so run-#62's frozen fixture
+counts stay untouched. Regression: the original `config-ps.json` fixture
+contract (3 exits, one `exit: 3`) must still hold.
 
 ## Interface contract
 
