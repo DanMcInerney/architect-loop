@@ -87,6 +87,9 @@ its evidence output file. Behavior:
    <freeze_sha>..HEAD` in full; whether any changed path is under
    `docs/checks/`.
 3. Parse RUN lines per D1, preserving section headers and file line numbers.
+   The config's `executor` is authoritative for execution; the runner also
+   records the check file's `Executor:` header line verbatim in the evidence
+   header so any mismatch is visible to the judge.
 4. Execute each command in order, cwd = workdir, via the file's executor;
    capture exit code, wall ms, and output capped at `max_output_lines`
    (default 60) with the untruncated byte count. A command that errors is
@@ -172,12 +175,17 @@ except `evidence_out`.
 ## Validation strategy
 
 Fixture-based, no network: a fixture check file containing (a) a RUN line
-that succeeds with known output, (b) a RUN line that exits nonzero, (c) a
-prose line with a backtick span and NO RUN marker, (d) a judge-only quote
-item. Run the runner against it in a scratch git state; assert the evidence
-file contains exactly two `$` blocks with correct exit codes, the non-RUN
-span was never executed, integrity fields are present, and exit code is 0.
-Config-error path asserts exit 5 and no evidence file. Skill-text slices are
+that succeeds with known output, (b) a RUN line whose output exceeds the
+cap (truncation exercise), (c) a RUN line that exits nonzero, (d) a prose
+line with a backtick span and NO RUN marker, (e) a judge-only quote item.
+Run the runner against it; assert the evidence file contains exactly three
+`$` blocks with correct exit codes (one `exit: 3`), a truncation marker,
+the non-RUN span never executed, integrity fields present, and exit code 0.
+Config-error path asserts exit 5 and no evidence file. Fixture integrity
+(`check_file_matches_freeze=true` with `freeze_sha: HEAD`) is evaluated
+AFTER the orchestrator commits the job to its branch — the standard flow
+(builders never commit; the orchestrator commits before checks/judge run) —
+so acceptance always executes against a committed tree. Skill-text slices are
 checked with the existing grep-anchor style; validator slice must keep
 `tests/validate_skills.py` green end-to-end.
 

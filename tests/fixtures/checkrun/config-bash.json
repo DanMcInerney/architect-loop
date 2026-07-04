@@ -1,0 +1,1 @@
+{"check_file":"tests/fixtures/checkrun/fixture-checks-bash.md","workdir":".","freeze_sha":"HEAD","evidence_out":".architect/tmp/checkrun-fixture-bash.md","executor":"bash","max_output_lines":60}

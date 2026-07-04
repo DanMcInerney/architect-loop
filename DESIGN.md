@@ -309,6 +309,30 @@ loop-hardening research ([docs/research/loop-improvements.md](docs/research/loop
 
 ### Judging and integration
 
+#### Check-runner offload (2026-07-04)
+
+The measured motivation was 135 mechanical `command → expected` items across
+15 frozen check files, about 9 per file, with `tracker-adapter.md` 17-of-18
+mechanical. Those commands were consuming frontier-priced judge turns on work
+that required no judgment, while the useful judge work remained evidence
+grading, checks-integrity review, and diff-vs-intent.
+
+The check-runner is a deterministic script, not an LLM, because a script
+cannot fabricate an exit code; an LLM runner is an unaudited junior judge. The
+check-runner executes frozen RUN commands outside subagent sandboxes and
+records raw evidence, while the fresh judge grades that evidence, performs
+diff-vs-intent, and re-runs at least one RUN command as the spot-check honesty
+guard. D12 consequence: shell-dependent checks no longer force cross-family
+codex judges just to get a shell; cross-family review returns to a high-stakes
+review choice rather than a workaround for stripped tools.
+
+The RUN grammar came from the design-it-twice record in
+[spec D1](docs/spec/judge-runner.md#d1-run-grammar-for-check-files-design-it-twice-record):
+heuristic backtick-span parsing was rejected for structural false positives in
+prose, fenced run blocks were rejected for authoring churn and for separating
+the command from its inline expected outcome, and explicit `- RUN:` markers
+were chosen.
+
 - **Nobody grades their own work.** The builder reports evidence; a fresh
   orchestrator-tier judge runs the frozen checks itself (builder claims are
   hearsay) and returns per-check **PASS / FAIL / INVALID** — INVALID meaning

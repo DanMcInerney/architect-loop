@@ -15,10 +15,8 @@ Parallel rules: judges dispatch immediately and run concurrently for every DONE,
 2. **Sleep.** Zero orchestrator work between dispatch and the next event —
    no polling.
 3. **Wake on one event**, exactly one of:
-   - **Job DONE.** Send the fixed judge template from `dispatch.md` to one
-     fresh judge subagent; record the verdict in an issue comment (see
-     Verdict comments); merge on PASS, diagnose on FAIL (see Failure
-     ladder).
+   - **Job DONE.** Ordering: write the runner config; launch `check-runner.ps1`
+     or `check-runner.sh` as a background process whose exit is the next wake; commit the checkrun artifact `docs/jobs/<issue-slug>-checkrun.md`; then send the fixed judge template from `dispatch.md` to one fresh judge subagent with the evidence path. Record the verdict in an issue comment (see Verdict comments); merge on PASS, diagnose on FAIL (see Failure ladder).
    - **Job BLOCKED.** A blocker comment on the issue is a completion event.
      Read it, rule an answer, and respawn a fresh builder job on the same
      issue with the answer in its spawn context (see `dispatch.md`
@@ -63,11 +61,7 @@ is posted on the job's issue with: per-check PASS/FAIL/INVALID, a
 checks-integrity verdict, a diff-vs-intent verdict, the slice call
 KILL/CONTINUE, and the decisive reason tied to raw evidence; exact tracker
 comment format lives in `dispatch.md` "## Issue conventions".
-The judge's intent context is exactly the frozen check file, spec, job
-report, and `docs/jobs/<issue-slug>-rulings.md`. That rulings file is
-orchestrator-owned, append-only, and committed before judge dispatch; if it
-is absent, there are no post-freeze rulings. Judge dispatch blocks carry no
-ruling prose.
+The judge's intent context is exactly the frozen check file, spec, job report, checkrun evidence file, and `docs/jobs/<issue-slug>-rulings.md`. The checkrun artifact `docs/jobs/<issue-slug>-checkrun.md` is committed before judge dispatch. The rulings file is orchestrator-owned, append-only, and committed before judge dispatch; if it is absent, there are no post-freeze rulings. Judge dispatch blocks carry no ruling prose.
 The issue is closed on merge. No verdict comment on an issue means the
 next factory block must not build on it as accepted; the orchestrator may re-run
 judgment with a fresh judge if evidence is missing, but may not fill in a
