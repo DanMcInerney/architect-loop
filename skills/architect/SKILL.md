@@ -22,8 +22,8 @@ templates live behind these pointers:
 - dispatch.md section `## Issue conventions`
 - dispatch.md section `## Monitor dispatch`
 - dispatch.md section `## Respawn-with-answer template`
-- loop.md section `## Factory block procedure`
-- `research.md` for research fan-out
+- loop.md section `## Factory block procedure`; `research.md` for research fan-out
+- `tracker.md` sections `## Preflight per mode`, `## Finish per mode`, `## Command mapping`
 
 ## Hard Rules
 
@@ -80,9 +80,9 @@ change implementation or validation strategy? Unanswered questions become
 recorded `## Assumptions` in the spec, using the orchestrator's recommended
 option.
 
-Preflight is mandatory and has no fallback: a GitHub remote exists, `gh auth
-status` passes, and `gh` is at least 2.94.0 for native `--blocked-by`,
-`--parent`, and `--blocking` support. Fail loudly if any precondition fails.
+Preflight is tracker-conditional (see `tracker.md` `## Preflight per mode`):
+github mode requires a GitHub remote, passing `gh auth status`, and `gh` >=
+2.94.0; markdown mode requires only a git repo; pushes are push-if-remote-exists.
 
 Before decomposition records the builders backend, canary every candidate backend
 once with a trivial task: list available tools; run `git log -1 --oneline` if a
@@ -227,13 +227,12 @@ human digest item.
 ### 5. Finish
 
 Dispatch one dedicated docs job before the PR boundary. It consumes docs debt,
-updates product docs, writes any `docs/solutions/<slug>.md` entries, and
-codifies changed domain language or sparse ADRs. Then prepare the PR: its body
-says `Closes #<tracking-issue>` and lists every shipped issue by number, and each closed
-issue gets one comment naming the shipping PR — issues close at job-merge
-time, so this back-link is PR-boundary bookkeeping. Write the final digest on
-the tracking issue with shipped issues, skipped work, residual risks, and
-verification evidence.
+updates product docs, writes `docs/solutions/<slug>.md` entries, and codifies
+changed domain language or sparse ADRs. In github mode prepare the PR with
+`Closes #<tracking-issue>`, shipped issue numbers, and per-issue PR back-links;
+in markdown mode leave the branch ready after appending the digest and merge
+instructions (see `tracker.md` `## Finish per mode`). Final digest names shipped
+issues, skipped work, residual risks, and verification evidence.
 
 Done when docs debt is consumed, the PR is ready, the tracking issue digest is posted,
 and no issue remains silently unresolved.
@@ -247,7 +246,7 @@ Stop and ask the human when any hard stop fires:
 - Two consecutive KILL decisions happen in the factory.
 - A blocker collides with a recorded assumption.
 - Scope grows beyond the approved spec.
-- Required GitHub or `gh` preflight cannot be satisfied.
+- Required tracker preflight cannot be satisfied.
 
 ## Maintenance
 

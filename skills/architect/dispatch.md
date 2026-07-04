@@ -42,6 +42,7 @@ Optional dispatch-rules lines route task classes to a builder tier:
 # .architect/config or ~/.architect/config
 orchestrator = claude/best
 builders = codex/best
+tracker = markdown # local issue files; omit for github default
 when trivial mechanical edit -> claude/haiku:low # cheap exact patch
 when broad ambiguous refactor -> codex/best:xhigh # deeper search and edit budget
 ```
@@ -260,15 +261,15 @@ job and re-spec; do not hand-resolve builder conflicts.
 
 ## Issue conventions
 
+In markdown mode, every command below maps to an orchestrator file operation; see `tracker.md` `## Command mapping`.
+
 Claim is an orchestrator action, never a builder action: the orchestrator is
-the single dispatcher and assigns exactly one issue per job immediately
-before spawning its builder. A builder never self-claims or picks its own
-next issue.
+the single dispatcher and assigns exactly one issue per job before spawning.
+A builder never self-claims or picks its own next issue.
 
 On current backends, builders usually cannot post to issues: Codex has no
 network, and Claude subagents have a shell-strip watch item. `MIRROR:
-ORCHESTRATOR` is the normal mode; the orchestrator mirrors at event boundaries
-it already occupies. Direct builder posting stays permitted where supported.
+ORCHESTRATOR` is normal; direct builder posting stays permitted where supported.
 
 ```bash
 gh issue edit <n> --add-assignee "@me"   # orchestrator claims, before dispatch
