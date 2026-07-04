@@ -16,11 +16,13 @@ Executor: powershell; native `git.exe`. Orchestrator bookkeeping commits
 - RUN: `git grep -c "POSTFLIGHT: CONFLICT" -- skills/architect/dispatch.md` → ≥ 1
 - RUN: `git grep -c "require_files" -- skills/architect/dispatch.md` → ≥ 1
 - RUN: `git grep -c "merge_message" -- skills/architect/dispatch.md` → ≥ 1
+- RUN: `git grep -c "factory_branch" -- skills/architect/dispatch.md` → ≥ 1 (config contract field)
 
-## WI2 — exit-3 = decomposition failure, exit-2 = FAIL evidence
+## WI2 — typed exits: 3 = decomposition failure, 2 = FAIL evidence, 5 = fallback
 
 - RUN: `git grep -c "exit 3" -- skills/architect/dispatch.md` → ≥ 1
 - RUN: `git grep -c "decomposition failure" -- skills/architect/dispatch.md` → ≥ 1
+- RUN: `git grep -c "POSTFLIGHT: ERROR" -- skills/architect/dispatch.md` → ≥ 1 (exit-5 path documented with the manual-sequence fallback)
 
 ## WI3 — loop.md and SKILL.md name the scripts
 

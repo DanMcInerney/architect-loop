@@ -17,8 +17,9 @@ Orchestrator bookkeeping commits (docs/jobs/) exempt from touch-set checks.
 
 - RUN: `@('skills/architect/preflight.ps1','skills/architect/preflight.sh','skills/architect/postflight.ps1','skills/architect/postflight.sh') | ForEach-Object { Test-Path $_ }` → four lines, all True
 - RUN: `(Get-Content skills/architect/postflight.ps1 | Where-Object { $_.Trim() }).Count` → ≤ 260
-- RUN: `git grep -cE "PASS|FAIL|INVALID" -- skills/architect/postflight.ps1 skills/architect/postflight.sh skills/architect/preflight.sh` → no stdout, exits 1 (scripts grade nothing; preflight.ps1 excluded only because its typed FAIL line is `PREFLIGHT: FAIL`)
-- RUN: `git grep -c "PREFLIGHT: FAIL" -- skills/architect/preflight.ps1` → ≥ 1 (typed line present; the only FAIL-ish string permitted)
+- RUN: `git grep -cE "PASS|FAIL|INVALID" -- skills/architect/postflight.ps1 skills/architect/postflight.sh` → no stdout, exits 1 (postflight grades nothing; preflight pair excluded because their typed line is `PREFLIGHT: FAIL`)
+- RUN: `git grep -c "PREFLIGHT: FAIL" -- skills/architect/preflight.ps1` → ≥ 1 (typed line present)
+- RUN: `git grep -c "PREFLIGHT: FAIL" -- skills/architect/preflight.sh` → ≥ 1 (typed line present)
 
 ## OS2 — fixture builds
 
@@ -38,9 +39,10 @@ Orchestrator bookkeeping commits (docs/jobs/) exempt from touch-set checks.
 - RUN: `powershell -NoProfile -File skills/architect/postflight.ps1 -Config .architect/tmp/orchcfg/post-conflict.json; $LASTEXITCODE` → output contains `POSTFLIGHT: CONFLICT`, last line `3`
 - RUN: `git -C .architect/tmp/orchfix status --porcelain` → no stdout (conflict aborted clean)
 
-## OS5 — bash variants, same contract
+## OS5 — bash variants and bash fixture builder, same contract
 
-- RUN: `powershell -NoProfile -File tests/fixtures/orchscripts/make-fixture.ps1; bash skills/architect/preflight.sh .architect/tmp/orchcfg/pre-ok.json; $LASTEXITCODE` → output contains `PREFLIGHT: OK`, last line `0`
+- RUN: `bash tests/fixtures/orchscripts/make-fixture.sh; bash skills/architect/preflight.sh .architect/tmp/orchcfg/pre-ok.json; $LASTEXITCODE` → output contains `PREFLIGHT: OK`, last line `0` (fixture rebuilt by the .sh builder)
+- RUN: `bash skills/architect/postflight.sh .architect/tmp/orchcfg/post-clean.json; $LASTEXITCODE` → output contains `POSTFLIGHT: OK merge=`, last line `0` (bash success path incl. cleanup)
 - RUN: `bash skills/architect/postflight.sh .architect/tmp/orchcfg/post-violation.json; $LASTEXITCODE` → output contains `POSTFLIGHT: VIOLATION`, last line `2`
 - RUN: `bash skills/architect/postflight.sh .architect/tmp/orchcfg/post-conflict.json; $LASTEXITCODE` → output contains `POSTFLIGHT: CONFLICT`, last line `3`
 
