@@ -138,11 +138,12 @@ survives unless its URL was actually fetched. One author writes the report.
    - **Stuck builders stop instead of thrashing.** A blocker is posted on
      the issue; the orchestrator answers durably there and respawns a fresh
      builder with the answer in its starting context.
-   - **A fresh judge owns every merge.** It reruns the frozen checks itself
-     (builder claims are hearsay) and reads the diff against the spec's
-     intent — passing checks with wrong code still fails. Verdicts land as
-     issue comments: PASS / FAIL / INVALID. The orchestrator cannot overrule
-     a FAIL.
+   - **A fresh judge owns every merge.** A deterministic check-runner script
+     executes the frozen checks exactly as written and records the evidence;
+     the judge grades that evidence, spot-checks at least one command, and
+     reads the diff against the spec's intent — passing checks with wrong code
+     still fails. Verdicts land as issue comments: PASS / FAIL / INVALID. The
+     orchestrator cannot overrule a FAIL.
    - **Failures fix inputs, not models.** First failure: diagnose from the
      judge's evidence, amend the issue, respawn at the same tier. Second:
      re-plan or escalate. A merge conflict means the plan was wrong — kill
