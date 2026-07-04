@@ -43,6 +43,7 @@ MIRROR: ORCHESTRATOR
 | `skills/architect/watchdog.ps1` | PS 5.1 parse; process CPU probe | Direct `Get-WmiObject` process probe brittle under newer PowerShell | FIXED: `Win32Processes` helper prefers `Get-CimInstance`, falls back to `Get-WmiObject` | `PS_PARSE`: exit 0, `PS_PARSE_OK`; `INTERFACE_COUNTS`: `WATCHDOG: 10 10` |
 | `skills/architect/watchdog.sh` | bash 3.2 indexed arrays; `/proc` fallback; BSD `ps args=` | `ps -eo time=,args=` less portable than split `-o` form | FIXED: `ps -eo time= -o args=` | `GNU_SCAN`: `watchdog.sh:21 /proc`, `watchdog.sh:30 ps -eo time= -o args=` |
 | `skills/architect/check-runner.ps1` | PS 5.1 parse; encoded command runner; typed exit | none | ALREADY-OK | `PS_PARSE`: exit 0, `PS_PARSE_OK`; `git grep -c "CHECKRUN: ERROR"`: `check-runner.ps1:2` |
+| `skills/architect/check-runner.ps1` bash resolution on Windows | config executor `bash`; `ProcessStartInfo.FileName`; evidence header | Bare `bash` can resolve to WSL `bash.exe`, losing Windows PATH and worktree `.git` pointer semantics | FIXED: resolves Git Bash from resolved `git` install root or `$env:ProgramFiles\Git\bin\bash.exe`; missing Git Bash exits 5 with `CHECKRUN: ERROR git-bash not found`; evidence records `executor_resolved:` | Respawn 02 `PS_PARSE`: exit 0, `PS_PARSE_OK`; static read-back lines 64, 66, 73, 79-80, 89-91, 100, 103, 200 |
 | `skills/architect/check-runner.sh` | bash 3.2 indexed arrays; temp files; `date` | default `mktemp` used system temp | FIXED: temp templates under `$workdir/.architect/tmp/check-runner` | `NO_BARE_MKTEMP`: exit 1, no output; `MKTEMP_LINES`: `check-runner.sh:19 mktemp "$tmp_base/$1.XXXXXX"` |
 | `skills/architect/preflight.ps1` | PS 5.1 parse; repo-root/worktree path handling; typed exit | none | ALREADY-OK | `PS_PARSE`: exit 0, `PS_PARSE_OK`; `git grep -c "PREFLIGHT: OK"`: `preflight.ps1:1` |
 | `skills/architect/preflight.sh` | bash 3.2 syntax; repo-root/worktree path handling; typed exit | none | ALREADY-OK | `BASH4_SCAN`: exit 0, `NO_MATCH`; `CASE_SCAN`: exit 0, `NO_MATCH`; `EOL`: `w/lf attr/text eol=lf` |
@@ -300,4 +301,90 @@ Exit: 0
  5 files changed, 51 insertions(+), 13 deletions(-)
 ```
 
-STATUS: COMPLETE_WITH_CONCERNS (bash RUN items unexecuted in sandbox per policy; docs/jobs report is required md exception)
+## Respawn 02
+
+### Input Verification
+
+| Command | Exit | Output |
+|---|---:|---|
+| `git log -1 --oneline` | 0 | `da73b97 job loop-hygiene-xplat-01: cross-platform audit fixes for script pairs and installers (#77)` |
+| `git status --short` | 0 | empty |
+
+### New Parity Row
+
+| Script / construct | Construct audited | Platform risk found | Fix applied | Verification |
+|---|---|---|---|---|
+| `skills/architect/check-runner.ps1` bash resolution on Windows | config executor `bash`; `ProcessStartInfo.FileName`; evidence header | Bare `bash` can resolve to WSL `bash.exe`, losing Windows PATH and worktree `.git` pointer semantics | FIXED: resolves Git Bash from resolved `git` install root or `$env:ProgramFiles\Git\bin\bash.exe`; missing Git Bash exits 5 with `CHECKRUN: ERROR git-bash not found`; evidence records `executor_resolved:` | `PS_PARSE`: exit 0, `PS_PARSE_OK`; static read-back lines 64, 66, 73, 79-80, 89-91, 100, 103, 200 |
+
+### Verification
+
+PowerShell parse check, using the frozen `ParseFile` command body:
+
+```powershell
+powershell -NoProfile -Command "& { `$bad=0; Get-ChildItem 'skills/architect/*.ps1','install.ps1' | ForEach-Object { `$t=`$null; `$e=`$null; [void][System.Management.Automation.Language.Parser]::ParseFile(`$_.FullName,[ref]`$t,[ref]`$e); if (`$e.Count) { Write-Output (`$_.Name + ' PARSE_ERRORS'); `$bad=1 } }; if (`$bad) { exit 1 }; Write-Output 'PS_PARSE_OK' }"
+```
+
+Exit: 0
+
+```text
+PS_PARSE_OK
+```
+
+Static read-back of the Windows Git Bash resolution branch and evidence header:
+
+```powershell
+$i=0; Get-Content -LiteralPath skills/architect/check-runner.ps1 | ForEach-Object { $i++; if (($i -ge 87 -and $i -le 94) -or ($i -ge 197 -and $i -le 200)) { '{0}: {1}' -f $i,$_ } }
+```
+
+Exit: 0
+
+```text
+87: function ResolveExecutor($Executor) {
+88:     if ($Executor -eq "powershell") { return "powershell" }
+89:     if ((IsWindowsPlatform) -and $Executor -eq "bash") {
+90:         $gitBash = ResolveGitBash
+91:         if (-not $gitBash) { StopRun "git-bash not found" }
+92:         return $gitBash
+93:     }
+94:     return "bash"
+197: [void]$e.Add("check_file: $checkFile  freeze_sha: $freezeSha")
+198: if ($executorHeader) { [void]$e.Add($executorHeader) }
+199: [void]$e.Add("executor_config: $executor")
+200: [void]$e.Add("executor_resolved: $executorResolved")
+```
+
+Static read-back of Git Bash candidates and `ProcessStartInfo.FileName` usage:
+
+```powershell
+rg -n "function ResolveGitBash|Get-Command git|bin.*bash.exe|ProgramFiles|git-bash not found|executor_resolved" skills/architect/check-runner.ps1; rg -n -F '$psi.FileName = $ExecutorResolved' skills/architect/check-runner.ps1
+```
+
+Exit: 0
+
+```text
+64:function ResolveGitBash {
+66:        $gitCommand = @(Get-Command git -CommandType Application -ErrorAction Stop | Select-Object -First 1)[0]
+73:                $candidate = Join-Path -Path (Join-Path -Path $installRoot -ChildPath "bin") -ChildPath "bash.exe"
+79:    if ($env:ProgramFiles) {
+80:        $fallback = Join-Path -Path (Join-Path -Path (Join-Path -Path $env:ProgramFiles -ChildPath "Git") -ChildPath "bin") -ChildPath "bash.exe"
+91:        if (-not $gitBash) { StopRun "git-bash not found" }
+200:[void]$e.Add("executor_resolved: $executorResolved")
+100:        $psi.FileName = $ExecutorResolved
+103:        $psi.FileName = $ExecutorResolved
+```
+
+`skills/architect/check-runner.sh` remains unchanged for this respawn. POSIX `bash` resolution is unambiguous there; the executor branch still invokes `bash -c`:
+
+```powershell
+rg -n -F 'bash -c' skills/architect/check-runner.sh
+```
+
+Exit: 0
+
+```text
+107:      (cd "$workdir" && bash -c "${commands[$i]}") > "$run_out" 2>&1
+```
+
+Git Bash execution was not attempted in this sandbox; prior evidence records Win32 err 5. The orchestrator re-runs real Git Bash checks outside the sandbox at judgment.
+
+STATUS: COMPLETE_WITH_CONCERNS (Git Bash execution not run in sandbox; PowerShell parse and static Windows Git Bash resolution verified)
