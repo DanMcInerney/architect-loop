@@ -121,7 +121,7 @@ Verdict format:
 
 ## Codex judge delegation template
 
-The orchestrator must send this template as-is except for replacing the check file path, freeze SHA, branch, and worktree note. It must not add slice-specific prose, encouragement, summaries, or interpretation.
+The orchestrator must send this template as-is except for replacing the check file path, freeze SHA, branch, worktree note, and checkrun evidence file path. It must not add slice-specific prose, encouragement, summaries, or interpretation.
 
 <!-- architect-codex-judge-template:start -->
 ```text
