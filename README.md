@@ -45,9 +45,27 @@ silence resolves to the non-destructive path, and `docs/STOP` stays absolute.
 Everything else runs without you, and the run ends in a single PR plus a
 digest of what shipped.
 
-The build factory needs a GitHub repo: a remote, `gh auth status` passing,
-and `gh` ≥ 2.94.0 (native sub-issue and blocked-by flags). Missing
-preconditions fail loudly — there is no silent local-tracker fallback.
+The build factory preconditions are per tracker mode. In GitHub mode, it
+needs a GitHub repo: a remote, `gh auth status` passing, and `gh` ≥ 2.94.0
+(native sub-issue and blocked-by flags). In markdown mode, it needs only a
+git repo; `gh` is not required, the remote is optional, and pushes are
+push-if-remote-exists. Missing preconditions fail loudly for the selected
+mode — there is no silent fallback to another tracker.
+
+### GitLab or fully local? markdown mode
+
+Community request: "I have some projects locally or on Gitlab, where Github
+issues are not really feasible for me to be the core backbone of the
+architect loop. I suggest keeping it agnostic."
+
+```ini
+tracker = markdown
+```
+
+Markdown mode keeps the factory in the repo: issues live in `docs/issues/`,
+no `gh` is needed, the remote is optional, and finish means a ready factory
+branch plus a digest and merge instructions instead of a PR.
+Every rule, judge, check, and the status tree work identically.
 
 ## The two patterns
 
@@ -133,8 +151,10 @@ survives unless its URL was actually fetched. One author writes the report.
      updates the plan, issues, and checks.
 5. **Finish.** A docs job consumes the run's documentation debt and codifies
    reusable diagnoses into `docs/solutions/` (read back at the start of
-   every future run). One PR closes the tracking issue; the digest lists
-   what shipped, what was skipped, and the evidence.
+   every future run). GitHub mode opens one PR that closes the tracking
+   issue; markdown mode leaves the factory branch ready and appends the
+   digest and merge instructions to the tracking issue file. The digest
+   lists what shipped, what was skipped, and the evidence.
 
 Hard stops — the factory halts and asks you — include `docs/STOP` (the kill
 switch), irreversible actions, two consecutive killed jobs, scope growing
@@ -159,10 +179,12 @@ watchdog      idle
 ○ READY       status: follow-up
 ```
 
-**GitHub is the memory.** Specs and frozen checks live in git; disagreements,
-blocker answers, verdicts, and the digest live as issue comments. Not in the
-tracker = didn't happen, and any later session can recover the run from
-GitHub alone.
+**The tracker is the memory.** Specs and frozen checks live in git;
+disagreements, blocker answers, verdicts, and the digest live in the
+selected tracker: GitHub issue comments in GitHub mode, or git-tracked
+`docs/issues/` markdown files in markdown mode. Not in the tracker = didn't
+happen, and any later session can recover the run from git plus the selected
+tracker.
 
 **Models.** Zero-config: the orchestrator is whatever session you launched;
 builders are codex-first (GPT-5.5 xhigh when the Codex CLI is installed,
