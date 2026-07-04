@@ -408,6 +408,21 @@ loop-hardening research ([docs/research/loop-improvements.md](docs/research/loop
 - **Everything lands on `factory/<run>`; main stays untouched until one
   closing PR.** The PR body closes the tracking issue and lists every shipped issue;
   each closed issue gets a back-link comment naming the PR.
+- **Tracker-agnostic coordination uses the pinned TSV line protocol.** The
+  community request recorded in
+  [docs/spec/tracker-markdown.md](docs/spec/tracker-markdown.md) asks for
+  projects "locally or on Gitlab" where GitHub issues are not feasible, and
+  asks to keep the loop agnostic. The seam is the existing
+  `TRACK`/`SUB`/`NOOPENRUN` TSV line protocol, not an abstract adapter layer:
+  each tracker emits the same lines, and status rendering, phase derivation,
+  and downstream logic stay single-implementation. File-based markdown was
+  chosen for the second tracker because `docs/issues/` is git-tracked, has
+  zero runtime dependencies, works fully local, and preserves the same audit
+  trail through orchestrator-executed issue mutations. This follows the
+  pinned-jq lesson in
+  [docs/jobs/status-scripts-rulings.md](docs/jobs/status-scripts-rulings.md):
+  duplicated graph logic failed repeatedly until one pinned emitter produced
+  the line protocol consumed by both status scripts.
 - **Docs debt batches into one dedicated job at the PR boundary (P7).**
   Product docs (README, DESIGN) are the highest-contention files in the
   repo and evidence rows need post-judgment information, so build jobs and

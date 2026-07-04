@@ -43,9 +43,11 @@ Glossary only. No implementation details, no spec content.
 
 ## Control & Memory
 
-- **Tracker** - GitHub issues are the coordination state: claims are
-  assignments, progress and verdicts are comments, the tracking issue carries
-  the digest. "Not in the tracker = didn't happen."
+- **Tracker** - the selected coordination state. GitHub mode uses GitHub
+  issues; markdown mode uses git-tracked `docs/issues/` markdown files. Both
+  modes have the same semantics: claims are assignments, progress and
+  verdicts are comments, the tracking issue carries the digest, and all
+  mutations are orchestrator-executed. "Not in the tracker = didn't happen."
 - **Status tree** - a read-only render over run artifacts and the tracker;
   never a new state store.
 - **Spec approval** - the one human step: review one spec document, edit or
@@ -66,9 +68,11 @@ Glossary only. No implementation details, no spec content.
   PASS/FAIL/INVALID, checks integrity, diff-vs-intent, and the slice call.
 - **Canary** - the preflight spawn that proves a builder backend actually has
   working tools before the decomposition records it.
-- **Dispatch rules** - optional `when -> cli/model:effort - why` lines in
-  `.architect/config` that route task classes to builder tiers; absent file =
-  tier-down default.
+- **Config vocabulary** - flat `.architect/config` keys include
+  `tracker = github | markdown`, `orchestrator = cli/model`,
+  `builders = cli/model:effort`, and optional
+  `when -> cli/model:effort - why` dispatch rules. Absent `tracker =` means
+  GitHub mode; absent builder routing means tier-down default.
 - **Post-flight** - the orchestrator's mechanical checks on a completed job
   (boundaries, check-file integrity, raw-only report, status-line form) before
   integration. Distinct from judgment.

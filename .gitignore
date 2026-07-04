@@ -6,6 +6,7 @@ Thumbs.db
 /docs/*
 !/docs/checks/
 !/docs/jobs/
+!/docs/issues/
 !/docs/gates/
 !/docs/lanes/
 !/docs/spec/
