@@ -333,6 +333,41 @@ prose, fenced run blocks were rejected for authoring churn and for separating
 the command from its inline expected outcome, and explicit `- RUN:` markers
 were chosen.
 
+#### Orchestrator mechanics offload (2026-07-04)
+
+Run #62 measured the motivation: every dispatch cost about 4-5 orchestrator
+calls (claim, worktree add, HEAD-vs-freeze verify, frozen-file spot-check, and
+block assembly), every merge cost another 4+ calls (merge, push, worktree
+remove, and branch delete), and the touch-set audit was still informal. These
+are deterministic mechanics; the orchestrator needs to verify their facts, not
+spend judgment context replaying them.
+
+The pattern is now a typed-exit script family: watchdog → check-runner →
+preflight/postflight. The watchdog reports liveness facts, the check-runner
+records frozen RUN evidence, dispatch preflight creates and verifies the
+worktree and frozen inputs, and merge postflight performs the touch-set audit,
+merge, optional push, and cleanup. Each script emits typed evidence; the
+orchestrator keeps judgment, blocker answers, and merge decisions.
+
+The interface design-it-twice record rejected positional arguments and env vars
+in favor of one config JSON path: positional args had six-plus parameters,
+Windows quoting hazards, and no sibling consistency, while env vars hid state
+and diverged between PowerShell 5.1 and bash. The full record lives in the
+[orchestrator-scripts design section](docs/spec/orchestrator-scripts.md#design).
+
+Run #68 was the first live use of the runner-fed judge path shipped in #62/PR
+#67. Its first execution produced a D3-conformant evidence file but
+quote-mangled every RUN command with quoted multi-word arguments because child
+PowerShell `-Command` stripped quotes; the preserved defect evidence is
+[docs/jobs/os-wiring-checkrun.md](docs/jobs/os-wiring-checkrun.md). The defect
+was fixed in-run by the human-approved D5 amendment (#73), then validated
+through the same path it repairs: the fixed runner executed its own frozen
+acceptance checks and three subsequent evidence-consuming judgments (#73, #69,
+#71), all grading committed evidence with spot-check re-runs. The judge
+tree-audit guard also caught an orchestrator orphan-race snapshot commit
+(judgment #2 on #71, INVALID), which shows the honesty guards catch defects in
+both directions.
+
 - **Nobody grades their own work.** The builder reports evidence; a fresh
   orchestrator-tier judge runs the frozen checks itself (builder claims are
   hearsay) and returns per-check **PASS / FAIL / INVALID** — INVALID meaning

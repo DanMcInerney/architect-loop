@@ -127,6 +127,11 @@ survives unless its URL was actually fetched. One author writes the report.
 4. **The factory loop.** The orchestrator dispatches every ready issue (≤5
    builders, one issue each, own git worktree, no commit rights) and sleeps
    until an event:
+   - **Dispatch and merge mechanics are scripted.** Dispatch preflight creates
+     and verifies the worktree and frozen inputs; merge postflight runs the
+     touch-set audit, merge, optional push, and cleanup. Both are deterministic
+     typed-exit scripts, so the orchestrator reasons over one factual line
+     instead of replaying the mechanics by hand.
    - **Builders must argue first.** Before coding, each builder states its
      plan and every disagreement with the spec, citing real files — silent
      compliance is a defect. Each ruling gets an explicit accept/reject.
