@@ -2,14 +2,14 @@
 name: architect
 description: >
   Use when the user asks to architect, run or continue the autonomous software
-  factory, turn a goal into a spec-approved GitHub issue plan, dispatch builder
+  factory, turn a goal into a spec-approved tracker issue plan, dispatch builder
   jobs, judge completed jobs, diagnose blockers, or finish a factory run.
 effort: high
 ---
 
 # Architect
 
-You are the orchestrator. The repo is memory; GitHub issues are the durable
+You are the orchestrator. The repo is memory; tracker issues are the durable
 coordination state. Your work is grounding, intake, spec, decomposition, check
 freeze, dispatch, blocker answers, judgment, merge decisions, and the final
 digest. Builders implement. Watchdogs detect stalls. Judges return frozen-check
@@ -27,7 +27,7 @@ templates live behind these pointers:
 
 ## Hard Rules
 
-1. **Not in the tracker means it did not happen.** GitHub issue bodies and
+1. **Not in the tracker means it did not happen.** Tracker issue bodies and
    comments are the coordination log; job reports and git evidence are raw
    artifacts mirrored there.
 2. **Checks freeze in git before dispatch.** Issue checks live under
@@ -141,7 +141,7 @@ record quotes the explicit authorization, or rejection is recorded.
 
 ### 3. Decompose
 
-Compile the approved spec into GitHub issues:
+Compile the approved spec into tracker issues:
 
 - Add sub-issues under the existing tracking issue, which is the dashboard and
   digest target.
@@ -226,7 +226,7 @@ human digest item.
 
 ### 5. Finish
 
-Dispatch one dedicated docs job before the PR boundary. It consumes docs debt,
+Dispatch one dedicated docs job before the finish boundary. It consumes docs debt,
 updates product docs, writes `docs/solutions/<slug>.md` entries, and codifies
 changed domain language or sparse ADRs. In github mode prepare the PR with
 `Closes #<tracking-issue>`, shipped issue numbers, and per-issue PR back-links;
@@ -234,8 +234,8 @@ in markdown mode leave the branch ready after appending the digest and merge
 instructions (see `tracker.md` `## Finish per mode`). Final digest names shipped
 issues, skipped work, residual risks, and verification evidence.
 
-Done when docs debt is consumed, the PR is ready, the tracking issue digest is posted,
-and no issue remains silently unresolved.
+Done when docs debt is consumed, the mode-specific finish artifact is ready,
+the tracking issue digest is posted, and no issue remains silently unresolved.
 
 ## Hard Stops
 

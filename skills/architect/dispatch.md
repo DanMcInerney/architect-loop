@@ -141,7 +141,7 @@ modification during judgment means the verdict is discarded INVALID.
 
 Sanctioned substitutions, recorded per check: Git Bash CreateFileMapping Win32
 error 5 -> PowerShell same-pattern; uv AppData cache denial -> run with
-`UV_CACHE_DIR=.architect/tmp/uv-cache`; gh unavailable -> report
+`UV_CACHE_DIR=.architect/tmp/uv-cache`; tracker posting unavailable -> report
 `MIRROR: ORCHESTRATOR`.
 
 Intent context pointers: frozen check file above; spec pointer named by the
@@ -302,7 +302,7 @@ gh issue comment <tracking-issue-n> --body "DIGEST: <batched escalations + run s
 ```
 
 Cadence and size hold regardless of author: comments land at least 1 minute
-apart, each under 65,000 characters, and never one per commit (GitHub
+apart, each under 65,000 characters, and never one per commit (host-side
 secondary rate limits). A running builder does NOT re-read issue comments
 mid-job — the issue is the durable log, not a channel the builder polls; an
 answer reaches the builder only through a fresh respawn's spawn context (see
@@ -341,7 +341,7 @@ background process whose exit wakes the loop.
 
 ## Status display
 
-`skills/architect/status.ps1` (Windows) and `skills/architect/status.sh` (POSIX) read only run artifacts plus `gh`.
+`skills/architect/status.ps1` (Windows) and `skills/architect/status.sh` (POSIX) read only run artifacts plus tracker state.
 Piped output is plain text by design; callers print it verbatim instead of hand-composing status.
 
 <!-- architect-monitor-fallback-template:start -->
@@ -401,7 +401,7 @@ everything else.
 |---|---|---|
 | Git Bash CreateFileMapping Win32 error 5 in Codex Windows sandbox | PowerShell + native git same-pattern, recorded per check | `docs/research/factory-hardening-evidence.md` |
 | `uv` AppData cache denial (os error 5) | `UV_CACHE_DIR=.architect/tmp/uv-cache`, recorded | `docs/solutions/uv-cache-sandbox-redirect.md` |
-| `gh` unavailable in sandbox | `MIRROR: ORCHESTRATOR` in the report | `docs/solutions/subagent-shell-strip-codex-fallback.md` |
+| Tracker posting unavailable in sandbox | `MIRROR: ORCHESTRATOR` in the report | `docs/solutions/subagent-shell-strip-codex-fallback.md` |
 
 ## Orchestrator shell hygiene
 
@@ -561,7 +561,7 @@ When done, write your job report to docs/jobs/<issue-slug>-01.md with RAW
 results only - tables, numbers, command output - no interpretation, no
 "promising". Every status claim must be backed by a command result from this
 run. Keep the report compact. Mirror your final STATUS line as a comment on
-your issue when `gh` is available; when it is not, write
+your issue when tracker posting is available; when it is not, write
 "MIRROR: ORCHESTRATOR" in the report instead and continue. End the report
 with exactly one status line:
 STATUS: COMPLETE | COMPLETE_WITH_CONCERNS (list them) | BLOCKED (exact blocker + what you tried).
