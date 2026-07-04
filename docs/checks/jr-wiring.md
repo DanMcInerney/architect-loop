@@ -20,6 +20,9 @@ commits (reports under `docs/jobs/`, rulings) exempt from touch-set checks.
 
 - RUN: `git grep -c "checkrun" -- skills/architect/dispatch.md` → ≥ 3
 - RUN: `git grep -c "re-run at least one RUN command" -- skills/architect/dispatch.md` → 2 (once inside each judge template's marker block)
+- RUN: `git grep -c "Source: evidence-file" -- skills/architect/dispatch.md` → 2 (per-check verdict lines in both templates)
+- RUN: `git grep -c "never FAIL" -- skills/architect/dispatch.md` → 2 (missing/stale evidence → INVALID, in both templates)
+- RUN: `git grep -c "evidence_out" -- skills/architect/dispatch.md` → ≥ 1 (config contract verbatim)
 - RUN: `git grep -c "architect-judge-template:start" -- skills/architect/dispatch.md` → 1 (markers intact)
 - RUN: `git grep -c "architect-codex-judge-template:start" -- skills/architect/dispatch.md` → 1 (markers intact)
 
@@ -45,4 +48,7 @@ commits (reports under `docs/jobs/`, rulings) exempt from touch-set checks.
   judge's grade-plus-spot-check duty; (b) loop.md's On-DONE ordering: runner
   config written → check-runner launched → evidence committed → judge
   dispatched with the evidence path; (c) the stress-test template's grill
-  clause. Each must match the spec's D4/D5 intent, not merely contain keywords.
+  clause; (d) SKILL.md step 4's updated On-DONE sentence; (e) the
+  `## Check-runner dispatch` section sits between the judge templates and the
+  stress-test template. Each must match the spec's D4/D5 intent, not merely
+  contain keywords.

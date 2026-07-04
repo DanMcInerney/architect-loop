@@ -24,9 +24,15 @@ touch-set checks.
 
 - RUN: `$env:UV_CACHE_DIR='.architect/tmp/uv-cache-jr'; uv run --no-project python -c "import ast; ast.parse(open('tests/validate_skills.py').read()); print('V3_OK')"` → `V3_OK`
 
-## V4 — falsifiability of the new contract (negative test)
+## V4 — falsifiability of the new contract (negative test, judge-executed)
 
-- RUN: `$env:UV_CACHE_DIR='.architect/tmp/uv-cache-jr'; uv run --no-project python -c "import sys,subprocess,shutil,os; shutil.copy('skills/architect/check-runner.ps1','.architect/tmp/cr-backup.ps1'); os.remove('skills/architect/check-runner.ps1'); r=subprocess.run([sys.executable,'tests/validate_skills.py'],capture_output=True); shutil.copy('.architect/tmp/cr-backup.ps1','skills/architect/check-runner.ps1'); print('V4_OK' if r.returncode!=0 else 'V4_VACUOUS')"` → `V4_OK` (validator actually fails when a runner script is missing; file restored after)
+Judge-executed sequence with mandatory restore — run these four steps in
+order and paste the full transcript; the mutation is temporary by contract:
+
+1. `Move-Item skills/architect/check-runner.ps1 .architect/tmp/cr-bak.ps1`
+2. `$env:UV_CACHE_DIR='.architect/tmp/uv-cache-jr'; uv run --no-project python tests/validate_skills.py; $LASTEXITCODE` → nonzero exit AND an error naming the missing runner script (green here = V4 VACUOUS = FAIL)
+3. `Move-Item .architect/tmp/cr-bak.ps1 skills/architect/check-runner.ps1` (MANDATORY, run even if step 2 errored unexpectedly)
+4. `git status --porcelain skills/architect/` → empty (tree restored; a non-empty result is an automatic INVALID until restored)
 
 ## V5 — judge-only
 

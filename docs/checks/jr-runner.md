@@ -25,6 +25,9 @@ from touch-set checks.
 - RUN: `(Select-String -Path .architect/tmp/checkrun-fixture-ps.md -Pattern '^exit: 3').Count` → 1
 - RUN: `(Select-String -Path .architect/tmp/checkrun-fixture-ps.md -Pattern 'truncated').Count` → ≥ 1
 - RUN: `(Select-String -Path .architect/tmp/checkrun-fixture-ps.md -Pattern 'check_file_matches_freeze=true').Count` → 1
+- RUN: `(Select-String -Path .architect/tmp/checkrun-fixture-ps.md -Pattern '^# Checkrun: ').Count` → 1 (D3 header shape)
+- RUN: `(Select-String -Path .architect/tmp/checkrun-fixture-ps.md -Pattern '^\$ ').Count` → 3 (one command block per RUN item)
+- RUN: `(Select-String -Path .architect/tmp/checkrun-fixture-ps.md -Pattern 'docs_checks_touched=').Count` → 1
 - RUN: `Test-Path tests/fixtures/checkrun/TRAP.txt` → False (the fixture's
   markerless backtick span must never execute)
 
@@ -41,7 +44,15 @@ from touch-set checks.
 - RUN: `powershell -NoProfile -File skills/architect/check-runner.ps1 -Config tests/fixtures/checkrun/config-missing.json; $LASTEXITCODE` → stdout contains `CHECKRUN: ERROR`, last line `5`
 - RUN: `Test-Path .architect/tmp/checkrun-missing.md` → False
 
-## CR5 — judge-only
+## CR5 — non-grading and PS 5.1 discipline
+
+- RUN: `git grep -cE "PASS|FAIL|INVALID" -- skills/architect/check-runner.ps1` → no stdout, exits 1 (the runner grades nothing)
+- RUN: `git grep -cE "PASS|FAIL|INVALID" -- skills/architect/check-runner.sh` → no stdout, exits 1
+- RUN: `git grep -c "&&" -- skills/architect/check-runner.ps1` → no stdout, exits 1 (PS 5.1: no pipeline chains)
+
+## CR6 — judge-only
 
 - Quote, file:line, the runner's evidence-write logic showing temp-write-then-move
   (no partial evidence file on failure), in both scripts.
+- Quote, file:line, where the ps1 avoids ternary/null-coalescing operators
+  (PS 5.1) and where reads are encoding-aware.

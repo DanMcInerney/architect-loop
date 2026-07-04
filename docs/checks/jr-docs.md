@@ -15,7 +15,7 @@ touch-set checks.
 ## D2 — DESIGN.md records the evidence
 
 - RUN: `git grep -c "check-runner" -- DESIGN.md` → ≥ 2
-- RUN: `git grep -c "135" -- DESIGN.md` → ≥ 1 (the measured mechanical-item count that motivated the split)
+- RUN: `git grep -c "135 mechanical" -- DESIGN.md` → ≥ 1 (the exact phrase; the measured count that motivated the split)
 
 ## D3 — solutions debt consumed
 
@@ -31,3 +31,5 @@ touch-set checks.
 - Quote, file:line, the DESIGN.md paragraph recording why the runner is a
   script and not an LLM (the no-fabricated-exit-codes rationale) and the D12
   consequence (shell checks no longer force cross-family judges).
+- Verify README's check-runner mention sits inside the judging-flow
+  description, not an unrelated section; quote the surrounding sentence.
