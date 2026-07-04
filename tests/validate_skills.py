@@ -371,6 +371,9 @@ def check_skill_text_size() -> None:
             errors.append(f"{path.relative_to(ROOT)}: missing (required for skill-text size guard)")
             continue
         total += sum(1 for line in read_text(path).splitlines() if line.strip())
+    # Issue #71 ruling 2026-07-04: typed-exit script config contracts in
+    # dispatch.md are load-bearing dispatch mechanics; SKILL+loop+dispatch is
+    # legitimately ~848 lines after run #68 wiring, so the guard is 900.
     if total > 900:
         errors.append(
             f"skills/architect: combined non-blank line count {total} exceeds "
