@@ -40,8 +40,10 @@ tolerated.
 
 - `root2/`: `.architect/config` with tracker = markdown, EMPTY `docs/issues/`
   dir, no artifacts → output contains `NO ACTIVE FACTORY RUN`, exit 0.
-- `root3/`: same but all issues CLOSED → `tracker: no open run` (or the
-  NO ACTIVE form when no artifacts — match gh-mode semantics; state which).
+- `root3/`: same config, issues 007/008 present but BOTH `state: CLOSED`,
+  NO `.architect/wt/` artifacts, no other files → exact expectation per the
+  gh-mode semantics table (tracker reachable, no open candidate, no
+  artifacts): output contains `NO ACTIVE FACTORY RUN`, exit 0.
 
 ## TS4 — gh-mode regression
 

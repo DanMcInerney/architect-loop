@@ -34,9 +34,12 @@ PASS: TOTAL ≤ 800 (was exactly 800 at freeze).
 
 ## TK4 — nothing lost
 
-- Pointer integrity: every `dispatch.md section` / `loop.md section` /
-  `tracker.md section` pointer named in SKILL.md resolves — list each with
-  heading grep count 1.
+- Pointer integrity: every `dispatch.md section` / `loop.md section` pointer
+  named in SKILL.md resolves — list each with heading grep count 1. For
+  `tracker.md` pointers, verify the pointer TEXT names exactly the
+  spec-pinned headings (`## Preflight per mode`, `## Finish per mode`,
+  `## Command mapping`) — resolution against the sibling-built file is a
+  composite check, not yours.
 - The nine Hard Rules headings/numbers survive; Finish still requires the
   digest and per-issue back-links in github mode — quote the Finish
   sentences.

@@ -26,17 +26,22 @@ Executor: PowerShell primary; native `git.exe` fine. `uv` uses fresh cache
 - Non-blank line count ≤ 130:
   `(Get-Content skills/architect/tracker.md | Where-Object { $_.Trim() }).Count` → ≤ 130
 
-## TA2 — command mapping covers the conventions
+## TA2 — command mapping covers the operations
 
-For each gh command form present in dispatch.md `## Issue conventions`
-(`gh issue create`, `gh issue comment`, `gh issue edit`, close), quote the
-tracker.md mapping row that covers it — file:line, verbatim.
+For each tracker OPERATION pinned in the spec's Command-mapping contract —
+create, comment, close, parent/blocked-by edges, claim — quote the
+tracker.md mapping row that covers it, file:line, verbatim. (dispatch.md's
+literal command list contains only the edit/comment forms; the mapping is
+operation-level, from the spec.)
 
 ## TA3 — validator contract
 
 - `(Select-String -Path tests/validate_skills.py -Pattern '"tracker.md"').Count` → ≥ 1 (REQUIRED_SIBLINGS)
 - `(Select-String -Path tests/validate_skills.py -Pattern 'check_tracker_contract').Count` → ≥ 2 (definition + call)
-- `(Select-String -Path tests/validate_skills.py -Pattern 'tracker\s*=|TRACKER_CONFIG_RE').Count` → ≥ 1 (config-example grammar accepts the key)
+- Direct grammar behavior (the regex is NAMED `TRACKER_CONFIG_RE` per the
+  issue; it must accept an optional trailing `# comment`):
+  `$env:UV_CACHE_DIR='.architect/tmp/uv-cache-m'; uv run --no-project python -c "import sys; sys.path.insert(0,'tests'); import validate_skills as v; print(bool(v.TRACKER_CONFIG_RE.fullmatch('tracker = markdown'))); print(bool(v.TRACKER_CONFIG_RE.fullmatch('tracker = markdown # local projects'))); print(bool(v.TRACKER_CONFIG_RE.fullmatch('tracker = jira')))"`
+  → `True`, `True`, `False`
 - Syntax: `$env:UV_CACHE_DIR='.architect/tmp/uv-cache-m'; uv run --no-project python -c "import ast; ast.parse(open('tests/validate_skills.py').read()); print('TA3_OK')"` → `TA3_OK`
 
 ## TA4 — gitignore allow
