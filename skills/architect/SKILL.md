@@ -148,8 +148,8 @@ Compile the approved spec into tracker issues:
   parent plus blocked-by edges.
 - Checks per issue live in `docs/checks/` and freeze in git before dispatch.
 - Dispatch has hard-stop preconditions, in order: freeze committed on the
-  factory branch; factory branch pushed; after each spawn, verify the worktree
-  HEAD equals the freeze commit and spot-check one frozen file exists on disk.
+  factory branch; factory branch pushed; `preflight.ps1`/`preflight.sh`
+  executes worktree creation, freeze-verify, and frozen-file spot-check.
   Builders still perform FIRST-ACTION input verification as the last defense.
 - Run one fresh read-only stress-test pass over the whole decomposition, not per
   issue. It attacks the plan, checks, file-touch sets, dependency edges,
@@ -198,7 +198,8 @@ Use `loop.md` `## Factory block procedure` for the detailed event loop.
 - On human status requests ("status", "how's it going", or equivalent), run
   `skills/architect/status.ps1` on Windows or `skills/architect/status.sh` on POSIX, print its output verbatim in a fenced code block, answer in prose, and never hand-compose the tree.
 - On DONE, write the runner config, launch the check-runner in the background, let its exit wake the loop, commit the checkrun evidence file, then send a fresh, independent orchestrator-tier judge with the evidence path.
-  Merge only after a passing verdict and clean touch-set evidence.
+  Merge through postflight only after a passing verdict; `POSTFLIGHT: OK` exit
+  0 is the clean touch-set evidence.
 - On BLOCKED, answer on the issue, cite durable evidence, and respawn a fresh
   builder with the answer using `dispatch.md` `## Respawn-with-answer template`.
 - Post-freeze rulings live append-only in

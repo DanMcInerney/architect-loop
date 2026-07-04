@@ -255,14 +255,73 @@ A worktree's `.git` is a pointer file and the resolved git dir is
 sandbox-protected too. Builders cannot commit or touch shared history from any
 job; nothing reaches a branch until orchestrator checks pass.
 
+## Preflight and postflight dispatch
+
+Default dispatch and integration are script-backed. The orchestrator writes one
+config JSON, runs the platform script, and rules on the typed line.
+
+Preflight worktree creation is the Codex-backend path only. Claude-backend jobs
+never pre-create worktrees; use the harness-created worktree and branch from
+the Per-harness delegation table instead.
+
+preflight config JSON:
+
+```json
+{
+  "repo_root": "<abs path>",
+  "freeze_sha": "<sha>",
+  "worktree": ".architect/wt/<slug>-<NN>",
+  "job_branch": "job/<slug>-<NN>",
+  "require_files": ["docs/checks/<slug>.md"]
+}
+```
+
+postflight config JSON:
+
+```json
+{
+  "repo_root": "<abs path>",
+  "factory_branch": "factory/<run>",
+  "job_branch": "job/<slug>-<NN>",
+  "freeze_sha": "<sha>",
+  "may_touch": ["skills/architect/preflight.ps1", "tests/fixtures/orchscripts/"],
+  "exempt": ["docs/jobs/"],
+  "merge_message": "<text>",
+  "push": false,
+  "remote": "origin",
+  "worktree": ".architect/wt/<slug>-<NN>"
+}
+```
+
+Typed exits:
+
+| Script | Exit | Prefix | Meaning |
+|---|---:|---|---|
+| preflight | 0 | `PREFLIGHT: OK` | worktree exists, HEAD equals `freeze_sha`, and every `require_files` path exists |
+| preflight | 5 | `PREFLIGHT: FAIL` | setup could not complete; record the line and fall back to the recorded manual sequence |
+| postflight | 0 | `POSTFLIGHT: OK` | touch-set audit, merge, optional push, and cleanup completed |
+| postflight | 2 | `POSTFLIGHT: VIOLATION` | automatic FAIL evidence for the job; do not merge |
+| postflight | 3 | `POSTFLIGHT: CONFLICT` | decomposition failure: kill the conflicting job and re-spec, per the existing rule |
+| postflight | 5 | `POSTFLIGHT: ERROR` | script/config/git error; abort partial merge state, then fall back to the recorded manual sequence |
+
+The scripts never post to the tracker, never grade, and never resolve
+conflicts. A postflight exit 5 is the only typed path that routes to the
+manual integration fallback below; exit 2 and exit 3 are rulings, not fallback
+requests.
+
 ## Integration commands
 
-Integration is architect-only, after per-job post-flight passes. The
-`.architect/wt/<slice>-<NN>` paths below are Codex-backend only. For
-Claude-backend jobs, skip `worktree add`/`worktree remove`; commit inside
-the harness's auto-created worktree, then
+Integration is architect-only, after per-job postflight passes. The default
+path is `postflight.ps1` or `postflight.sh` from `## Preflight and postflight
+dispatch`; it performs the touch-set audit, merge, optional push, and cleanup
+from the config. The manual sequence below is the recorded fallback for exit 5
+or an environment where the script cannot run. The `.architect/wt/<slice>-<NN>`
+paths below are Codex-backend only. For Claude-backend jobs, skip `worktree
+add`/`worktree remove`; commit inside the harness's auto-created worktree, then
 `git -C <repo-root> merge --no-ff <agent-worktree-branch>` from the agent
-worktree's branch:
+worktree's branch.
+
+Recorded fallback manual sequence:
 
 ```bash
 git -C <repo-root> checkout -b slice/<name> <freeze-sha>
