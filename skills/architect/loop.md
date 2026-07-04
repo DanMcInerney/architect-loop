@@ -16,7 +16,7 @@ Parallel rules: judges dispatch immediately and run concurrently for every DONE,
    no polling.
 3. **Wake on one event**, exactly one of:
    - **Job DONE.** Ordering: write the runner config; launch `check-runner.ps1`
-     or `check-runner.sh` as a background process whose exit is the next wake; commit the checkrun artifact `docs/jobs/<issue-slug>-checkrun.md`; then send the fixed judge template from `dispatch.md` to one fresh judge subagent with the evidence path. Record the verdict in an issue comment (see Verdict comments); merge on PASS, diagnose on FAIL (see Failure ladder).
+     or `check-runner.sh` as a background process whose exit is the next wake; commit the checkrun artifact `docs/jobs/<issue-slug>-checkrun.md`; then send the fixed judge template from `dispatch.md` to one fresh judge subagent with the evidence path. Record the verdict in an issue comment (see Verdict comments). On PASS, run `postflight.ps1` or `postflight.sh`: exit 0 `POSTFLIGHT: OK` means merge completed with clean touch-set evidence; exit 2 `POSTFLIGHT: VIOLATION` is automatic FAIL evidence for the job; exit 3 `POSTFLIGHT: CONFLICT` is the merge-conflict decomposition-failure rail; exit 5 `POSTFLIGHT: ERROR` falls back to the recorded manual integration sequence in `dispatch.md`. On FAIL, diagnose (see Failure ladder).
    - **Job BLOCKED.** A blocker comment on the issue is a completion event.
      Read it, rule an answer, and respawn a fresh builder job on the same
      issue with the answer in its spawn context (see `dispatch.md`
@@ -77,9 +77,9 @@ The tier is set once, at decomposition (config plus dispatch rules), and
 never changes because a job failed; a failure is a spec or context problem
 the orchestrator fixes, never a signal to move the tier. Second FAIL on the same
 issue after an orchestrator intervention: re-decompose the issue or escalate it to
-the digest. A merge conflict is a decomposition failure, not a build
-failure: kill the conflicting job and re-spec; never hand-resolve builder
-conflicts.
+the digest. A merge conflict, including postflight exit 3, is a decomposition
+failure, not a build failure: kill the conflicting job and re-spec; never
+hand-resolve builder conflicts.
 
 ## Escalation digest
 
@@ -99,7 +99,7 @@ immediate stop.
 | `docs/STOP` exists | Stop before dispatching the next wave. |
 | No verdict comment for completed work | Do not build on it as accepted. |
 | Builder touched `docs/checks/` | Automatic FAIL for that job. |
-| Merge conflict | Decomposition failure: kill the job, re-spec. |
+| Merge conflict or postflight exit 3 | Decomposition failure: kill the job, re-spec. |
 | Second FAIL on the same issue | Re-decompose or escalate to the digest. |
 | Two consecutive KILLs | Stop the factory and ask the human. |
 | Monitor reports an anomaly | Orchestrator rules before any further dispatch on that job. |

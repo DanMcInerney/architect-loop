@@ -42,11 +42,26 @@ function QuoteArg($Text) {
     return $r + '"'
 }
 
+function EncodePowerShellCommand($Text) {
+    return [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($Text))
+}
+
+function BuildPowerShellInvocation($Command) {
+    $encodedRunCommand = EncodePowerShellCommand $Command
+    $wrapper = @"
+`$ProgressPreference = 'SilentlyContinue'
+`$__checkrunCommand = [System.Text.Encoding]::Unicode.GetString([System.Convert]::FromBase64String('$encodedRunCommand'))
+Invoke-Expression `$__checkrunCommand
+if (`$global:LASTEXITCODE -ne `$null) { exit `$global:LASTEXITCODE }
+"@
+    return EncodePowerShellCommand $wrapper
+}
+
 function CaptureCommand($Executor, $Command, $Workdir) {
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     if ($Executor -eq "powershell") {
         $psi.FileName = "powershell"
-        $psi.Arguments = "-NoProfile -Command " + $Command + '; if ($global:LASTEXITCODE -ne $null) { exit $global:LASTEXITCODE }'
+        $psi.Arguments = "-NoProfile -EncodedCommand " + (BuildPowerShellInvocation $Command)
     } else {
         $psi.FileName = "bash"
         $psi.Arguments = "-c " + (QuoteArg $Command)

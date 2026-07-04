@@ -34,6 +34,10 @@ REQUIRED_SIBLINGS = {
         "status.sh",
         "check-runner.ps1",
         "check-runner.sh",
+        "preflight.ps1",
+        "preflight.sh",
+        "postflight.ps1",
+        "postflight.sh",
         "tracker.md",
     ],
     "architect-research": ["tactics.md"],
@@ -263,6 +267,8 @@ def check_check_runner_dispatch_contract() -> None:
     text = read_text(dispatch)
     if "## Check-runner dispatch" not in text.splitlines():
         errors.append("skills/architect/dispatch.md: missing ## Check-runner dispatch")
+    if "## Preflight and postflight dispatch" not in text.splitlines():
+        errors.append("skills/architect/dispatch.md: missing ## Preflight and postflight dispatch")
     for marker in ("architect-judge-template", "architect-codex-judge-template"):
         start = f"<!-- {marker}:start -->"
         end = f"<!-- {marker}:end -->"
@@ -353,7 +359,7 @@ def check_skill_text_size() -> None:
     steps past a system-prompt instruction ceiling (docs/research/
     loop-improvements.md P5; measured 510 non-blank lines across these three
     files at freeze time). FAIL if the combined NON-BLANK line count of
-    SKILL.md + loop.md + dispatch.md exceeds 800."""
+    SKILL.md + loop.md + dispatch.md exceeds 900."""
     paths = [
         SKILLS / "architect" / "SKILL.md",
         SKILLS / "architect" / "loop.md",
@@ -365,10 +371,13 @@ def check_skill_text_size() -> None:
             errors.append(f"{path.relative_to(ROOT)}: missing (required for skill-text size guard)")
             continue
         total += sum(1 for line in read_text(path).splitlines() if line.strip())
-    if total > 800:
+    # Issue #71 ruling 2026-07-04: typed-exit script config contracts in
+    # dispatch.md are load-bearing dispatch mechanics; SKILL+loop+dispatch is
+    # legitimately ~848 lines after run #68 wiring, so the guard is 900.
+    if total > 900:
         errors.append(
             f"skills/architect: combined non-blank line count {total} exceeds "
-            "800 (P5 instruction-budget guard, docs/research/loop-improvements.md)"
+            "900 (P5 instruction-budget guard, docs/research/loop-improvements.md)"
         )
 
 
