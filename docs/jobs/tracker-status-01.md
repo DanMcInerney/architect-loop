@@ -271,4 +271,157 @@ git status --short
 ?? docs/jobs/tracker-status-01.md
 ```
 
+## Respawn session
+
+### Change
+
+Restored the seven literal UTF-8 phase glyphs in `skills/architect/status.sh`:
+`✓`, `◐`, `!`, `▣`, `●`, `⊘`, `○`. No logic changes were made.
+
+### SS1 UTF8 RERUN Output
+
+```text
+SS1 UTF8 RERUN
+True
+True
+status.sh MERGED literal=True
+status.ps1 MERGED marker=True
+status.sh JUDGING literal=True
+status.ps1 JUDGING marker=True
+status.sh BLOCKED literal=True
+status.ps1 BLOCKED marker=True
+status.sh REPORTED literal=True
+status.ps1 REPORTED marker=True
+status.sh BUILDING literal=True
+status.ps1 BUILDING marker=True
+status.sh QUEUED literal=True
+status.ps1 QUEUED marker=True
+status.sh READY literal=True
+status.ps1 READY marker=True
+1
+1
+#!/usr/bin/env bash
+```
+
+### SS2-SS5 Output
+
+```text
+SS2
+SS2_OK
+SS3 FIXTURE CREATE
+root1/.architect/wt/demo-blocked-01/docs/jobs/demo-blocked-01.md
+root1/.architect/wt/demo-build-01.events.jsonl
+root1/.architect/wt/demo-judge-01.judge.md
+root1/.architect/wt/demo-judge-01/docs/jobs/demo-judge-01.md
+root1/.architect/wt/demo-rep-01/docs/jobs/demo-rep-01.md
+root1/docs/spec/demo.md
+SS3 ROOT1
+STATUS TREE spec: demo.md branch: unknown
+tracker: unavailable (local view)
+ORCHESTRATOR: local view
+WATCHDOG: process=False config=0
+! demo-blocked .architect/wt/demo-blocked-01
+● demo-build .architect/wt/demo-build-01
+    last: pytest -q age: unknown
+◐ demo-judge .architect/wt/demo-judge-01
+▣ demo-rep .architect/wt/demo-rep-01
+SS3 ROOT2
+NO ACTIVE FACTORY RUN
+spec: unknown
+SS4
+False
+SS5
+2
+4
+2
+SS5_OK
+```
+
+### SS6 And Validator Output
+
+```text
+SS6
+SS EXTRA VALIDATOR
+OK - 2 skills validated, v4 contracts clean
+```
+
+### TS1-TS3 Output
+
+```text
+TS1
+root1/.architect/config
+root1/docs/issues/003-old-run.md
+root1/docs/issues/004-old-child.md
+root1/docs/issues/007-current-run.md
+root1/docs/issues/008-done-job.md
+root1/docs/issues/009-blocked-job.md
+root1/docs/issues/010-ready-job.md
+root1/docs/spec/demo.md
+root2/.architect/config
+root3/.architect/config
+root3/docs/issues/007-current-run.md
+root3/docs/issues/008-done-job.md
+TS2
+STATUS TREE spec: demo.md branch: unknown
+tracker: #7
+ORCHESTRATOR: local view
+WATCHDOG: process=False config=0
+✓ #8 done job .architect/wt/done-job-01
+⊘ #9 blocked job .architect/wt/blocked-job-01 blocked-by: 10
+○ #10 ready job .architect/wt/ready-job-01
+TS3 ROOT2
+NO ACTIVE FACTORY RUN
+spec: unknown
+TS3 ROOT3
+NO ACTIVE FACTORY RUN
+spec: unknown
+```
+
+### TS4-TS6 Output
+
+```text
+TS4 FIXTURE
+TRACK	43
+SUB	44	CLOSED		status done
+SUB	45	OPEN	44	status queued
+SUB	46	OPEN		status ready
+TS4 OUTPUT
+STATUS TREE spec: demo.md branch: unknown
+tracker: #43
+ORCHESTRATOR: local view
+WATCHDOG: process=False config=0
+✓ #44 status done .architect/wt/status-done-01
+⊘ #45 status queued .architect/wt/status-queued-01 blocked-by: 44
+○ #46 status ready .architect/wt/status-ready-01
+TS5 ESC
+False
+TS5 PARSE
+OK
+TS5 BUDGETS
+skills/architect/status.ps1:113
+skills/architect/status.sh:78
+TS6
+C:\Users\danhm\architect-loop\.architect\wt\tracker-status-01\skills\architect\status.sh:19:phase(){ slug=$1; state=${2:-}; blockers=${3:-}; [ "$state" = CLOSED ] && { printf '%s MERGED' "$g_merged"; return; }; [ "$state" = OPEN ] && [ -n "$blockers" ] && { printf '%s QUEUED' "$g_queued"; return; }; rep=$(report_path "$slug"); judge=$(find "$root/.architect/wt" -maxdepth 1 -type f -name "$slug-01.judge*.md" 2>/dev/null | head -n 1); [ -f "$rep" ] && [ -n "$judge" ] && { printf '%s JUDGING' "$g_judging"; return; }; st=$(status_line "$rep"); case "$st" in BLOCKED*) printf '%s BLOCKED' "$g_blocked"; return;; esac; [ -f "$rep" ] && { printf '%s REPORTED' "$g_reported"; return; }; [ -d "$root/.architect/wt/$slug-01" ] && { printf '%s BUILDING' "$g_building"; return; }; printf '%s READY' "$g_ready"; }
+C:\Users\danhm\architect-loop\.architect\wt\tracker-status-01\skills\architect\status.sh:20:tracker_mode(){ cfg="$root/.architect/config"; [ -f "$cfg" ] || { printf github; return; }; v=$(awk -F= '/^[[:space:]]*tracker[[:space:]]*=/{gsub(/^[[:space:]]+|[[:space:]]+$/,"",$2); print $2; exit}' "$cfg"); [ "$v" = markdown ] && printf markdown || printf github; }
+C:\Users\danhm\architect-loop\.architect\wt\tracker-status-01\skills\architect\status.sh:21:fm(){ awk -v key="$2" 'NR==1{sub(/^\357\273\277/,""); if($0!="---") exit} NR>1{if($0=="---") exit; if(index($0,key":")==1){sub(/^[^:]*:[[:space:]]*/,""); print; exit}}' "$1"; }
+C:\Users\danhm\architect-loop\.architect\wt\tracker-status-01\skills\architect\status.sh:25:  dir="$root/docs/issues"; us=$(printf '\037'); rows=; parents=; open_nums=
+C:\Users\danhm\architect-loop\.architect\wt\tracker-status-01\skills\architect\status.sh:29:      num=$(fm "$f" issue); title=$(fm "$f" title); state=$(fm "$f" state); parent=$(fm "$f" parent); blocked=$(fm "$f" blocked-by)
+C:\Users\danhm\architect-loop\.architect\wt\tracker-status-01\skills\architect\status.sh:31:      [ -n "$title" ] && [ -n "$state" ] && [ -n "$parent" ] && [ -n "$blocked" ] || continue
+C:\Users\danhm\architect-loop\.architect\wt\tracker-status-01\skills\architect\status.sh:32:      rows="${rows}${num}${us}${state}${us}${parent}${us}${blocked}${us}${title}
+C:\Users\danhm\architect-loop\.architect\wt\tracker-status-01\skills\architect\status.sh:34:      [ "$state" = OPEN ] && open_nums="${open_nums}${num}
+C:\Users\danhm\architect-loop\.architect\wt\tracker-status-01\skills\architect\status.sh:36:      case "$parent" in *[!0-9]*|'') ;; *) parents="${parents}${parent}
+C:\Users\danhm\architect-loop\.architect\wt\tracker-status-01\skills\architect\status.sh:41:  while IFS="$(printf '\037')" read -r num state parent blocked title; do
+C:\Users\danhm\architect-loop\.architect\wt\tracker-status-01\skills\architect\status.sh:43:    if [ "$state" = OPEN ] && has_num "$parents" "$num" && [ "$num" -gt "$track" ]; then track=$num; fi
+C:\Users\danhm\architect-loop\.architect\wt\tracker-status-01\skills\architect\status.sh:47:  while IFS="$(printf '\037')" read -r num state parent blocked title; do
+C:\Users\danhm\architect-loop\.architect\wt\tracker-status-01\skills\architect\status.sh:48:    [ "$parent" = "$track" ] || continue
+C:\Users\danhm\architect-loop\.architect\wt\tracker-status-01\skills\architect\status.sh:51:    printf 'SUB\t%s\t%s\t%s\t%s\n' "$num" "$state" "$out" "$title"
+C:\Users\danhm\architect-loop\.architect\wt\tracker-status-01\skills\architect\status.sh:55:  if [ "$(tracker_mode)" = markdown ]; then markdown_lines; return 0; fi
+C:\Users\danhm\architect-loop\.architect\wt\tracker-status-01\skills\architect\status.sh:56:  jq_expr='. as $all | ([ $all[] | select(.parent != null) | .parent.number ] | unique) as $pnums | ([ $all[] | select(.state == "OPEN") | select(.number as $n | $pnums | index($n)) ] | map(.number) | max) as $t | if $t == null then "NOOPENRUN" else ("TRACK\t\($t)", ($all[] | select(.parent != null and .parent.number == $t) | [ "SUB", (.number|tostring), .state, ((.blockedBy.nodes // []) | map(select(.state == "OPEN") | (.number|tostring)) | join(",")), .title ] | @tsv)) end'
+C:\Users\danhm\architect-loop\.architect\wt\tracker-status-01\skills\architect\status.sh:59:  (cd "$root" && gh issue list --state all --limit 200 --json number,title,state,parent,blockedBy --jq "$jq_expr")
+C:\Users\danhm\architect-loop\.architect\wt\tracker-status-01\skills\architect\status.sh:67:  while IFS="$(printf '\037')" read -r kind num state blockers title; do [ "$kind" = TRACK ] && tracking=$num; done <<< "$(printf '%s\n' "$tracker_tsv" | tr '\t' '\037')"
+C:\Users\danhm\architect-loop\.architect\wt\tracker-status-01\skills\architect\status.sh:78:  while IFS="$(printf '\037')" read -r kind num state blockers title; do [ "$kind" = SUB ] || continue; slug=$(slugify "$title"); set -- $(phase "$slug" "$state" "$blockers"); extra=; [ "$2" = QUEUED ] && extra=" blocked-by: $blockers"; printf '%s #%s %s .architect/wt/%s-01%s\n' "$1" "$num" "$title" "$slug" "$extra"; [ "$2" = BUILDING ] && last_command "$slug"; done <<< "$(printf '%s\n' "$tracker_tsv" | tr '\t' '\037')"
+TS6 BASH STATIC
+bash -n equivalent is composite (orchestrator).
+```
+
 STATUS: COMPLETE

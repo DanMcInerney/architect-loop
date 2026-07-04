@@ -7,7 +7,7 @@ case "$root" in /*) ;; *) root="$(pwd)/$root";; esac
 [ -d "$root" ] || { printf 'unreadable repo: %s\n' "$root"; exit 1; }
 
 color_glyph(){ if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then printf '\033[%sm%s\033[0m' "$2" "$1"; else printf '%s' "$1"; fi; }
-g_merged=$(color_glyph 'âœ“' 32); g_judging=$(color_glyph 'â—' 36); g_blocked=$(color_glyph '!' 31); g_reported=$(color_glyph 'â–£' 35); g_building=$(color_glyph 'â—' 34); g_queued=$(color_glyph 'âŠ˜' 33); g_ready=$(color_glyph 'â—‹' 37)
+g_merged=$(color_glyph '✓' 32); g_judging=$(color_glyph '◐' 36); g_blocked=$(color_glyph '!' 31); g_reported=$(color_glyph '▣' 35); g_building=$(color_glyph '●' 34); g_queued=$(color_glyph '⊘' 33); g_ready=$(color_glyph '○' 37)
 j(){ printf '%s/%s' "$1" "$2"; }
 newest_spec(){ spec_dir="$root/docs/spec"; newest=; newest_mtime=; [ -d "$spec_dir" ] || { printf unknown; return; }; for spec in "$spec_dir"/*.md; do [ -f "$spec" ] || continue; mtime=$(stat -c %Y "$spec" 2>/dev/null || stat -f %m "$spec" 2>/dev/null || printf 0); case "$mtime" in ''|*[!0-9]*) mtime=0;; esac; if [ -z "$newest" ] || [ "$mtime" -gt "$newest_mtime" ]; then newest=$spec; newest_mtime=$mtime; fi; done; [ -n "$newest" ] && basename "$newest" || printf unknown; }
 tail_text(){ [ -f "$1" ] && tail -c 4096 "$1" | tr -d '\000'; }
