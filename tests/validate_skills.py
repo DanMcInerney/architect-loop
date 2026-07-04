@@ -32,6 +32,7 @@ REQUIRED_SIBLINGS = {
         "watchdog.sh",
         "status.ps1",
         "status.sh",
+        "tracker.md",
     ],
     "architect-research": ["tactics.md"],
 }
@@ -183,6 +184,7 @@ def check_model_alias_table() -> None:
 
 
 ROLE_CONFIG_RE = re.compile(r"^(orchestrator|builders)\s*=\s*(claude|codex)/[^\s/#]+(:[^\s/#]+)?$")
+TRACKER_CONFIG_RE = re.compile(r"^tracker\s*=\s*(github|markdown)(\s+#\s*.*)?$")
 DISPATCH_RULE_RE = re.compile(
     r"^when\s+.+\s+->\s+(claude|codex)/[^\s/#]+(:[^\s/#]+)?(\s+#\s*.+)?$"
 )
@@ -212,6 +214,10 @@ def check_config_example() -> None:
             saw_dispatch_rule = True
             if not DISPATCH_RULE_RE.fullmatch(clean):
                 errors.append(f"skills/architect: invalid C2' dispatch-rules example line: {line}")
+            continue
+        if clean.startswith("tracker "):
+            if not TRACKER_CONFIG_RE.fullmatch(clean):
+                errors.append(f"skills/architect: invalid tracker config example line: {line}")
             continue
         role_line = clean.split("#", 1)[0].strip()
         if not ROLE_CONFIG_RE.fullmatch(role_line):
@@ -426,6 +432,28 @@ def check_status_contract() -> None:
                 errors.append("skills/architect/status.sh: NewestSpec must not select spec by lexical sort")
 
 
+def check_tracker_contract() -> None:
+    path = SKILLS / "architect" / "tracker.md"
+    if not path.exists():
+        errors.append("skills/architect/tracker.md: missing")
+        return
+    text = read_text(path)
+    for marker in (
+        "issue:",
+        "title:",
+        "state:",
+        "parent:",
+        "blocked-by:",
+        "TRACK",
+        "SUB",
+        "NOOPENRUN",
+        "push-if-remote-exists",
+        "## Command mapping",
+    ):
+        if marker not in text:
+            errors.append(f"skills/architect/tracker.md: missing {marker}")
+
+
 def check_retired_loop_terms() -> None:
     for path in SKILLS.rglob("*.md"):
         text = read_text(path)
@@ -458,6 +486,7 @@ def main() -> int:
     check_codex_install_step()
     check_watchdog_contract()
     check_status_contract()
+    check_tracker_contract()
     check_architect_handoff_free()
     check_retired_loop_terms()
     check_skill_text_size()
