@@ -1,7 +1,7 @@
 # Factory-loop reference
 
 The loop is one orchestrator session that runs the factory to completion after
-the spec approval approves the issue plan. GitHub issues carry coordination
+the spec approval approves the issue plan. Tracker issues carry coordination
 state; git carries specs and frozen checks. The orchestrator dispatches the
 ready issues, sleeps, and wakes only on an event.
 Parallel rules: judges dispatch immediately and run concurrently for every DONE, never queued behind another judgment; the ready-issue frontier recomputes on EVERY merge, not at wave boundaries; independent orchestrator bookkeeping batches into parallel calls; merges, synthesis, and the stress-test stay serial by design.
@@ -61,8 +61,8 @@ detection-only boundary and per-job evidence requirements.
 Judgment is recorded on the issue, not in a file. At judgment, one comment
 is posted on the job's issue with: per-check PASS/FAIL/INVALID, a
 checks-integrity verdict, a diff-vs-intent verdict, the slice call
-KILL/CONTINUE, and the decisive reason tied to raw evidence — exact `gh`
-commands and comment format live in `dispatch.md` "## Issue conventions".
+KILL/CONTINUE, and the decisive reason tied to raw evidence; exact tracker
+comment format lives in `dispatch.md` "## Issue conventions".
 The judge's intent context is exactly the frozen check file, spec, job
 report, and `docs/jobs/<issue-slug>-rulings.md`. That rulings file is
 orchestrator-owned, append-only, and committed before judge dispatch; if it
