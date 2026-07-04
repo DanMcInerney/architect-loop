@@ -89,11 +89,8 @@ or reports the check BLOCKED — never silently skips a check or invents output.
 
 ## C5 judge delegation template
 
-The orchestrator must send this template as-is except for replacing
-placeholders. It must not add slice-specific prose, encouragement, summaries,
-or interpretation. Judge intent context is pointer-only: frozen check file,
-spec pointer, job report, and `docs/jobs/<issue-slug>-rulings.md`
-(orchestrator-owned, append-only; absent = no post-freeze rulings).
+The orchestrator must send this template as-is except for replacing placeholders. It must not add slice-specific prose, encouragement, summaries, or interpretation.
+Judge intent context is pointer-only: frozen check file, spec pointer, job report, and `docs/jobs/<issue-slug>-rulings.md` (orchestrator-owned, append-only; absent = no post-freeze rulings).
 
 <!-- architect-judge-template:start -->
 ```text
@@ -102,7 +99,10 @@ Freeze commit SHA: <freeze-sha>
 Branch to judge: <branch>
 Spec pointer: <spec path named by the frozen check>
 Job report: <docs/jobs/<issue-slug>-01.md>
+checkrun evidence file path: <docs/jobs/<issue-slug>-checkrun.md>
 Rulings file: docs/jobs/<issue-slug>-rulings.md (absent = no post-freeze rulings)
+
+Evidence rules: read the checkrun evidence file before grading; grade RUN items from the evidence file; execute judge-only items yourself; re-run at least one RUN command and compare with the evidence file -- any mismatch is automatic INVALID with both outputs quoted; missing/stale evidence (integrity false or freeze SHA mismatch) -> INVALID, never FAIL.
 
 Verdict format:
 - Checks integrity: PASS | FAIL | INVALID
@@ -112,6 +112,7 @@ Verdict format:
 - Per check:
   - <check id>: PASS | FAIL | INVALID
     Command: <exact command from the frozen check>
+    Source: evidence-file | re-run
     Raw evidence: <verbatim stdout/stderr and exit code>
 - Slice verdict: PASS | FAIL | INVALID
   Decisive reason: <one sentence tied to raw evidence>
@@ -120,9 +121,7 @@ Verdict format:
 
 ## Codex judge delegation template
 
-The orchestrator must send this template as-is except for replacing the check
-file path, freeze SHA, branch, and worktree note. It must not add slice-specific
-prose, encouragement, summaries, or interpretation.
+The orchestrator must send this template as-is except for replacing the check file path, freeze SHA, branch, and worktree note. It must not add slice-specific prose, encouragement, summaries, or interpretation.
 
 <!-- architect-codex-judge-template:start -->
 ```text
@@ -130,6 +129,7 @@ Frozen check file path: <docs/checks/<slice>.md>
 Freeze commit SHA: <freeze-sha>
 Branch to judge: <branch>
 Worktree note: <worktree note>
+checkrun evidence file path: <docs/jobs/<issue-slug>-checkrun.md>
 
 You are a fresh read-only judge. You did not build this job. Flag only gaps
 that affect correctness, the stated requirements, or documented project
@@ -144,9 +144,9 @@ error 5 -> PowerShell same-pattern; uv AppData cache denial -> run with
 `UV_CACHE_DIR=.architect/tmp/uv-cache`; tracker posting unavailable -> report
 `MIRROR: ORCHESTRATOR`.
 
-Intent context pointers: frozen check file above; spec pointer named by the
-frozen check; job report named by the issue/check; rulings file
-`docs/jobs/<issue-slug>-rulings.md` (absent = no post-freeze rulings).
+Intent context pointers: frozen check file above; spec pointer named by the frozen check; job report named by the issue/check; rulings file `docs/jobs/<issue-slug>-rulings.md` (absent = no post-freeze rulings).
+
+Evidence rules: read the checkrun evidence file before grading; grade RUN items from the evidence file; execute judge-only items yourself; re-run at least one RUN command and compare with the evidence file -- any mismatch is automatic INVALID with both outputs quoted; missing/stale evidence (integrity false or freeze SHA mismatch) -> INVALID, never FAIL.
 
 Verdict format:
 - Checks integrity: PASS | FAIL | INVALID
@@ -157,11 +157,33 @@ Verdict format:
   - <check id>: PASS | FAIL | INVALID
     Command: <exact command from the frozen check>
     Executor: <executor used>
+    Source: evidence-file | re-run
     Raw evidence: <verbatim stdout/stderr and exit code>
 - Slice verdict: PASS | FAIL | INVALID
   Decisive reason: <one sentence tied to raw evidence>
 ```
 <!-- architect-codex-judge-template:end -->
+
+## Check-runner dispatch
+
+RUN grammar for check files is normative from `docs/spec/judge-runner.md` D1: a runnable check is a list line beginning `- RUN:` whose first single backtick span is the complete command, executable verbatim in the file's named executor. Everything after the closing backtick is judge-facing prose the runner ignores. The check file header names one `Executor:`; items without `RUN:` are judge-only.
+Example line: ``- RUN: `git grep -c "needle" -- path/to/file.md` -> 1``
+
+Runner config JSON, written by the orchestrator per judgment:
+
+```json
+{
+  "check_file": "docs/checks/<slug>.md",
+  "workdir": "<worktree or repo path>",
+  "freeze_sha": "<sha>",
+  "evidence_out": "docs/jobs/<issue-slug>-checkrun.md",
+  "executor": "powershell|bash",
+  "max_output_lines": 60
+}
+```
+
+Typed exits: 0 = evidence file written; 5 = `CHECKRUN: ERROR <reason>` on stdout, no partial evidence file left behind.
+Launch pattern: the orchestrator writes the config with file tools, then launches `skills/architect/check-runner.ps1` or `skills/architect/check-runner.sh` as a background process whose exit wakes the loop. On success, the orchestrator commits the evidence file `docs/jobs/<issue-slug>-checkrun.md` before judge dispatch.
 
 ## Stress-test delegation template
 
@@ -175,15 +197,11 @@ Draft check file path: <docs/checks/<slice>.md>
 Branch: <branch>
 Issue bodies: <pasted issue bodies for this plan>
 
-Task: try to falsify this draft. Execute each check command against the
-current tree, verify every referenced path/SHA/pointer resolves, attack each
-acceptance criterion and pasted issue bodies against the spec for
-contradictions and non-falsifiability, including patterns that collide with
-repo realities (e.g. a grep pattern matching the repo's own name), and flag any
-assumption not evidenced in the repo. For every file a job deletes or renames,
-grep the whole repo for references and verify the owning job's boundary covers
-them or a dependency edge orders the fix. For every NEW artifact path a job
-will create, run `git check-ignore <path>` and flag the plan if ignored.
+Grill clause: every mechanical check MUST use `- RUN:` form; a mechanical check not in RUN form is a check defect.
+
+Task: try to falsify this draft. Execute each check command against the current tree, verify every referenced path/SHA/pointer resolves, attack each acceptance criterion and pasted issue bodies against the spec for contradictions and non-falsifiability, including patterns that collide with repo realities (e.g. a grep pattern matching the repo's own name), and flag any assumption not evidenced in the repo.
+For every file a job deletes or renames, grep the whole repo for references and verify the owning job's boundary covers them or a dependency edge orders the fix.
+For every NEW artifact path a job will create, run `git check-ignore <path>` and flag the plan if ignored.
 
 Defect report format:
 - <check id or clause>: FALSIFIED | HOLDS
