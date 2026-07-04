@@ -90,6 +90,15 @@ function TrackerLines() {
     if (-not (Get-Command gh -ErrorAction SilentlyContinue)) { return @{ Reachable = $false; Lines = @() } }
     try { Push-Location -LiteralPath $root; $jqArg = $PinnedJq; if ($PSVersionTable.PSVersion.Major -le 5) { $jqArg = $PinnedJq -replace '"', '\"' }; try { $out = & gh issue list --state all --limit 200 --json number,title,state,parent,blockedBy --jq $jqArg 2>$null } finally { Pop-Location }; return @{ Reachable = ($LASTEXITCODE -eq 0); Lines = @($out) } } catch { return @{ Reachable = $false; Lines = @() } }
 }
+function Win32Processes() {
+    $cim = Get-Command Get-CimInstance -ErrorAction SilentlyContinue
+    if ($cim) {
+        try { return @(Get-CimInstance Win32_Process -ErrorAction Stop) } catch {}
+    }
+    $wmi = Get-Command Get-WmiObject -ErrorAction SilentlyContinue
+    if ($wmi) { return @(Get-WmiObject Win32_Process -ErrorAction SilentlyContinue) }
+    return @()
+}
 
 $root = [System.IO.Path]::GetFullPath($RepoRoot)
 if (-not (Test-Path -LiteralPath $root -PathType Container)) { Write-Output "unreadable repo: $RepoRoot"; exit 1 }
@@ -106,7 +115,7 @@ Write-Output "STATUS TREE spec: $(NewestSpec) branch: $branch"
 if ($trackerReachable -and $tracking) { Write-Output "tracker: #$tracking" } elseif ($trackerReachable) { Write-Output "tracker: no open run" } else { Write-Output "tracker: unavailable (local view)" }
 Write-Output "ORCHESTRATOR: local view"
 $wdCfg = @(Get-ChildItem -LiteralPath (J $root ".architect/tmp") -Filter "wd-*.json")
-$wdProc = @(Get-WmiObject Win32_Process | Where-Object { $_.CommandLine -match 'watchdog\.(ps1|sh)' })
+$wdProc = @(Win32Processes | Where-Object { $_.CommandLine -match 'watchdog\.(ps1|sh)' })
 Write-Output "WATCHDOG: process=$($wdProc.Count -gt 0) config=$($wdCfg.Count)"
 if ($trackerReachable -and $tracking) {
     foreach ($issue in $subIssues) { $slug = Slugify $issue.Title; $p = Phase $slug $issue.State $issue.Blockers; $extra = ""; if ($p[1] -eq "QUEUED") { $extra = " blocked-by: " + $issue.Blockers }; Write-Output "$($p[0]) #$($issue.Number) $($issue.Title) .architect/wt/$slug-01$extra"; if ($p[1] -eq "BUILDING") { $last = LastCommand $slug; if ($last) { Write-Output $last } } }

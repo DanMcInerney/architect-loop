@@ -34,9 +34,19 @@ function HasTerminalStatus($Path) {
 
 function FileSize($Path) { if (Test-Path -LiteralPath $Path) { return (Get-Item -LiteralPath $Path).Length }; return 0 }
 
+function Win32Processes {
+    $cim = Get-Command Get-CimInstance -ErrorAction SilentlyContinue
+    if ($cim) {
+        try { return @(Get-CimInstance Win32_Process -ErrorAction Stop) } catch {}
+    }
+    $wmi = Get-Command Get-WmiObject -ErrorAction SilentlyContinue
+    if ($wmi) { return @(Get-WmiObject Win32_Process -ErrorAction SilentlyContinue) }
+    return @()
+}
+
 function CpuTotal($Needle) {
     $sum = [int64]0
-    foreach ($p in (Get-WmiObject Win32_Process -ErrorAction SilentlyContinue)) {
+    foreach ($p in (Win32Processes)) {
         if ($p.CommandLine -and $p.CommandLine.IndexOf($Needle, [StringComparison]::OrdinalIgnoreCase) -ge 0) {
             $sum += [int64]$p.KernelModeTime + [int64]$p.UserModeTime
         }
