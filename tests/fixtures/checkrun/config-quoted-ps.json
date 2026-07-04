@@ -1,0 +1,1 @@
+{"check_file":"tests/fixtures/checkrun/fixture-checks-quoted-ps.md","workdir":".","freeze_sha":"HEAD","evidence_out":".architect/tmp/checkrun-quoted-ps.md","executor":"powershell","max_output_lines":60}
