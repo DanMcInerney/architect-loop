@@ -19,7 +19,7 @@ artifact_slugs(){ find "$root/.architect/wt" -maxdepth 1 -type d -name '*-01' 2>
 phase(){ slug=$1; state=${2:-}; blockers=${3:-}; [ "$state" = CLOSED ] && { printf '%s MERGED' "$g_merged"; return; }; [ "$state" = OPEN ] && [ -n "$blockers" ] && { printf '%s QUEUED' "$g_queued"; return; }; rep=$(report_path "$slug"); judge=$(find "$root/.architect/wt" -maxdepth 1 -type f -name "$slug-01.judge*.md" 2>/dev/null | head -n 1); [ -f "$rep" ] && [ -n "$judge" ] && { printf '%s JUDGING' "$g_judging"; return; }; st=$(status_line "$rep"); case "$st" in BLOCKED*) printf '%s BLOCKED' "$g_blocked"; return;; esac; [ -f "$rep" ] && { printf '%s REPORTED' "$g_reported"; return; }; [ -d "$root/.architect/wt/$slug-01" ] && { printf '%s BUILDING' "$g_building"; return; }; printf '%s READY' "$g_ready"; }
 tracker_mode(){ cfg="$root/.architect/config"; [ -f "$cfg" ] || { printf github; return; }; v=$(awk -F= '/^[[:space:]]*tracker[[:space:]]*=/{gsub(/^[[:space:]]+|[[:space:]]+$/,"",$2); print $2; exit}' "$cfg"); [ "$v" = markdown ] && printf markdown || printf github; }
 fm(){ awk -v key="$2" 'NR==1{sub(/^\357\273\277/,""); if($0!="---") exit} NR>1{if($0=="---") exit; if(index($0,key":")==1){sub(/^[^:]*:[[:space:]]*/,""); print; exit}}' "$1"; }
-has_num(){ [[ "$(printf '\n%s\n' "$1")" == *$'\n'"$2"$'\n'* ]]; }
+has_num(){ case $'\n'"$1" in *$'\n'"$2"$'\n'*) return 0;; *) return 1;; esac; }
 trim_token(){ x=$1; x=${x//[[:space:]]/}; printf '%s' "$x"; }
 markdown_lines(){
   dir="$root/docs/issues"; us=$(printf '\037'); rows=; parents=; open_nums=
