@@ -67,7 +67,7 @@ retry-at-a-different-tier job (see `loop.md` "## Failure ladder").
 | | Claude Code (CLI + Desktop) | Codex (CLI + app) |
 |---|---|---|
 | Builder | Agent tool with `.claude/agents/architect-builder.md`; `disallowedTools` denies `Bash(git commit *)` and `Bash(git push *)`; `isolation: worktree`; `background: true`; model may be passed per invocation from the alias table. On the desktop app, the harness auto-creates the agent's isolation worktree (`.claude/worktrees/agent-<id>`) and its branch — integrate from that branch. On the CLI, spawns have been observed to run UNISOLATED in the orchestrator's checkout despite `isolation: worktree` frontmatter (D11) — pass isolation explicitly per invocation if supported, and never run two Claude-backend builder jobs concurrently unless each is verified to have its own worktree (`git worktree list` after spawn). In all cases, never pre-create a job worktree for Claude-backend jobs (a pre-made one is ignored); do not use `.architect/wt/<slice>-<NN>` (that pattern is Codex-backend only, below). | `spawn_agent` with defensive framing: "Your task is: ..."; worktree created by the orchestrator via git; use `/goal` semantics for persistent job completion. |
-| Judge | Agent tool with `.claude/agents/architect-judge.md`; read-only tools plus Bash for check commands; orchestrator tier via `model: inherit` or per-invocation model. | Fresh `spawn_agent` with read-only instructions and the fixed judge template. |
+| Judge | Agent tool with `.claude/agents/architect-judge.md`; dispatch synchronously with `run_in_background: false` so the verdict is the tool result; read-only tools plus Bash for check commands; orchestrator tier via `model: inherit` or per-invocation model. | Background `codex exec -o <file>` typed-exit path with read-only instructions and the fixed judge template; the process exit wakes the loop. |
 | Monitor | Script watchdog (`watchdog.ps1` on Windows, `watchdog.sh` on POSIX) when the orchestrator can run background processes and receive exit notifications; LLM fallback template only otherwise. | Script watchdog (`watchdog.ps1` on Windows, `watchdog.sh` on POSIX) when background process exits wake the orchestrator; LLM fallback template only otherwise and it counts as one of the 6 `max_threads`. |
 | Parallelism | Background subagents; permission prompts surface to the main session. | Native subagents, `max_threads` 6, `max_depth` 1 (root session is depth 0; a spawned child may not spawn further — no nested orchestrators, the orchestrator dispatches builders directly), `wait_agent` for completion (the live collab event stream names the underlying tool call `wait`, not `wait_agent` — evidence: v4-codex CG4 architect-run canary `events.jsonl`). |
 | Review (high-stakes) | `codex review --base` when Codex is installed; otherwise a fresh same-CLI subagent with bias caveat. | `/review` / `review_model`; Claude reviewer when installed. |
@@ -101,6 +101,8 @@ Spec pointer: <spec path named by the frozen check>
 Job report: <docs/jobs/<issue-slug>-01.md>
 checkrun evidence file path: <docs/jobs/<issue-slug>-checkrun.md>
 Rulings file: docs/jobs/<issue-slug>-rulings.md (absent = no post-freeze rulings)
+
+Batch independent reads (frozen check file, spec, job report, rulings file, checkrun evidence file) into parallel tool calls in one turn; serialize only dependent steps and command re-runs.
 
 Evidence rules: read the checkrun evidence file before grading; grade RUN items from the evidence file; execute judge-only items yourself; re-run at least one RUN command and compare with the evidence file -- any mismatch is automatic INVALID with both outputs quoted; missing/stale evidence (integrity false or freeze SHA mismatch) -> INVALID, never FAIL.
 
@@ -146,6 +148,8 @@ error 5 -> PowerShell same-pattern; uv AppData cache denial -> run with
 
 Intent context pointers: frozen check file above; spec pointer named by the frozen check; job report named by the issue/check; rulings file `docs/jobs/<issue-slug>-rulings.md` (absent = no post-freeze rulings).
 
+Batch independent reads (frozen check file, spec, job report, rulings file, checkrun evidence file) into parallel tool calls in one turn; serialize only dependent steps and command re-runs.
+
 Evidence rules: read the checkrun evidence file before grading; grade RUN items from the evidence file; execute judge-only items yourself; re-run at least one RUN command and compare with the evidence file -- any mismatch is automatic INVALID with both outputs quoted; missing/stale evidence (integrity false or freeze SHA mismatch) -> INVALID, never FAIL.
 
 Verdict format:
@@ -166,7 +170,7 @@ Verdict format:
 
 ## Check-runner dispatch
 
-RUN grammar for check files is normative from `docs/spec/judge-runner.md` D1: a runnable check is a list line beginning `- RUN:` whose first single backtick span is the complete command, executable verbatim in the file's named executor. Everything after the closing backtick is judge-facing prose the runner ignores. The check file header names one `Executor:`; items without `RUN:` are judge-only.
+RUN grammar for check files is normative from judge-runner D1 (evidence: judge-runner spec, git history): a runnable check is a list line beginning `- RUN:` whose first single backtick span is the complete command, executable verbatim in the file's named executor. Everything after the closing backtick is judge-facing prose the runner ignores. The check file header names one `Executor:`; items without `RUN:` are judge-only.
 Example line: ``- RUN: `git grep -c "needle" -- path/to/file.md` -> 1``
 
 Runner config JSON, written by the orchestrator per judgment:
@@ -340,6 +344,11 @@ job and re-spec; do not hand-resolve builder conflicts.
 
 In markdown mode, every command below maps to an orchestrator file operation; see `tracker.md` `## Command mapping`.
 
+In github mode, create sub-issues with native edges:
+`gh issue create --title <t> --body-file <f> --parent <tracking-n> --blocked-by <n,n>`.
+Parent and blocker edges recorded only as body or title text are retired for
+github mode; the status emitter reads `--json parent,blockedBy`.
+
 Claim is an orchestrator action, never a builder action: the orchestrator is
 the single dispatcher and assigns exactly one issue per job before spawning.
 A builder never self-claims or picks its own next issue.
@@ -474,11 +483,11 @@ primary for sandboxed jobs: PowerShell + native git subcommands on Windows,
 bash on POSIX; the recorded same-pattern substitution rule stays for
 everything else.
 
-| Condition | Substitution | Citation |
+| Condition | Substitution | Provenance |
 |---|---|---|
-| Git Bash CreateFileMapping Win32 error 5 in Codex Windows sandbox | PowerShell + native git same-pattern, recorded per check | `docs/research/factory-hardening-evidence.md` |
-| `uv` AppData cache denial (os error 5) | `UV_CACHE_DIR=.architect/tmp/uv-cache`, recorded | `docs/solutions/uv-cache-sandbox-redirect.md` |
-| Tracker posting unavailable in sandbox | `MIRROR: ORCHESTRATOR` in the report | `docs/solutions/subagent-shell-strip-codex-fallback.md` |
+| Git Bash CreateFileMapping Win32 error 5 in Codex Windows sandbox | PowerShell + native git same-pattern, recorded per check | evidence: factory-hardening research, git history |
+| `uv` AppData cache denial (os error 5) | `UV_CACHE_DIR=.architect/tmp/uv-cache`, recorded | evidence: uv-cache sandbox redirect solution, git history |
+| Tracker posting unavailable in sandbox | `MIRROR: ORCHESTRATOR` in the report | evidence: subagent shell-strip codex fallback solution, git history |
 
 ## Orchestrator shell hygiene
 

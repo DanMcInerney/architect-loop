@@ -69,11 +69,11 @@ Hard stop text: `Required tracker preflight cannot be satisfied`.
 
 | Operation | GitHub command family | Markdown-mode orchestrator file operation |
 |---|---|---|
-| create | `gh issue create ...` | Write `docs/issues/<NNN>-<slug>.md` with frontmatter, body, and `## Comments`; commit the file. |
+| create | `gh issue create --title <t> --body-file <f> --parent <tracking-n> --blocked-by <n,n>` | Write `docs/issues/<NNN>-<slug>.md` with frontmatter, body, and `## Comments`; commit the file. |
 | claim | `gh issue edit <n> --add-assignee "@me"` | Orchestrator assigns exactly one job before dispatch; assignee line is optional/omitted in markdown files. |
 | comment | `gh issue comment <n> --body ...` | Append one timestamped `## Comments` line; commit the append. |
 | close | `gh issue close <n>` or PR close automation | Flip `state: OPEN` to `state: CLOSED`; commit the state change. |
-| parent/blocked-by edges | GitHub parent/blocker edits or issue-form fields | Update `parent:` and `blocked-by:` frontmatter fields using issue numbers or `none`; commit the edge change. |
+| parent/blocked-by edges | Native `--parent <tracking-n>` and `--blocked-by <n,n>` flags at create time, or GitHub native parent/blocker edits after creation; never body/title-only edge text | Update `parent:` and `blocked-by:` frontmatter fields using issue numbers or `none`; commit the edge change. |
 
 All issue-file mutations are orchestrator commits; builders mirror through
 reports, with `MIRROR: ORCHESTRATOR` unchanged.
