@@ -32,6 +32,8 @@ REQUIRED_SIBLINGS = {
         "watchdog.sh",
         "status.ps1",
         "status.sh",
+        "check-runner.ps1",
+        "check-runner.sh",
         "tracker.md",
     ],
     "architect-research": ["tactics.md"],
@@ -251,6 +253,30 @@ def check_judge_template() -> None:
             errors.append(f"skills/architect/dispatch.md: C5 judge template missing {required}")
     if "must not add slice-specific prose" not in text:
         errors.append("skills/architect/dispatch.md: C5 template does not forbid slice-specific prose")
+
+
+def check_check_runner_dispatch_contract() -> None:
+    dispatch = SKILLS / "architect" / "dispatch.md"
+    if not dispatch.exists():
+        errors.append("skills/architect/dispatch.md: missing (required for check-runner dispatch contract)")
+        return
+    text = read_text(dispatch)
+    if "## Check-runner dispatch" not in text.splitlines():
+        errors.append("skills/architect/dispatch.md: missing ## Check-runner dispatch")
+    for marker in ("architect-judge-template", "architect-codex-judge-template"):
+        start = f"<!-- {marker}:start -->"
+        end = f"<!-- {marker}:end -->"
+        start_at = text.find(start)
+        end_at = text.find(end, start_at + len(start))
+        if start_at == -1 or end_at == -1:
+            errors.append(f"skills/architect/dispatch.md: missing {marker} marker block")
+            continue
+        block = text[start_at + len(start) : end_at]
+        if "re-run at least one RUN command" not in block:
+            errors.append(
+                "skills/architect/dispatch.md: "
+                f"{marker} missing re-run at least one RUN command"
+            )
 
 
 PADDED_TOOLS = ("Bash", "Read", "PowerShell")
@@ -482,6 +508,7 @@ def main() -> int:
     check_model_alias_table()
     check_config_example()
     check_judge_template()
+    check_check_runner_dispatch_contract()
     check_agent_definitions()
     check_codex_install_step()
     check_watchdog_contract()
