@@ -33,9 +33,7 @@ templates live behind these pointers:
 2. **Checks freeze in git before dispatch.** Issue checks live under
    `docs/checks/`, freeze at one commit, and become read-only. Any builder edit
    under `docs/checks/` is an automatic FAIL.
-3. **Nobody grades their own work.** Builders report raw evidence only. A
-   fresh, independent orchestrator-tier judge runs frozen checks and checks
-   intent. The orchestrator may not turn a judge FAIL into a merge.
+3. **Nobody grades their own work.** Builders report raw evidence only. A fresh, independent orchestrator-tier judge checks intent. Frozen checks are executed by the deterministic check-runner; the judge grades the evidence and spot-checks. The orchestrator may not turn a judge FAIL into a merge.
 4. **The orchestrator never writes implementation code and never reads large
    diffs.** Builders code; verifier and judge subagents inspect large diffs.
 5. **Fresh builder per issue.** Use worktree isolation and one issue per
@@ -199,8 +197,7 @@ Use `loop.md` `## Factory block procedure` for the detailed event loop.
   the ready issues need recomputation.
 - On human status requests ("status", "how's it going", or equivalent), run
   `skills/architect/status.ps1` on Windows or `skills/architect/status.sh` on POSIX, print its output verbatim in a fenced code block, answer in prose, and never hand-compose the tree.
-- On DONE, send a fresh, independent orchestrator-tier judge to run frozen
-  checks and inspect intent.
+- On DONE, write the runner config, launch the check-runner in the background, let its exit wake the loop, commit the checkrun evidence file, then send a fresh, independent orchestrator-tier judge with the evidence path.
   Merge only after a passing verdict and clean touch-set evidence.
 - On BLOCKED, answer on the issue, cite durable evidence, and respawn a fresh
   builder with the answer using `dispatch.md` `## Respawn-with-answer template`.
