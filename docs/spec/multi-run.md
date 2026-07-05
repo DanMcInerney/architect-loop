@@ -30,7 +30,7 @@ stop, and immunity to third-party issues by construction.
 ## Non-goals
 
 - No GitLab or other tracker adapters.
-- No GitHub labels as run identity (git manifest + sentinel instead).
+- No GitHub labels as run identity (git manifest + run marker instead).
 - No backwards compatibility with the flat layout or the highest-open-parent
   scan (repo backcompat ban; loop-hardening, merged cc975d4).
 - No changes to job-level (builder) worktree mechanics beyond branch naming.
@@ -45,9 +45,9 @@ stop, and immunity to third-party issues by construction.
   exactly `run`, `tracking-issue`, `factory-branch`, `tracker`, `spec`,
   `state` (ACTIVE|FINISHED), `created` — same parse discipline as markdown
   issue frontmatter (`tracker.md`).
-- The tracking issue body carries the machine sentinel
+- The tracking issue body carries the machine-readable run marker
   `<!-- architect-run: <run> -->` and the manifest path. Every sub-issue the
-  orchestrator creates carries the same sentinel. Pinning is bidirectional:
+  orchestrator creates carries the same marker. Pinning is bidirectional:
   manifest -> issue number; issue body -> run slug + branch.
 - Creation order at intake end: create the tracking issue first, then write
   the manifest with its number.
@@ -62,7 +62,9 @@ stop, and immunity to third-party issues by construction.
   the whole tracker. `NOOPENRUN` remains only for "pinned issue is closed or
   manifest missing".
 - A foreign sub-issue attached under the run parent (wrong author or missing
-  sentinel) is never dispatched; it is escalated on the tracking-issue digest.
+  run marker) is never dispatched; it is escalated on the tracking-issue
+  digest. NOTE: the word "sentinel" is validator-retired in skill text
+  (`check_retired_loop_terms`); the domain term is "run marker".
 - Grounding scope (SKILL.md step 0): read open issues of this run only —
   children of the pinned tracking issue plus the tracking issue itself. The
   wider tracker is explicitly out of scope for the loop.
@@ -111,7 +113,7 @@ stop, and immunity to third-party issues by construction.
 ## Domain language
 
 **run** (one architect loop instance), **run slug**, **run manifest** (the
-committed pin), **pinned tracking issue**, **run sentinel** (the HTML comment),
+committed pin), **pinned tracking issue**, **run marker** (the HTML comment),
 **foreign issue** (any issue not created by the orchestrator for this run),
 **run checkout** (the worktree a live run operates in).
 
@@ -121,7 +123,7 @@ Intake questions were asked through the timed-ruling protocol; the human
 answered in-session: "yes do your recommendations".
 
 - Q1 concurrency: fully concurrent loops, one worktree per live run (D4).
-- Q2 identity: git-committed run manifest + body sentinel; no labels (D1).
+- Q2 identity: git-committed run manifest + body run marker; no labels (D1).
 - Q3 namespacing: per-run subdirectories (D3).
 - Q4 stop: global `docs/STOP` stays absolute; per-run stop added (D5).
 
