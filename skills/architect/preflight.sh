@@ -26,7 +26,7 @@ json_array(){
   ' "$cfg" | while IFS= read -r v; do json_unescape "$v"; printf '\n'; done
 }
 to_bash_path(){ case "$1" in [A-Za-z]:\\*) if command -v cygpath >/dev/null 2>&1; then cygpath -u "$1"; else printf '%s' "$1"; fi;; *) printf '%s' "$1";; esac; }
-abs_path(){ p=$(to_bash_path "$1"); case "$p" in /*) printf '%s' "$p";; *) printf '%s/%s' "$(pwd -P)" "$p";; esac; }
+abs_path(){ p=$(to_bash_path "$1"); case "$p" in /*) printf '%s' "$p";; *) printf '%s/%s' "$repo_root" "$p";; esac; }
 git_repo(){ git -C "$repo_root" "$@"; }
 branch_exists(){ git_repo show-ref --verify --quiet "refs/heads/$1"; }
 cleanup_created(){

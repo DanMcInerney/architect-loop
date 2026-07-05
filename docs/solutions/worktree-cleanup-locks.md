@@ -19,6 +19,10 @@ path is ambiguous when the orchestrator shell's cwd drifts between events. On
 Windows, a directory cannot be removed while a shell or child process still has
 it as cwd or holds an open handle under it.
 
+The session-cwd drift cause remains unattributed after code audit:
+check-runner uses per-process `WorkingDirectory`, preflight/postflight never
+change location, and status.ps1 balances Push/Pop.
+
 ## What Did Not Work
 
 - Assuming relative `worktree` paths were repo-root-relative.
@@ -35,3 +39,6 @@ it as cwd or holds an open handle under it.
   command.
 - Kill the holder, retry worktree removal, and use piecemeal child deletion only
   to isolate which path remains locked.
+- Postflight now retries `git worktree remove`, then retries with `--force`,
+  then reports `cleanup=deferred <path>` on the OK line instead of failing a
+  completed merge for cleanup alone.
