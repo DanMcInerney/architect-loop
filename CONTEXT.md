@@ -66,8 +66,18 @@ Glossary only. No implementation details, no spec content.
   respawn answers. Part of the judge's intent context.
 - **Verdict comment** - the judgment record posted on the issue: per-check
   PASS/FAIL/INVALID, checks integrity, diff-vs-intent, and the slice call.
+- **Sync judge** - a harness-native judge dispatched with
+  `run_in_background: false`, so the verdict returns as the tool result.
+- **Recovery ladder** - the ordered rescue path for a missing background
+  deliverable: retrieve task output, nudge once, then discard and respawn
+  fresh. The orchestrator never authors a missing verdict.
+- **Close-out** - stopping or closing a consumed subagent or background shell
+  task in the same turn its result or typed exit was consumed.
 - **Canary** - the preflight spawn that proves a builder backend actually has
   working tools before the decomposition records it.
+- **Change-context digest** - the shipped-issues, diffstat, rulings,
+  docs-debt, and domain-language summary passed to the builder-run docs finish
+  job.
 - **Config vocabulary** - flat `.architect/config` keys include
   `tracker = github | markdown`, `orchestrator = cli/model`,
   `builders = cli/model:effort`, and optional
@@ -76,9 +86,9 @@ Glossary only. No implementation details, no spec content.
 - **Post-flight** - the orchestrator's mechanical checks on a completed job
   (boundaries, check-file integrity, raw-only report, status-line form) before
   integration. Distinct from judgment.
-- **Codify** - the compound step: nontrivial diagnoses become
-  `docs/solutions/<slug>.md`, read back at grounding so each run makes the next
-  one easier.
+- **Codify** - the compound step: nontrivial diagnoses become durable product
+  documentation, usually DESIGN for evidence and CONTEXT for vocabulary. Raw
+  run artifacts still live under `docs/jobs/` while a run is active.
 - **docs/STOP** - the kill switch; its presence halts the factory before the
   next dispatch.
 

@@ -15,9 +15,12 @@ definition.
 This document describes the current system (v5.1). Superseded designs — the
 v2 human-per-block slice loop, the v3 external loop driver, the v4
 `docs/HANDOFF.md` repo diary — and their full evidence trails live in git
-history and in [docs/spec/](docs/spec/architect-v5.md),
-[docs/adr/](docs/adr/0001-in-session-loop-replaces-external-driver.md), and
-[docs/research/](docs/research/autonomous-software-factory.md).
+history: evidence: architect-v5 specs, ADR 0001, and autonomous-software-factory
+research, in git history before the 2026-07-04 cleanup.
+
+Development-era run artifacts under `docs/` were removed on 2026-07-04 so the
+repository installs fresh. Their evidence remains in git history before the
+cleanup commit; future runs recreate `docs/` as working state.
 
 ---
 
@@ -100,7 +103,7 @@ the split lines up with what each model is best at.
 
 Through v4 the cross-session memory was a repo file, `docs/HANDOFF.md` — a
 hand-pruned diary of decisions, verdicts, and docs debt. v5 retired it
-(spec: [docs/spec/architect-v5.md](docs/spec/architect-v5.md)); **GitHub
+(spec: architect-v5 spec, in git history before the 2026-07-04 cleanup); **GitHub
 issues are now the durable coordination log, and "not in the tracker =
 didn't happen."** Git still carries what must version with the code: specs,
 frozen checks, rulings files, job reports.
@@ -116,6 +119,12 @@ Why the move:
   ([changelog, 2026-06-10](https://github.blog/changelog/2026-06-10-manage-sub-issues-types-and-dependencies-from-github-cli/)).
   The scheduler reduces to "dispatch every issue whose blockers are closed,
   up to the job cap" — no custom state files or body-text conventions.
+  The loop-hygiene run found why body/title edge text is not enough: the
+  status emitter reads GitHub's native `--json parent,blockedBy` fields, so
+  edges recorded only as prose produced a false `tracker: no open run` state.
+  Sub-issues are now created with `gh issue create --parent` and
+  `--blocked-by`; this run validated the fix live when tracking issue #75
+  resolved with `SUB` rows.
 - **One diary file was the highest-contention artifact in the repo.** Every
   job's lifecycle wanted a row in it, which fought the disjoint-file-set
   rule that makes parallel jobs safe. Issues give each unit of work its own
@@ -127,8 +136,9 @@ Why the move:
   agent snapshots the issue at assignment and does not read comments posted
   after it starts. This design adopts the same reality: the issue thread is
   the *durable log*; a fresh spawn's context is the *delivery channel* for
-  answers (see §4, blockers). Evidence:
-  [docs/research/autonomous-software-factory.md](docs/research/autonomous-software-factory.md).
+  answers (see §4, blockers). Evidence: autonomous-software-factory research,
+  in git history before the
+  2026-07-04 cleanup.
 
 Issue mirror reality (v5.1): builders often cannot post to GitHub — the
 Codex sandbox has no network and Claude subagents have a shell-strip watch
@@ -142,9 +152,8 @@ boundaries it already occupies.
 
 Each decision is enforced mechanically by the skill text, not left as
 advice. Tags like D4/P2 refer to the numbered decisions in
-[docs/spec/architect-v5.md](docs/spec/architect-v5.md),
-[docs/spec/architect-v5.1.md](docs/spec/architect-v5.1.md), and the
-loop-hardening research ([docs/research/loop-improvements.md](docs/research/loop-improvements.md)).
+architect-v5 and architect-v5.1 specs, and loop-improvements research
+(evidence: git history before the 2026-07-04 cleanup).
 
 ### Intake and spec approval
 
@@ -154,7 +163,8 @@ loop-hardening research ([docs/research/loop-improvements.md](docs/research/loop
   becomes a recorded `## Assumptions` section the human can veto. This is the
   established middle path between maximal stress-testing and zero questions
   ([Spec Kit](https://github.com/github/spec-kit);
-  [factory research](docs/research/autonomous-software-factory.md)).
+  evidence: autonomous-software-factory research, in git history before the
+  2026-07-04 cleanup).
 - **Spec approval is the one human step (D4).** The human reviews one
   `docs/spec/<project>.md`, edits or vetoes assumptions, and approves.
   Approval authorizes the entire plan — after it, the human hears from
@@ -168,14 +178,15 @@ loop-hardening research ([docs/research/loop-improvements.md](docs/research/loop
   across deployment systems and agent products: GitHub environments auto-fail
   unapproved runs after 30 days, Azure timeout-rejects approvals, OWASP
   fail-safe defaults ban inferred allow, and Copilot treats assignment itself
-  as authorization. The 2026-07-03 human directive in
-  [docs/spec/loop-tuning.md](docs/spec/loop-tuning.md) overrides the earlier
+  as authorization. The 2026-07-03 human directive in the loop-tuning spec
+  (evidence: git history before the 2026-07-04 cleanup) overrides the earlier
   park-and-poll product behavior: absent a human answer, wait about 5 minutes,
   rule with the orchestrator's best judgment, record the ruling for
   after-the-fact veto, and continue. Carve-out: irreversible or destructive
   choices resolve to the non-destructive path on silence; `docs/STOP` remains
   absolute
-  ([factory-hardening evidence](docs/research/factory-hardening-evidence.md)).
+  (evidence: factory-hardening research, in git history before the
+  2026-07-04 cleanup).
 - **Preflight has no fallback.** A GitHub remote, passing `gh auth status`,
   and `gh` ≥ 2.94.0 are hard preconditions; failing any of them fails
   loudly rather than degrading to a local tracker (no silent fallback, P1).
@@ -196,13 +207,13 @@ loop-hardening research ([docs/research/loop-improvements.md](docs/research/loop
   [Anthropic multi-agent](https://www.anthropic.com/engineering/multi-agent-research-system)).
   The parallel set is always the plan's ready issues, capped at five
   jobs plus one watchdog sweep.
-  Tracking issue #43's 2026-07-03 DIGEST comment, reflected in
-  [docs/spec/loop-tuning.md](docs/spec/loop-tuning.md) and
-  [docs/jobs/status-scripts-rulings.md](docs/jobs/status-scripts-rulings.md),
-  tightened run mechanics: judges dispatch concurrently for every DONE, the
-  ready-issue frontier recomputes on every merge, independent bookkeeping
-  batches into parallel calls, and merges, synthesis, and stress-testing stay
-  serial.
+  Tracking issue #43's 2026-07-03 DIGEST comment, reflected in the
+  loop-tuning spec and status-scripts rulings (evidence: git history before
+  the 2026-07-04 cleanup), tightened run mechanics: the old "judges dispatch
+  concurrently for every DONE" line is superseded by the 2026-07-04 human
+  ruling; the ready-issue frontier still recomputes on every merge,
+  independent bookkeeping batches into parallel calls, and merges, synthesis,
+  and stress-testing stay serial.
 - **Concurrently scheduled issues share nothing mutable.** Not files,
   migrations, lockfiles, generated artifacts, config, schemas, dev servers,
   or databases. Merge conflicts are the top reported multi-agent failure and
@@ -252,8 +263,9 @@ loop-hardening research ([docs/research/loop-improvements.md](docs/research/loop
   before any dispatch; after each spawn the orchestrator verifies the
   worktree HEAD equals the freeze commit and spot-checks one frozen file on
   disk. Motivated by a live finding: the first harness-created worktree had
-  a fast-forwarded ref but stale files on disk
-  ([docs/solutions/worktree-stale-snapshot.md](docs/solutions/worktree-stale-snapshot.md)).
+  a fast-forwarded ref but stale files on disk (evidence:
+  worktree-stale-snapshot solution, in git history before the 2026-07-04
+  cleanup).
 - **One fresh independent adversarial pass attacks the whole decomposition (P2, widened by
   v5.1 D3).** Before the freeze, a read-only adversarial agent executes
   draft check commands against the current tree, attacks acceptance criteria
@@ -309,6 +321,38 @@ loop-hardening research ([docs/research/loop-improvements.md](docs/research/loop
 
 ### Judging and integration
 
+#### Judge delivery fix and close-out discipline (2026-07-04)
+
+The 2026-07-03 diagnosis separated the judge hang into two halves. The
+check-runner offload fixed only the mechanical half: frozen RUN commands no
+longer spend judge context. It did not fix verdict delivery. Harness-native
+Claude judges launched in the background could finish by putting the verdict in
+final text; the harness then emitted a contentless idle notification and dropped
+that final text. Agents that delivered used the message channel by luck, not by
+contract.
+
+The 2026-07-04 canary confirmed the backend risk and the dispatch fix at the
+same time: the Claude judge spawn returned `CANARY: DEGRADED` with only
+Glob/Read/Grep, bringing the dev-machine total to 7/7 shell-stripped Claude
+spawns, while synchronous Agent-tool dispatch returned the verdict as the tool
+result. The human ruling on 2026-07-04 chose synchronous-by-default for
+harness-native judges: Claude Agent-tool judges run with
+`run_in_background: false`; codex-backend judges keep the background
+`codex exec -o <file>`
+typed-exit path, whose process exit wakes the loop.
+
+Judge templates also batch independent reads - frozen check file, spec, job
+report, rulings file, and checkrun evidence - into one parallel read step, then
+serialize only dependent grading and command re-runs.
+
+Any backgrounded subagent that goes idle without its expected artifact now
+uses a recovery ladder: retrieve task output through the harness, nudge once
+for the missing artifact, then discard and respawn fresh. The orchestrator never
+authors a missing verdict. Close-out is also a loop rule, not a script: after
+consuming a subagent result or shell typed exit, use the harness-native
+stop/close mechanism in the same turn, batch independent close-outs, and avoid
+per-close commentary.
+
 #### Check-runner offload (2026-07-04)
 
 The measured motivation was 135 mechanical `command → expected` items across
@@ -326,8 +370,8 @@ guard. D12 consequence: shell-dependent checks no longer force cross-family
 codex judges just to get a shell; cross-family review returns to a high-stakes
 review choice rather than a workaround for stripped tools.
 
-The RUN grammar came from the design-it-twice record in
-[spec D1](docs/spec/judge-runner.md#d1-run-grammar-for-check-files-design-it-twice-record):
+The RUN grammar came from the design-it-twice record in judge-runner spec D1
+(evidence: git history before the 2026-07-04 cleanup):
 heuristic backtick-span parsing was rejected for structural false positives in
 prose, fenced run blocks were rejected for authoring churn and for separating
 the command from its inline expected outcome, and explicit `- RUN:` markers
@@ -353,13 +397,14 @@ The interface design-it-twice record rejected positional arguments and env vars
 in favor of one config JSON path: positional args had six-plus parameters,
 Windows quoting hazards, and no sibling consistency, while env vars hid state
 and diverged between PowerShell 5.1 and bash. The full record lives in the
-[orchestrator-scripts design section](docs/spec/orchestrator-scripts.md#design).
+orchestrator-scripts design section (evidence: git history before the
+2026-07-04 cleanup).
 
 Run #68 was the first live use of the runner-fed judge path shipped in #62/PR
 #67. Its first execution produced a D3-conformant evidence file but
 quote-mangled every RUN command with quoted multi-word arguments because child
-PowerShell `-Command` stripped quotes; the preserved defect evidence is
-[docs/jobs/os-wiring-checkrun.md](docs/jobs/os-wiring-checkrun.md). The defect
+PowerShell `-Command` stripped quotes; the preserved defect evidence is the
+os-wiring checkrun artifact, in git history before the 2026-07-04 cleanup. The defect
 was fixed in-run by the human-approved D5 amendment (#73), then validated
 through the same path it repairs: the fixed runner executed its own frozen
 acceptance checks and three subsequent evidence-consuming judgments (#73, #69,
@@ -426,11 +471,12 @@ both directions.
   auto-kill. The local run-#30 LLM monitor measured 3 dispatches, 0 true
   positives, and 2 false positives, so the LLM monitor survives only as a
   fallback template
-  ([factory-hardening evidence](docs/research/factory-hardening-evidence.md)).
+  (evidence: factory-hardening research, in git history before the
+  2026-07-04 cleanup).
   Done now means the report's last non-blank line starts with `STATUS:`; report
   existence alone produced twice-observed false `ALL_DONE` evidence in the
   run #36 respawn case and the run #43 incremental-write case recorded in
-  [docs/spec/loop-tuning.md](docs/spec/loop-tuning.md).
+  the loop-tuning spec (evidence: git history before the 2026-07-04 cleanup).
 - **Hard stops (D11).** the `docs/STOP` kill switch before any wave; irreversible actions;
   two consecutive KILLs; a blocker colliding with a recorded assumption
   (a spec-approval decision surfacing late); scope growth beyond the approved
@@ -468,8 +514,8 @@ both directions.
   closing PR.** The PR body closes the tracking issue and lists every shipped issue;
   each closed issue gets a back-link comment naming the PR.
 - **Tracker-agnostic coordination uses the pinned TSV line protocol.** The
-  community request recorded in
-  [docs/spec/tracker-markdown.md](docs/spec/tracker-markdown.md) asks for
+  community request recorded in the tracker-markdown spec (evidence: git
+  history before the 2026-07-04 cleanup) asks for
   projects "locally or on Gitlab" where GitHub issues are not feasible, and
   asks to keep the loop agnostic. The seam is the existing
   `TRACK`/`SUB`/`NOOPENRUN` TSV line protocol, not an abstract adapter layer:
@@ -478,8 +524,8 @@ both directions.
   chosen for the second tracker because `docs/issues/` is git-tracked, has
   zero runtime dependencies, works fully local, and preserves the same audit
   trail through orchestrator-executed issue mutations. This follows the
-  pinned-jq lesson in
-  [docs/jobs/status-scripts-rulings.md](docs/jobs/status-scripts-rulings.md):
+  pinned-jq lesson in status-scripts rulings (evidence: git history before
+  the 2026-07-04 cleanup):
   duplicated graph logic failed repeatedly until one pinned emitter produced
   the line protocol consumed by both status scripts.
 - **Docs debt batches into one dedicated job at the PR boundary (P7).**
@@ -487,6 +533,16 @@ both directions.
   repo and evidence rows need post-judgment information, so build jobs and
   the orchestrator never edit them mid-run; pointers accumulate and one
   docs job consumes them before the PR.
+- **Builder-run docs finish uses a change-context digest (2026-07-04).**
+  The finish job is dispatched like any other builder job; the orchestrator
+  supplies shipped issue numbers, one-line summaries, diffstats, rulings
+  pointers, docs-debt notes, and domain-language changes. The orchestrator
+  still owns judgment and merge, but it does not write product docs directly.
+  This docs-finish job is the first dispatch under that contract. Because the
+  2026-07-04 cleanup removes development-era `docs/` artifacts, durable
+  diagnoses from solutions and rulings are folded into surviving product docs
+  such as DESIGN and CONTEXT; old `docs/solutions/` entries remain provenance
+  in git history before the cleanup.
 - **Conversational status display.** Decision: a mid-run status question runs
   the status tree script and prints that plain-text tree beside the prose
   answer. Why: Lazyagent's agent-tree precedent shows the right visual shape;
@@ -494,12 +550,13 @@ both directions.
   fields (`parent`, `blockedBy`, state) needed for a read-only issue view; and
   chat surfaces do not render ANSI, so color follows `isatty` and `NO_COLOR`.
   The run scripts are invoked from the repo root or with `-RepoRoot`;
-  live-watch was descoped by human ruling. Evidence:
-  [docs/research/status-display-evidence.md](docs/research/status-display-evidence.md)
-  and [docs/jobs/status-scripts-rulings.md](docs/jobs/status-scripts-rulings.md).
-- **Nontrivial diagnoses are codified to `docs/solutions/<slug>.md`** and
-  read back at grounding, so each run makes the next one easier. Measured
-  basis: [docs/research/lesson-store-evidence.md](docs/research/lesson-store-evidence.md).
+  live-watch was descoped by human ruling. Evidence: status-display research
+  and status-scripts rulings, in git history before the 2026-07-04 cleanup.
+- **Nontrivial diagnoses are codified in surviving product docs.** Before the
+  2026-07-04 cleanup, many diagnoses accumulated in `docs/solutions/<slug>.md`
+  and were read back at grounding. After cleanup, the surviving home is DESIGN
+  and the glossary in CONTEXT; the measured lesson-store basis lives in git
+  history before the cleanup.
 
 ### The skill text itself
 
@@ -514,7 +571,8 @@ both directions.
   what models now do unprompted.
 - **An 800-non-blank-line size guard is enforced by the validator (P5).**
   Models silently skip steps past an instruction-budget ceiling
-  (HumanLayer/RPI; [docs/research/loop-improvements.md](docs/research/loop-improvements.md)).
+  (HumanLayer/RPI; evidence: loop-improvements research, in git history before
+  the 2026-07-04 cleanup).
   `tests/validate_skills.py` also freezes the load-bearing contracts: alias
   table, config grammar, judge templates, agent-definition constraints, and
   a guard that no retired handoff reference re-enters the skill text.
@@ -526,7 +584,8 @@ runs ~15× chat-level tokens
 ([Anthropic multi-agent](https://www.anthropic.com/engineering/multi-agent-research-system)) —
 it must be a deliberate act, never a side effect of building. Its design
 decisions, from the 2026-06 evidence review and the r2 calibration pass
-([docs/research/agent-pipeline-patterns.md](docs/research/agent-pipeline-patterns.md)):
+(evidence: agent-pipeline-patterns research, in git history before the
+2026-07-04 cleanup):
 
 - **Scout-first, topic-designed researchers — no fixed taxonomy.** All five
   surveyed production deep-research systems use adaptive planner-driven
@@ -599,7 +658,7 @@ decisions, from the 2026-06 evidence review and the r2 calibration pass
   [HumanLayer](https://www.humanlayer.dev/blog/brief-history-of-ralph)).
   There is also no external driver script — the loop is the orchestrator
   conversation itself
-  ([ADR 0001](docs/adr/0001-in-session-loop-replaces-external-driver.md)).
+  (evidence: ADR 0001, in git history before the 2026-07-04 cleanup).
 - **Not a general-purpose orchestrator.** It is a build factory over GitHub
   issues plus a research harness; trivial work should be done directly —
   "don't run a $200 harness on a $9 task"
@@ -618,8 +677,8 @@ decisions, from the 2026-06 evidence review and the r2 calibration pass
 Dated findings from live runs on this machine, kept because skill text
 cites them. (Numbering note: D9/D11/D12 below are *environment findings*
 from the v4–v5 evidence era; `SKILL.md`'s "D9" cites the design-quality
-*decision* in [docs/spec/architect-v5.md](docs/spec/architect-v5.md). Both
-namespaces are load-bearing in shipped text.)
+*decision* in the architect-v5 spec, in git history before the 2026-07-04
+cleanup. Both namespaces are load-bearing in shipped text.)
 
 - **D9 — desktop subagent Bash strip (2026-07-02).** Three human-run desktop
   canaries: Bash is stripped from subagent spawns by name, not position
@@ -641,7 +700,8 @@ namespaces are load-bearing in shipped text.)
   (workspace-write, tree audited untouched) for shell-dependent checks, plus
   a fresh headless `claude -p` session for checks the Codex sandbox cannot
   run — Git Bash dies with Win32 error 5 in that sandbox here
-  ([docs/solutions/subagent-shell-strip-codex-fallback.md](docs/solutions/subagent-shell-strip-codex-fallback.md)).
+  (evidence: subagent-shell-strip-codex-fallback solution, in git history before
+  the 2026-07-04 cleanup).
 - **D13 — Git Bash under the Codex Windows sandbox (2026-07-03).** This is
   no longer treated as a machine-local mystery: Git for Windows' MSYS2/Cygwin
   runtime creates per-user shared sections with `CreateFileMappingW`, while
@@ -652,20 +712,36 @@ namespaces are load-bearing in shipped text.)
   and [openai/codex#21715](https://github.com/openai/codex/issues/21715).
   The local canary reproduced the MSYS2 failure for `bash.exe`, `grep.exe`,
   and `sed.exe` while native `git.exe` succeeded
-  ([factory-hardening evidence](docs/research/factory-hardening-evidence.md);
-  [solution note](docs/solutions/git-bash-msys-codex-sandbox.md)).
+  (evidence: factory-hardening research and git-bash-msys-codex-sandbox
+  solution, in git history before the 2026-07-04 cleanup).
 - **Codex 0.139 native `spawn_agent` round trip verified.** One thread
   spawned one child instructed to reply `PONG`; the parent surfaced
   `SPAWN_RESULT: PONG` after waiting — also the source of the note that the
   live event stream names the tool `wait`, not `wait_agent`.
 - **Sandbox substitutions, recorded per check:** `uv` AppData cache denial →
-  `UV_CACHE_DIR=.architect/tmp/uv-cache`
-  ([docs/solutions/uv-cache-sandbox-redirect.md](docs/solutions/uv-cache-sandbox-redirect.md));
+  `UV_CACHE_DIR=.architect/tmp/uv-cache` (evidence: uv-cache sandbox redirect
+  solution, in git history before the 2026-07-04 cleanup);
   out-of-workspace temp paths and `asyncio.create_subprocess_exec`-based
   tooling hang under workspace-write — prescribe in-workspace temp/cache
   paths and sequential check execution.
-- **Stress-test catch record:** 5 draft-check defects (first use), 8 (second), 2
-  blocking (third) — defects found on every use to date.
+- **Loop-hygiene pre-freeze stress-test catch record (2026-07-04):** 6
+  defects before dispatch, including the host-specific finding that bare
+  `python` resolves to the Windows Store stub and validator checks must run as
+  `uv run --no-project python tests/validate_skills.py`.
+- **Loop-hygiene cross-platform audit (2026-07-04).** Twelve scripts were
+  audited across Windows PowerShell 5.1+, macOS bash 3.2+, and Linux bash.
+  Fixes: `status.ps1` and `watchdog.ps1` prefer `Get-CimInstance` over
+  `Get-WmiObject`; `watchdog.sh` uses split `ps -eo time= -o args=`; and
+  `check-runner.sh` plus `postflight.sh` keep temp files under `.architect/tmp`.
+  A live check-runner defect was also found: on Windows, bare `bash` resolved
+  to WSL System32 bash, producing `powershell`/`uv` exit 127 and git worktree
+  fatal 128 under `/mnt/c`. Ruling R1 fixed this by resolving Git Bash from the
+  Git install root, failing loudly with typed `CHECKRUN: ERROR` when absent,
+  and writing an `executor_resolved` evidence-header line. Ruling R2 recorded
+  that the first judgment FAIL was overruled as two frozen-check text defects:
+  the job-report exemption was missing, and `find -maxdepth` was wrongly
+  flagged even though BSD find supports it. A corrected-anchor re-judgment
+  passed.
 - **Dogfood runs.** v5 was built *by* the factory as a real issue plan (tracking issue
   #12, issues #13–#18): 1 judge FAIL, 3 respawns, all jobs fresh-judged.
   The v5.1 hardening run (tracking issue #20, issues #21–#25, on `factory/v5.1`)
