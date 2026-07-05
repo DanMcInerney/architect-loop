@@ -5,6 +5,7 @@ Thumbs.db
 # docs/STOP is the loop kill switch — never commit it.
 /docs/*
 !/docs/checks/
+!/docs/evals/
 !/docs/jobs/
 !/docs/issues/
 !/docs/gates/
