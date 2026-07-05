@@ -1,5 +1,15 @@
 # Source-class tactics library — researcher preamble, scout block, verified endpoints
 
+## Contents
+
+- Researcher 0 — Scout (brainstorm scale; dispatches before researcher assignment design)
+- Researcher 1 — Academic (latest papers)
+- Researcher 2 — Popular repos (what the ecosystem actually uses)
+- Researcher 3 — Cutting-edge repos (emerging, not hype)
+- Researcher 4 — Production-grade design patterns
+- Researcher 5 — General web
+- Researcher 6 — Expert opinion (second wave — dispatch after researchers 1-5 return)
+
 Researcher assignments are DESIGNED per topic by the orchestrator (SKILL.md step 2); the
 sections below are search tactics and verified endpoints per source class —
 draw on whichever a designed researcher assignment needs, mix freely. Endpoints verified

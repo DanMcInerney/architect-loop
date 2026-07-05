@@ -1,5 +1,27 @@
 # Builder dispatch reference
 
+## Contents
+
+- Model alias table
+- Model resolution and dispatch rules
+- Per-harness delegation
+- C5 judge delegation template
+- Codex judge delegation template
+- Check-runner dispatch
+- Stress-test delegation template
+- Codex backend from a Claude orchestrator
+- Preflight and postflight dispatch
+- Integration commands
+- Issue conventions
+- Monitor dispatch
+- Status display
+- Duration hints and liveness
+- Orchestrator shell hygiene
+- Respawn-with-answer template
+- Cross-model review
+- Builder block template
+- Builder-side standing setup
+
 Dispatch turns a frozen slice into fresh builder or judge work. The
 orchestrator chooses the job shape, model tier, worktree, and report path;
 the subagent receives a self-contained task and returns raw evidence.
