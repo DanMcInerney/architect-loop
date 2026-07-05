@@ -47,9 +47,9 @@ GPT-5.5, xhigh) does the heavy lifting. Both are overridable — see
 - Orchestrator loops through the issues, assigning builders until every
   issue is fully complete:
   - progress lands on the GitHub issue as builders work;
-  - frozen checks run deterministically when a builder finishes;
-  - a fresh orchestrator-tier model adversarially reviews the code for
-    quality and intent;
+  - frozen checks run deterministically and grade their expected results;
+  - a fresh builders-model judge reviews integrity and intent, with one
+    spot-check of the runner;
   - on failure, the orchestrator diagnoses why, updates the issue and its
     requirements, and respawns a fresh builder — otherwise it comments,
     closes, and merges.
@@ -130,17 +130,14 @@ git — not left as advice. Full evidence and citations: [DESIGN.md](DESIGN.md).
   false positives. It never kills — the orchestrator rules on its evidence.
 - **Frozen checks run through a deterministic check-runner.** *token
   savings* — ~9 mechanical commands per check file were burning
-  frontier-priced judge turns; a script records the evidence, and a script
-  can't fabricate an exit code.
+  frontier-priced judge turns; a script grades expected exits and fixed
+  stdout matches, records the evidence, and can't fabricate an exit code.
 - **Dispatch and merge mechanics are scripted.** *token savings* — Worktree
   setup, freeze verification, touch-set audit, merge, and cleanup each
   collapse from 4–5 orchestrator calls into one typed-exit line.
-- **A fresh judge owns every merge.** *quality* — Per-check
-  PASS / FAIL / INVALID, where unmeasured never equals passed; the
-  orchestrator cannot overrule a FAIL.
-- **The judge reads the diff against intent, not just check output.**
-  *quality* — Agent PRs that pass tests are still mostly unmergeable, so
-  green checks with wrong code still fail.
+- **A fresh intent judge owns every merge.** *quality* — It checks
+  integrity, reads the diff against intent, and spot-checks one graded RUN
+  item; the orchestrator cannot overrule a FAIL.
 - **Judged diffs target ≤~400 changed lines.** *quality* — Review
   effectiveness collapses past a few hundred lines, so bigger specs split
   into more issues.
@@ -161,10 +158,10 @@ git — not left as advice. Full evidence and citations: [DESIGN.md](DESIGN.md).
 - **High-stakes changes get cross-family review.** *quality* — Same-family
   review shares blind spots (measured self-preference bias);
   Claude-reviews-Codex is the preferred direction.
-- **Docs debt batches into one job at the PR boundary.** *token savings* —
-  Product docs are the highest-contention files in a repo; one docs job
-  consumes the accumulated pointers instead of every builder fighting over
-  the README.
+- **Closing review and docs debt are batched at the PR boundary.** *token
+  savings* — Product docs are the highest-contention files in a repo; one
+  gated review and one docs job consume the accumulated pointers instead of
+  every builder fighting over the README.
 - **Hard stops.** *quality* — The `docs/STOP` kill-all switch,
   `docs/runs/<run>/STOP` for one run, irreversible actions, two consecutive
   killed jobs, or scope growth beyond the approved spec halt the factory and
@@ -221,8 +218,9 @@ Role strings are `<cli>/<model-spec>[:<effort>]`, with `<cli>` `claude` or
 GPT-5.5 at xhigh, and Sonnet at high / GPT-5.5 at high); any concrete model
 works too. Unconfigured, the orchestrator is your current session and
 builders are `codex/best` when the Codex CLI is installed, else
-`claude/tier-down`. Judges and adversarial reviewers run at orchestrator
-tier; `/architect-research` researchers follow `builders`. `when <task
+`claude/tier-down`. Routine judges follow `builders`; adversarial reviewers
+and closing review follow the orchestrator tier; `/architect-research`
+researchers follow `builders`. `when <task
 class> -> <model>` lines route classes of work to a tier. A configured CLI
 missing at dispatch falls back to the default with a note on the tracking
 issue — never a hard fail.

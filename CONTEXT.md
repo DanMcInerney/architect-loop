@@ -8,14 +8,14 @@ Glossary only. No implementation details, no spec content.
   harness, any surface). Grounds, runs intake, decomposes, freezes,
   dispatches, arbitrates, diagnoses, integrates. Never writes implementation
   code, never reads large diffs, never judges checks.
-- **Orchestrator tier** - the model tier used for orchestration and judgment:
-  a capability level, not one process.
+- **Orchestrator tier** - the model tier used for orchestration and designated
+  high-judgment reviews: a capability level, not one process.
 - **Builder** - a fresh-context worker agent that implements exactly one issue
   in an isolated worktree. Cannot commit. The builder tier is typically
   cheaper than the orchestrator tier and never changes because a job failed.
-- **Judge** - a fresh-context, read-only agent at orchestrator tier that runs
-  an issue's frozen checks and returns verdicts with raw evidence. Same
-  capability as the orchestrator, none of its conversation. Not a config key.
+- **Judge** - a fresh-context, read-only intent reviewer for one issue. The
+  deterministic check-runner grades frozen RUN items first; the judge checks
+  integrity, diff-vs-intent, and one graded RUN spot-check. Not a config key.
 - **Watchdog** - a deterministic script that sweeps in-flight jobs and exits
   with typed evidence (`ALL_DONE`, `INTEGRATED`, `STALL`, `REPEAT`). It never
   kills, nudges, or decides; the orchestrator rules on the evidence. A job is
@@ -26,20 +26,21 @@ Glossary only. No implementation details, no spec content.
 - **Stress-test** - a fresh adversarial reviewer of the decomposition before
   the freeze: attacks check commands, issue bodies, and repo reality.
 - **Scout** - a researcher-shaped investigator: reads, researches, reports;
-  may not modify code.
+  may not modify code. Build runs commit a scout map before decomposition.
 
 ## Units of work
 
 - **Issue** - one vertical-slice unit of work, one GitHub issue, one builder
   job. Body carries what-to-build, acceptance criteria, boundaries (disjoint
-  file sets), and interface handoff blocks.
+  file sets), a change-skeleton, and interface handoff blocks.
 - **Tracking issue** - the run's parent issue: dashboard, digest, and
   preflight record. Sub-issues hang off it with native blocked-by edges.
 - **Plan** - the issue set plus native blocked-by links. The schedulable set is
   always the ready issues, dispatched up to five jobs at once.
 - **Wave** - one ready-issue dispatch: its jobs plus one watchdog.
 - **Factory run** - everything between spec approval and the closing PR; runs
-  unattended on the factory branch (`factory/<run>`).
+  unattended on the factory branch (`factory/<run>`), with an optional
+  human-gated closing review before docs-finish.
 
 ## Control & Memory
 
@@ -58,14 +59,25 @@ Glossary only. No implementation details, no spec content.
   and continues. Irreversible or destructive silence takes the non-destructive
   path; `docs/STOP` remains absolute.
 - **Check** - a frozen, committed, exact acceptance check
-  (`docs/checks/<issue-slug>.md`). Read-only for everyone once frozen.
+  (`docs/checks/<issue-slug>.md`). Read-only for everyone once frozen. RUN
+  items are graded by machine-readable expectations.
+- **Graded RUN** - a check RUN item with `-> exit:<n>` and optional fixed
+  stdout `match:"substring"` expectation. Runner exits are typed: 0 all pass,
+  2 any expectation fails, 5 runner error.
+- **Scout map** - the committed `docs/runs/<run>/map.md` file: file:line
+  anchors, conventions, testing seams, and gotchas gathered before
+  decomposition.
+- **Change-skeleton** - a compact per-issue structure block naming files,
+  signatures, data flow, and invariants. It proves ownership and parallelism;
+  it is not implementation code.
 - **Freeze commit** - the commit that locks a run's checks; it is pushed before
   any dispatch, and worktrees are verified against it after spawn.
 - **Rulings file** (`docs/jobs/<issue-slug>-rulings.md`) - orchestrator-owned,
   append-only post-freeze intent: PHASE-0 rulings, boundary amendments,
   respawn answers. Part of the judge's intent context.
-- **Verdict comment** - the judgment record posted on the issue: per-check
-  PASS/FAIL/INVALID, checks integrity, diff-vs-intent, and the slice call.
+- **Verdict comment** - the judgment record posted on the issue: runner
+  summary, checks integrity, diff-vs-intent, the spot-check result, and the
+  slice call.
 - **Sync judge** - a harness-native judge dispatched with
   `run_in_background: false`, so the verdict returns as the tool result.
 - **Recovery ladder** - the ordered rescue path for a missing background
@@ -73,6 +85,9 @@ Glossary only. No implementation details, no spec content.
   fresh. The orchestrator never authors a missing verdict.
 - **Close-out** - stopping or closing a consumed subagent or background shell
   task in the same turn its result or typed exit was consumed.
+- **Closing review** - the human-gated review-and-fix pass after build issues
+  close and before docs-finish. It uses the orchestrator tier and is
+  green-or-discard.
 - **Canary** - the preflight spawn that proves a builder backend actually has
   working tools before the decomposition records it.
 - **Change-context digest** - the shipped-issues, diffstat, rulings,
