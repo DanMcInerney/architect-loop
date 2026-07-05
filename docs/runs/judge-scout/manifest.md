@@ -4,7 +4,7 @@ tracking-issue: 98
 factory-branch: factory/judge-scout
 tracker: github
 spec: docs/spec/judge-narrowing-and-scout.md
-state: ACTIVE
+state: FINISHED
 created: 2026-07-05
 ---
 
