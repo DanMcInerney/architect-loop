@@ -30,13 +30,8 @@ builders default to it. No API keys.
 
 A configurable **orchestrator** model (default: Fable, high) designs,
 assigns, and reviews. A configurable **builder** model (default: Codex
-GPT-5.5, xhigh) does the heavy lifting. Override in `.architect/config`:
-
-```ini
-orchestrator = claude/best
-builders = codex/best:xhigh
-when trivial mechanical edit -> claude/haiku:low
-```
+GPT-5.5, xhigh) does the heavy lifting. Both are overridable — see
+[Config](#config).
 
 ### /architect
 
@@ -196,6 +191,52 @@ git — not left as advice. Full evidence and citations: [DESIGN.md](DESIGN.md).
 - **One author writes the report.** *quality* — Section-parallel writers
   produce disjoint reports; gathering parallelizes, synthesis never does.
   The committed report is the handoff into `/architect` specs.
+
+## Config
+
+Optional — with no config file the defaults just work. Settings live in
+`.architect/config` at the repo root or `~/.architect/config` (repo wins;
+unknown keys warn, never fail).
+
+```ini
+orchestrator = claude/best     # Fable at high effort
+builders = codex/best:xhigh    # GPT-5.5 at xhigh
+tracker = markdown             # local issue files; omit for the GitHub default
+when trivial mechanical edit -> claude/haiku:low   # cheap exact patch
+```
+
+### Models
+
+Role strings are `<cli>/<model-spec>[:<effort>]`, with `<cli>` `claude` or
+`codex`. `best` and `tier-down` are per-family aliases (Fable at high /
+GPT-5.5 at xhigh, and Sonnet at high / GPT-5.5 at high); any concrete model
+works too. Unconfigured, the orchestrator is your current session and
+builders are `codex/best` when the Codex CLI is installed, else
+`claude/tier-down`. Judges and adversarial reviewers run at orchestrator
+tier; `/architect-research` researchers follow `builders`. `when <task
+class> -> <model>` lines route classes of work to a tier. A configured CLI
+missing at dispatch falls back to the default with a note on the tracking
+issue — never a hard fail.
+
+### Local issues without GitHub
+
+`tracker = markdown` runs the identical loop with no GitHub dependency —
+for GitLab-hosted or fully local repos. Issues become git-tracked files in
+`docs/issues/<NNN>-<slug>.md` with the same states, parent/blocker edges,
+and comment log, so every rule, judge, and frozen check works unchanged.
+Only a git repo is required; a remote is optional and `gh` isn't needed.
+Two differences: spec approval is in-session only, and the run ends with
+the factory branch ready plus merge instructions instead of an auto-merged
+PR. The default `tracker = github` needs a GitHub remote, authenticated
+`gh` ≥ 2.94.0, and push access.
+
+### Run artifacts
+
+A run writes specs to `docs/spec/`, frozen checks to `docs/checks/`, job
+reports and check evidence to `docs/jobs/`, and reusable fix notes to
+`docs/solutions/`. Builder worktrees live under `.architect/wt/` and are
+removed at merge. An empty `docs/STOP` file halts the factory at the next
+dispatch boundary.
 
 ## License
 

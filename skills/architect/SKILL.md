@@ -62,9 +62,10 @@ Run this at every factory block boundary.
   issues, issue comments, job reports, checks, branch heads, and worktrees.
 - Reconcile tracker state against git reality: open/closed issues, blocked-by
   edges, unjudged jobs, stale reports, check freeze SHAs, and branch heads.
-- Resolve orchestrator, builders, monitor, and judge models from `.architect/config`,
-  then `~/.architect/config`, then `dispatch.md` `## Model alias table` and
-  config rules.
+- Resolve orchestrator and builder models from `.architect/config`, then
+  `~/.architect/config`, then `dispatch.md` `## Model alias table` and config
+  rules; judges run at orchestrator tier and the monitor is a script, not a
+  model.
 - Check `docs/STOP` before any dispatch wave.
 
 Done when repo state, tracker state, model routing, and active hard stops are
