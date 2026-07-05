@@ -44,10 +44,13 @@ parse_expectation(){
       parse_expected="exit:$parse_exit"
       parse_match=
       parse_has_match=false
+      parse_sep=false
+      case "$parse_rest" in ' '*|$'\t'*) parse_sep=true;; esac
       trim_left "$parse_rest"
       parse_rest=$trim_left_result
       case "$parse_rest" in
         match:\"*)
+          [ "$parse_sep" = true ] || die "malformed RUN match expectation $check_file:$parse_line"
           parse_after_match=${parse_rest#match:\"}
           case "$parse_after_match" in
             *\"*)
