@@ -31,3 +31,29 @@ the same path (precedent: run #68 quoting-defect refresh).
 
 Boundaries unchanged from #77. The frozen check file is unchanged and
 unaffected (its commands were correct; the runner resolution was not).
+
+## R2 — 2026-07-04 — first judgment FAIL overruled as two frozen-check text defects; corrected-anchor re-judgment
+
+Judgment #1 (fresh codex judge, refreshed evidence) returned slice FAIL on:
+- J3: `A docs/jobs/loop-hygiene-xplat-01.md` in the diff. Diagnosis: check
+  authoring defect — the frozen J3 omitted the standard bookkeeping
+  exemption for the job's own required report (same defect class as the
+  v4-cleanup first judgment; postflight exempts docs/jobs/ for the same
+  reason). The builder was required by issue #77 and the dispatch block to
+  write exactly that file.
+- J4: flagged `find -maxdepth` (status.sh:18,19,74) as GNU-only. Diagnosis:
+  factually incorrect and outside the frozen flag list — BSD/macOS find
+  supports `-maxdepth`; the frozen list named date, sed -i, find -printf,
+  grep -P, tail --, ps field specs only.
+
+Correction: judge-only text of J3/J4 amended on the factory branch (this
+commit). RUN items are byte-identical between the frozen version at
+cbfb4734 and the corrected version — the committed checkrun evidence
+(head 24edb71, executor_resolved Git Bash) remains valid. Checks-integrity
+semantics are unchanged: the correction is an orchestrator commit on the
+factory branch; the job branch still contains no docs/checks/ edits.
+
+A fresh judge (judgment #2) is dispatched against the same evidence with
+this ruling in its intent context. The orchestrator did not overturn a
+verdict on the merits; it corrected defective check text and ordered a new
+independent judgment (os-docs corrected-anchor precedent).

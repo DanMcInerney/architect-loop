@@ -41,8 +41,15 @@ Judge-only items:
   dispatch-time input — intentionally judge-only, not a RUN item), verify
   `git diff <freeze-sha>..HEAD` for this job touches only
   skills/architect/*.ps1, skills/architect/*.sh, install.ps1, install.sh,
-  tests/fixtures/** — any *.md or validator change = FAIL.
+  tests/fixtures/** — any other change = FAIL, EXCEPT the job's own
+  bookkeeping artifacts, which every job is required to produce and which
+  are exempt here as in the postflight touch-set audit: the job report
+  docs/jobs/loop-hygiene-xplat-01.md and orchestrator-owned
+  docs/jobs/loop-hygiene-xplat-rulings.md. (R2 correction 2026-07-04:
+  the original text omitted the standard report exemption.)
 - J4: Verify GNU-only usages either have a BSD fallback in the same line/block
-  (the `stat -c || stat -f` pattern) or are absent: check `date`, `sed -i`,
-  `find -printf`, `grep -P`, `ps` field specs across all .sh files. Cite
-  file:line for each finding.
+  (the `stat -c || stat -f` pattern) or are absent: check EXACTLY `date`,
+  `sed -i`, `find -printf`, `grep -P`, `tail --`, `ps` field specs across
+  all .sh files — this list is frozen; do not extend it. Cite file:line for
+  each finding. (R2 correction 2026-07-04: `find -maxdepth` is supported by
+  both GNU and BSD/macOS find and is NOT a finding.)
