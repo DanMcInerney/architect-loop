@@ -125,7 +125,26 @@ function CaptureCommand($Executor, $ExecutorResolved, $Command, $Workdir) {
         $stderr = $_.Exception.Message + [Environment]::NewLine
     }
     $sw.Stop()
-    return [pscustomobject]@{ ExitCode = $code; Ms = [int64]$sw.ElapsedMilliseconds; Output = ($stdout + $stderr) }
+    return [pscustomobject]@{ ExitCode = $code; Ms = [int64]$sw.ElapsedMilliseconds; Stdout = $stdout; Stderr = $stderr; Output = ($stdout + $stderr) }
+}
+
+function ParseRunExpectation($Text, $File, $LineNo) {
+    $m = [regex]::Match($Text, '^\s*->\s*exit:([0-9]+)(.*)$')
+    if (-not $m.Success) { StopRun "missing RUN expectation ${File}:$LineNo" }
+
+    $expectedExit = [int]$m.Groups[1].Value
+    $rest = $m.Groups[2].Value
+    $matchText = $null
+    $expected = "exit:$expectedExit"
+
+    $match = [regex]::Match($rest, '^\s+match:"([^"]*)"(.*)$')
+    if ($match.Success) {
+        $matchText = $match.Groups[1].Value
+        $expected = $expected + ' match:"' + $matchText + '"'
+        $rest = $match.Groups[2].Value
+    }
+
+    return [pscustomobject]@{ ExitCode = $expectedExit; Match = $matchText; Text = $expected }
 }
 
 function OutputSlice($Text, $MaxLines) {
@@ -186,8 +205,12 @@ for ($i = 0; $i -lt $lines.Count; $i++) {
     $line = $lines[$i]
     if ($executorHeader -eq "" -and $line -match '^\s*Executor:\s*') { $executorHeader = $line.TrimEnd() }
     if ($line.StartsWith("## ", [System.StringComparison]::Ordinal)) { $section = $line.Substring(3) }
-    $m = [regex]::Match($line, '^\s*- RUN:\s*`([^`]*)`')
-    if ($m.Success) { $runs += [pscustomobject]@{ Section = $section; Line = $i + 1; Command = $m.Groups[1].Value } }
+    $m = [regex]::Match($line, '^\s*- RUN:\s*`([^`]*)`(.*)$')
+    if ($m.Success) {
+        $lineNo = $i + 1
+        $expectation = ParseRunExpectation $m.Groups[2].Value $checkFile $lineNo
+        $runs += [pscustomobject]@{ Section = $section; Line = $lineNo; Command = $m.Groups[1].Value; Expected = $expectation }
+    }
 }
 
 $e = New-Object System.Collections.Generic.List[string]
@@ -198,12 +221,15 @@ $slug = [System.IO.Path]::GetFileNameWithoutExtension($evidenceOut)
 if ($executorHeader) { [void]$e.Add($executorHeader) }
 [void]$e.Add("executor_config: $executor")
 [void]$e.Add("executor_resolved: $executorResolved")
-[void]$e.Add("integrity: check_file_matches_freeze=$checkMatch head=$head")
-[void]$e.Add("changed_files: $($changed.Count) listed below; docs_checks_touched=$docsTouched")
-foreach ($path in $changed) { [void]$e.Add($path) }
 
+$passCount = 0
+$failCount = 0
 foreach ($run in $runs) {
     $result = CaptureCommand $executor $executorResolved $run.Command $workdir
+    $verdict = "PASS"
+    if ($result.ExitCode -ne $run.Expected.ExitCode) { $verdict = "FAIL" }
+    if ($run.Expected.Match -ne $null -and $result.Stdout.IndexOf($run.Expected.Match, [System.StringComparison]::Ordinal) -lt 0) { $verdict = "FAIL" }
+    if ($verdict -eq "PASS") { $passCount += 1 } else { $failCount += 1 }
     $bytes = [System.Text.Encoding]::UTF8.GetByteCount($result.Output)
     $slice = OutputSlice $result.Output $maxOutputLines
     $mark = ""
@@ -212,12 +238,20 @@ foreach ($run in $runs) {
     [void]$e.Add("## $($run.Section) line $($run.Line)")
     [void]$e.Add('$ ' + $run.Command)
     [void]$e.Add("exit: $($result.ExitCode)  ms: $($result.Ms)  bytes: $bytes$mark")
+    [void]$e.Add("expected: $($run.Expected.Text)")
+    [void]$e.Add("verdict: $verdict")
     foreach ($line in $slice.Lines) { [void]$e.Add($line) }
 }
+[void]$e.Add("")
+[void]$e.Add("CHECKRUN SUMMARY: run_items=$($runs.Count) pass=$passCount fail=$failCount")
+[void]$e.Add("integrity: check_file_matches_freeze=$checkMatch head=$head")
+[void]$e.Add("changed_files: $($changed.Count) listed below; docs_checks_touched=$docsTouched")
+foreach ($path in $changed) { [void]$e.Add($path) }
 
 $dir = Split-Path -Parent $evidenceOut
 if ($dir -and -not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
 $tmpEvidence = $evidenceOut + ".tmp." + ([System.Guid]::NewGuid().ToString("N"))
 Set-Content -LiteralPath $tmpEvidence -Value $e -Encoding utf8
 Move-Item -LiteralPath $tmpEvidence -Destination $evidenceOut -Force
+if ($failCount -gt 0) { exit 2 }
 exit 0
