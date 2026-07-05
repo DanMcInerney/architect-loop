@@ -1,5 +1,15 @@
 # Factory-loop reference
 
+## Contents
+
+- Factory block procedure
+- Monitor protocol
+- Verdict comments
+- Failure ladder
+- Escalation digest
+- Hard Stops
+- Context discipline
+
 The loop is one orchestrator session that runs the factory to completion after
 the spec approval approves the issue plan. Tracker issues carry coordination
 state; git carries specs and frozen checks. The orchestrator dispatches the
@@ -126,5 +136,3 @@ immediate stop.
   comments, and job reports carry state across sessions, not the
   conversation.
 - Compact proactively when the harness supports it.
-- Ending a degraded session is free because the tracker and git are the
-  memory.

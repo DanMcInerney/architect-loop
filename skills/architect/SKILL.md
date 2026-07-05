@@ -254,4 +254,6 @@ Stop and ask the human when any hard stop fires:
 
 Re-read this skill against each new model generation and delete what the models
 now do unprompted. The rules above are invariants; everything else is
-prunable. No feature ships without its evidence recorded in `DESIGN.md`.
+prunable. Re-run the trigger-eval fixture at `docs/evals/trigger-prompts.md`
+per model generation. No feature ships without its evidence recorded in
+`DESIGN.md`.
