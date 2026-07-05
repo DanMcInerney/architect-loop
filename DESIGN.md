@@ -577,6 +577,19 @@ both directions.
   `tests/validate_skills.py` also freezes the load-bearing contracts: alias
   table, config grammar, judge templates, agent-definition constraints, and
   a guard that no retired handoff reference re-enters the skill text.
+- **Trigger-eval fixture checks the trigger layer.** The fragile surface is the
+  skill listing and description layer: descriptions can miss intended factory
+  requests, overtrigger on ordinary coding or narrow fact-checks, and disappear
+  under listing-budget truncation. The durable check is
+  `docs/evals/trigger-prompts.md`, a per-model-generation fixture with
+  `PROMPT`, `SKILL`, and `EXPECT` blocks for explicit, implicit, contextual,
+  and negative cases. The `skills/architect/trigger-eval.ps1` and `.sh`
+  harnesses are manual host tools, not sandbox proof: in the Codex Windows
+  sandbox, default `claude -p --output-format stream-json` hit a SessionEnd
+  hook `EPERM` spawning Git Bash, while `--bare` omitted repo skills and
+  returned `Unknown command: /architect` or authentication failures. The
+  shipped invariant is fixture-backed evaluation plus explicit NOT_VIABLE
+  evidence when the harness cannot observe Skill events.
 
 ### The research skill
 
