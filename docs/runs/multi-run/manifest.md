@@ -4,7 +4,7 @@ tracking-issue: 89
 factory-branch: factory/multi-run
 tracker: github
 spec: docs/spec/multi-run.md
-state: ACTIVE
+state: FINISHED
 created: 2026-07-05
 ---
 
