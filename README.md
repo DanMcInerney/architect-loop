@@ -254,6 +254,12 @@ CLIs are installed, because same-family review shares blind spots.
 Research is a separate skill on purpose: fan-out costs ~15× chat-level
 tokens, so it should be a deliberate act, not a side effect of building.
 
+The skill-hygiene maintenance vocabulary is intentionally small. A
+**trigger-eval fixture** is the `PROMPT` / `SKILL` / `EXPECT` prompt set under
+`docs/evals/` used to check skill routing each model generation. A
+**prescriptiveness audit** is the per-model-generation pass that deletes
+Fable-era process instructions once current models do them unprompted.
+
 ## What's in the box
 
 | File | What it is |
@@ -267,6 +273,9 @@ tokens, so it should be a deliberate act, not a side effect of building.
 | [skills/architect-research/SKILL.md](skills/architect-research/SKILL.md) | Research orchestration: scout → design → gather → verify → write |
 | [skills/architect-research/tactics.md](skills/architect-research/tactics.md) | Source-class tactics library for researchers |
 | `.claude/agents/architect-builder.md` / `architect-judge.md` | The shipped builder and judge agent definitions |
+| [docs/evals/trigger-prompts.md](docs/evals/trigger-prompts.md) | Trigger-eval fixture with `PROMPT`, `SKILL`, and `EXPECT` blocks for per-model-generation routing checks |
+| [skills/architect/trigger-eval.ps1](skills/architect/trigger-eval.ps1) / [trigger-eval.sh](skills/architect/trigger-eval.sh) | Manual host harness for running the trigger-eval fixture through `claude -p` |
+| [tests/validate_skills.py](tests/validate_skills.py) guard details | Enforces the 1100-line architect cap, 500-line architect-research cap, SKILL.md token proxy, and reference-file TOCs |
 | [tests/validate_skills.py](tests/validate_skills.py) | Sanity suite: contracts, links, sizes — `uv run --no-project python tests/validate_skills.py` |
 
 ## FAQ
