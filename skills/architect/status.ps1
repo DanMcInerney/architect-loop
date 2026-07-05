@@ -1,12 +1,27 @@
-param([string]$RepoRoot = (Get-Location).Path)
+param(
+    [Parameter(Position = 0)]
+    [string]$RunSlug,
+    [string]$RepoRoot = (Get-Location).Path
+)
 
-$ErrorActionPreference = "SilentlyContinue"
+$ErrorActionPreference = "Stop"
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
+
+# STATUS_GH_STUB points to raw pre-filter ISSUE TSV records:
+# ISSUE <number> <state> <parent-number> <open-blockers> <author-login> <title>
+# STATUS_GH_LOGIN_STUB overrides the authenticated gh login for offline tests.
 function J($A, $B) { return [System.IO.Path]::Combine($A, $B) }
 function TailText($Path) {
     if (-not (Test-Path -LiteralPath $Path)) { return "" }
     $fs = [System.IO.File]::Open($Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
-    try { $len = [Math]::Min([int64]4096, $fs.Length); [void]$fs.Seek(-$len, [System.IO.SeekOrigin]::End); $buf = New-Object byte[] $len; [void]$fs.Read($buf, 0, $len) } finally { $fs.Close() }
+    try {
+        $len = [Math]::Min([int64]4096, $fs.Length)
+        [void]$fs.Seek(-$len, [System.IO.SeekOrigin]::End)
+        $buf = New-Object byte[] $len
+        [void]$fs.Read($buf, 0, $len)
+    } finally {
+        $fs.Close()
+    }
     $utf8 = New-Object System.Text.UTF8Encoding($false, $true)
     try { return $utf8.GetString($buf) } catch { return [System.Text.Encoding]::Unicode.GetString($buf) }
 }
@@ -20,12 +35,19 @@ function ReadText($Path) {
     try { return $utf8.GetString($b) } catch { return [System.Text.Encoding]::Default.GetString($b) }
 }
 function NewestSpec() {
-    $spec = Get-ChildItem -LiteralPath (J $root "docs/spec") -Filter "*.md" | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
+    $dir = J $root "docs/spec"
+    if (-not (Test-Path -LiteralPath $dir -PathType Container)) { return "unknown" }
+    $spec = Get-ChildItem -LiteralPath $dir -Filter "*.md" | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
     if ($spec) { return $spec.Name }
     return "unknown"
 }
-function LastCommand($Slug) {
-    $m = [regex]::Matches((TailText (J (J $root ".architect/wt") "$Slug-01.events.jsonl")), '"command"\s*:\s*"((?:\\.|[^"\\])*)"')
+function SpecName($Manifest) {
+    if ($Manifest -and $Manifest.Spec) { return [System.IO.Path]::GetFileName($Manifest.Spec) }
+    return NewestSpec
+}
+function LastCommand($Run, $Slug) {
+    $events = J (J (J $root ".architect/wt") $Run) "$Slug-01.events.jsonl"
+    $m = [regex]::Matches((TailText $events), '"command"\s*:\s*"((?:\\.|[^"\\])*)"')
     if ($m.Count -eq 0) { return "" }
     return "    last: " + $m[$m.Count - 1].Groups[1].Value.Replace('\"', '"').Replace('\\', '\') + " age: unknown"
 }
@@ -36,59 +58,176 @@ function StatusLine($Path) {
     return $m[$m.Count - 1].Groups[1].Value
 }
 function Slugify($Title) { return (($Title.ToLowerInvariant() -replace '[^a-z0-9]+', '-').Trim('-')) }
-function ReportPath($Slug) {
-    $inside = J (J (J (J $root ".architect/wt") "$Slug-01") "docs/jobs") "$Slug-01.md"
+function ReportPath($Run, $Slug) {
+    $inside = J (J (J (J (J (J $root ".architect/wt") $Run) "$Slug-01") "docs/jobs") $Run) "$Slug-01.md"
     if (Test-Path -LiteralPath $inside) { return $inside }
-    return (J (J $root "docs/jobs") "$Slug-01.md")
+    return (J (J (J $root "docs/jobs") $Run) "$Slug-01.md")
 }
-function ArtifactSlugs() {
-    $set = @{}; $wt = J $root ".architect/wt"
-    if (Test-Path -LiteralPath $wt) { foreach ($d in (Get-ChildItem -LiteralPath $wt -Directory -Filter "*-01")) { $set[$d.Name.Substring(0, $d.Name.Length - 3)] = $true } }
+function ArtifactSlugs($Run) {
+    $set = @{}
+    if (-not $Run) { return @() }
+    $wt = J (J $root ".architect/wt") $Run
+    if (Test-Path -LiteralPath $wt -PathType Container) {
+        foreach ($d in (Get-ChildItem -LiteralPath $wt -Directory -Filter "*-01")) {
+            $set[$d.Name.Substring(0, $d.Name.Length - 3)] = $true
+        }
+    }
     return @($set.Keys | Sort-Object)
 }
-function Phase($Slug, $State, $Blockers) {
+function Phase($Run, $Slug, $State, $Blockers) {
     if ($State -eq "CLOSED") { return @($G.Merged, "MERGED") }
     if ($State -eq "OPEN" -and $Blockers) { return @($G.Queued, "QUEUED") }
-    $report = ReportPath $Slug; $judge = @(Get-ChildItem -LiteralPath (J $root ".architect/wt") -File -Filter "$Slug-01.judge*.md")
+    $report = ReportPath $Run $Slug
+    $judgeDir = J (J $root ".architect/wt") $Run
+    $judge = @()
+    if (Test-Path -LiteralPath $judgeDir -PathType Container) {
+        $judge = @(Get-ChildItem -LiteralPath $judgeDir -File -Filter "$Slug-01.judge*.md")
+    }
     if ((Test-Path -LiteralPath $report) -and $judge.Count -gt 0) { return @($G.Judging, "JUDGING") }
     if ((StatusLine $report).StartsWith("BLOCKED")) { return @($G.Blocked, "BLOCKED") }
     if (Test-Path -LiteralPath $report) { return @($G.Reported, "REPORTED") }
-    if (Test-Path -LiteralPath (J (J $root ".architect/wt") "$Slug-01")) { return @($G.Building, "BUILDING") }
+    if (Test-Path -LiteralPath (J (J (J $root ".architect/wt") $Run) "$Slug-01")) { return @($G.Building, "BUILDING") }
     return @($G.Ready, "READY")
 }
-function TrackerMode() {
-    foreach ($line in ((ReadText (J (J $root ".architect") "config")) -split "\r?\n")) {
-        if ($line -match '^\s*tracker\s*=\s*(\S+)\s*$') { if ($matches[1] -eq "markdown") { return "markdown" } }
+function IsValidRunSlug($Slug) {
+    if (-not $Slug) { return $true }
+    return ($Slug -match '^[A-Za-z0-9][A-Za-z0-9._-]*$')
+}
+function ReadFrontmatter($Path) {
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
+    $lines = (ReadText $Path) -split "\r?\n"
+    if ($lines.Count -eq 0 -or $lines[0].Trim([char]0xFEFF).Trim() -ne "---") { throw "invalid frontmatter: $Path" }
+    $h = @{}
+    for ($i = 1; $i -lt $lines.Count; $i++) {
+        if ($lines[$i].Trim() -eq "---") { break }
+        if ($lines[$i] -match '^([A-Za-z0-9-]+):\s*(.*)$') { $h[$matches[1]] = $matches[2].Trim() }
     }
-    return "github"
+    return $h
+}
+function ManifestFromPath($Path) {
+    $h = ReadFrontmatter $Path
+    if (-not $h) { return $null }
+    foreach ($k in @("run", "tracking-issue", "factory-branch", "tracker", "spec", "state", "created")) {
+        if (-not $h.ContainsKey($k)) { throw "manifest missing $k`: $Path" }
+    }
+    $n = 0
+    if (-not [int]::TryParse($h["tracking-issue"], [ref]$n)) { throw "manifest tracking-issue is not an integer: $Path" }
+    return [pscustomobject]@{
+        Run = $h["run"]
+        TrackingIssue = $n
+        FactoryBranch = $h["factory-branch"]
+        Tracker = $h["tracker"]
+        Spec = $h["spec"]
+        State = $h["state"]
+        Created = $h["created"]
+        Path = $Path
+    }
+}
+function ManifestPathForRun($Slug) {
+    return (J (J (J $root "docs/runs") $Slug) "manifest.md")
+}
+function ActiveManifests() {
+    $out = @()
+    $dir = J $root "docs/runs"
+    if (-not (Test-Path -LiteralPath $dir -PathType Container)) { return $out }
+    foreach ($m in (Get-ChildItem -LiteralPath $dir -Directory | Sort-Object Name)) {
+        $manifest = ManifestFromPath (J $m.FullName "manifest.md")
+        if ($manifest -and $manifest.State -eq "ACTIVE") { $out += $manifest }
+    }
+    return $out
 }
 function IssueMeta($Path) {
-    $lines = (ReadText $Path) -split "\r?\n"; if ($lines.Count -eq 0 -or $lines[0].Trim([char]0xFEFF).Trim() -ne "---") { return $null }
-    $h = @{}; for ($i = 1; $i -lt $lines.Count; $i++) { if ($lines[$i].Trim() -eq "---") { break }; if ($lines[$i] -match '^(issue|title|state|parent|blocked-by):\s*(.*)$') { $h[$matches[1]] = $matches[2].Trim() } }
+    $h = ReadFrontmatter $Path
+    if (-not $h) { return $null }
     foreach ($k in @("issue", "title", "state", "parent", "blocked-by")) { if (-not $h.ContainsKey($k)) { return $null } }
-    $n = 0; if (-not [int]::TryParse($h["issue"], [ref]$n)) { return $null }
+    $n = 0
+    if (-not [int]::TryParse($h["issue"], [ref]$n)) { return $null }
     return [pscustomobject]@{ Number = $n; Title = $h["title"]; State = $h["state"]; Parent = $h["parent"]; BlockedBy = $h["blocked-by"] }
 }
-function MarkdownLines() {
-    $issues = @(); $dir = J (J $root "docs") "issues"
-    if (Test-Path -LiteralPath $dir) { foreach ($f in (Get-ChildItem -LiteralPath $dir -Filter "*.md" -File)) { $m = IssueMeta $f.FullName; if ($m) { $issues += $m } } }
-    $parentNums = @{}; foreach ($i in $issues) { $p = 0; if ([int]::TryParse($i.Parent, [ref]$p)) { $parentNums[$p] = $true } }
-    $track = @($issues | Where-Object { $_.State -eq "OPEN" -and $parentNums.ContainsKey($_.Number) } | Sort-Object Number -Descending | Select-Object -First 1)
-    if ($track.Count -eq 0) { return @{ Reachable = $true; Lines = @("NOOPENRUN") } }
-    $open = @{}; foreach ($i in $issues) { if ($i.State -eq "OPEN") { $open[$i.Number] = $true } }
-    $lines = @("TRACK`t$($track[0].Number)")
-    foreach ($c in @($issues | Where-Object { $_.Parent -eq ([string]$track[0].Number) } | Sort-Object Number)) {
-        $bs = @(); foreach ($b in ($c.BlockedBy -split ",")) { $x = 0; if ([int]::TryParse($b.Trim(), [ref]$x) -and $open.ContainsKey($x)) { $bs += [string]$x } }
+function MarkdownLines($Manifest) {
+    $issues = @()
+    $dir = J (J (J $root "docs/issues") $Manifest.Run) ""
+    if (Test-Path -LiteralPath $dir -PathType Container) {
+        foreach ($f in (Get-ChildItem -LiteralPath $dir -Filter "*.md" -File)) {
+            $m = IssueMeta $f.FullName
+            if ($m) { $issues += $m }
+        }
+    }
+    $track = @($issues | Where-Object { $_.Number -eq $Manifest.TrackingIssue } | Select-Object -First 1)
+    if ($track.Count -eq 0) { return @{ Reachable = $false; Lines = @(); Error = "pinned issue #$($Manifest.TrackingIssue) not present in docs/issues/$($Manifest.Run)" } }
+    if ($track[0].State -ne "OPEN") { return @{ Reachable = $true; Lines = @("NOOPENRUN") } }
+    $open = @{}
+    foreach ($i in $issues) { if ($i.State -eq "OPEN") { $open[$i.Number] = $true } }
+    $lines = @("TRACK`t$($Manifest.TrackingIssue)")
+    foreach ($c in @($issues | Where-Object { $_.Parent -eq ([string]$Manifest.TrackingIssue) } | Sort-Object Number)) {
+        $bs = @()
+        foreach ($b in ($c.BlockedBy -split ",")) {
+            $x = 0
+            if ([int]::TryParse($b.Trim(), [ref]$x) -and $open.ContainsKey($x)) { $bs += [string]$x }
+        }
         $lines += "SUB`t$($c.Number)`t$($c.State)`t$($bs -join ',')`t$($c.Title)"
     }
     return @{ Reachable = $true; Lines = $lines }
 }
-function TrackerLines() {
-    if ((TrackerMode) -eq "markdown") { return (MarkdownLines) }
-    $PinnedJq = '. as $all | ([ $all[] | select(.parent != null) | .parent.number ] | unique) as $pnums | ([ $all[] | select(.state == "OPEN") | select(.number as $n | $pnums | index($n)) ] | map(.number) | max) as $t | if $t == null then "NOOPENRUN" else ("TRACK\t\($t)", ($all[] | select(.parent != null and .parent.number == $t) | [ "SUB", (.number|tostring), .state, ((.blockedBy.nodes // []) | map(select(.state == "OPEN") | (.number|tostring)) | join(",")), .title ] | @tsv)) end'
-    if ($env:STATUS_GH_STUB -and (Test-Path -LiteralPath $env:STATUS_GH_STUB -PathType Leaf)) { return @{ Reachable = $true; Lines = @(Get-Content -LiteralPath $env:STATUS_GH_STUB) } }
-    if (-not (Get-Command gh -ErrorAction SilentlyContinue)) { return @{ Reachable = $false; Lines = @() } }
-    try { Push-Location -LiteralPath $root; $jqArg = $PinnedJq; if ($PSVersionTable.PSVersion.Major -le 5) { $jqArg = $PinnedJq -replace '"', '\"' }; try { $out = & gh issue list --state all --limit 200 --json number,title,state,parent,blockedBy --jq $jqArg 2>$null } finally { Pop-Location }; return @{ Reachable = ($LASTEXITCODE -eq 0); Lines = @($out) } } catch { return @{ Reachable = $false; Lines = @() } }
+function ExpectedAuthor() {
+    if ($env:STATUS_GH_LOGIN_STUB) { return $env:STATUS_GH_LOGIN_STUB }
+    if ($env:STATUS_EXPECTED_AUTHOR) { return $env:STATUS_EXPECTED_AUTHOR }
+    if (-not (Get-Command gh -ErrorAction SilentlyContinue)) { throw "gh not found for author lookup" }
+    $out = & gh auth status 2>&1
+    if ($LASTEXITCODE -ne 0) { throw "gh auth status failed: $out" }
+    foreach ($line in @($out)) {
+        if ($line -match 'Logged in to .* account ([^ ]+)') { return $matches[1].Trim() }
+    }
+    throw "could not parse authenticated gh login"
+}
+function RawGithubIssueLines() {
+    if ($env:STATUS_GH_STUB) {
+        if (-not (Test-Path -LiteralPath $env:STATUS_GH_STUB -PathType Leaf)) { throw "STATUS_GH_STUB not readable: $env:STATUS_GH_STUB" }
+        return @(Get-Content -LiteralPath $env:STATUS_GH_STUB)
+    }
+    if (-not (Get-Command gh -ErrorAction SilentlyContinue)) { throw "gh not found" }
+    $rawJq = '.[] | ["ISSUE", (.number|tostring), .state, ((.parent.number // "")|tostring), ((.blockedBy.nodes // []) | map(select(.state == "OPEN") | (.number|tostring)) | join(",")), (.author.login // ""), .title] | @tsv'
+    Push-Location -LiteralPath $root
+    try {
+        $jqArg = $rawJq
+        if ($PSVersionTable.PSVersion.Major -le 5) { $jqArg = $rawJq -replace '"', '\"' }
+        $out = & gh issue list --state all --limit 1000 --json number,title,state,parent,blockedBy,author --jq $jqArg 2>&1
+        if ($LASTEXITCODE -ne 0) { throw "gh issue list failed: $out" }
+        return @($out)
+    } finally {
+        Pop-Location
+    }
+}
+function GithubLines($Manifest) {
+    try {
+        $expected = ExpectedAuthor
+        $records = @()
+        foreach ($line in (RawGithubIssueLines)) {
+            if (-not $line) { continue }
+            $parts = $line -split "`t", 7
+            if ($parts.Count -lt 7 -or $parts[0] -ne "ISSUE") { throw "invalid STATUS_GH_STUB issue record: $line" }
+            $n = 0
+            if (-not [int]::TryParse($parts[1], [ref]$n)) { throw "invalid issue number in record: $line" }
+            $records += [pscustomobject]@{ Number = $n; State = $parts[2]; Parent = $parts[3]; Blockers = $parts[4]; Author = $parts[5]; Title = $parts[6] }
+        }
+        $track = @($records | Where-Object { $_.Number -eq $Manifest.TrackingIssue } | Select-Object -First 1)
+        if ($track.Count -eq 0) { return @{ Reachable = $false; Lines = @(); Error = "pinned issue #$($Manifest.TrackingIssue) not present in github issue records" } }
+        if ($track[0].State -ne "OPEN") { return @{ Reachable = $true; Lines = @("NOOPENRUN") } }
+        $lines = @("TRACK`t$($Manifest.TrackingIssue)")
+        foreach ($c in @($records | Where-Object { $_.Parent -eq ([string]$Manifest.TrackingIssue) -and $_.Author -eq $expected } | Sort-Object Number)) {
+            $lines += "SUB`t$($c.Number)`t$($c.State)`t$($c.Blockers)`t$($c.Title)"
+        }
+        return @{ Reachable = $true; Lines = $lines }
+    } catch {
+        return @{ Reachable = $false; Lines = @(); Error = $_.Exception.Message }
+    }
+}
+function TrackerLines($Manifest, $ManifestMissing) {
+    if ($ManifestMissing) { return @{ Reachable = $true; Lines = @("NOOPENRUN") } }
+    if (-not $Manifest) { return @{ Reachable = $true; Lines = @() } }
+    if ($Manifest.Tracker -eq "markdown") { return (MarkdownLines $Manifest) }
+    if ($Manifest.Tracker -eq "github") { return (GithubLines $Manifest) }
+    return @{ Reachable = $false; Lines = @(); Error = "unknown tracker mode in manifest: $($Manifest.Tracker)" }
 }
 function Win32Processes() {
     $cim = Get-Command Get-CimInstance -ErrorAction SilentlyContinue
@@ -102,23 +241,99 @@ function Win32Processes() {
 
 $root = [System.IO.Path]::GetFullPath($RepoRoot)
 if (-not (Test-Path -LiteralPath $root -PathType Container)) { Write-Output "unreadable repo: $RepoRoot"; exit 1 }
+if (-not (IsValidRunSlug $RunSlug)) { Write-Output "invalid run slug: $RunSlug"; exit 1 }
+
+$manifestMissing = $false
+$manifest = $null
+if ($RunSlug) {
+    $manifest = ManifestFromPath (ManifestPathForRun $RunSlug)
+    if (-not $manifest) { $manifestMissing = $true }
+} else {
+    $active = @(ActiveManifests)
+    if ($active.Count -gt 1) {
+        foreach ($m in $active) { Write-Output "RUN $($m.Run) #$($m.TrackingIssue) $($m.State)" }
+        exit 0
+    }
+    if ($active.Count -eq 1) { $manifest = $active[0] }
+}
+$run = ""
+if ($manifest) { $run = $manifest.Run } elseif ($RunSlug) { $run = $RunSlug }
+
 $useColor = (-not [Console]::IsOutputRedirected) -and (-not $env:NO_COLOR)
-function ColorGlyph($Glyph, $Code) { if (-not $useColor) { return $Glyph }; $esc = [char]27; return "$esc[$Code" + "m$Glyph$esc[0m" }
-$G = @{ Merged = ColorGlyph ([char]0x2713) "32"; Judging = ColorGlyph ([char]0x25D0) "36"; Blocked = ColorGlyph "!" "31"; Reported = ColorGlyph ([char]0x25A3) "35"; Building = ColorGlyph ([char]0x25CF) "34"; Queued = ColorGlyph ([char]0x2298) "33"; Ready = ColorGlyph ([char]0x25CB) "37" }
+function ColorGlyph($Glyph, $Code) {
+    if (-not $useColor) { return $Glyph }
+    $esc = [char]27
+    return "$esc[$Code" + "m$Glyph$esc[0m"
+}
+$G = @{
+    Merged = ColorGlyph ([char]0x2713) "32"
+    Judging = ColorGlyph ([char]0x25D0) "36"
+    Blocked = ColorGlyph "!" "31"
+    Reported = ColorGlyph ([char]0x25A3) "35"
+    Building = ColorGlyph ([char]0x25CF) "34"
+    Queued = ColorGlyph ([char]0x2298) "33"
+    Ready = ColorGlyph ([char]0x25CB) "37"
+}
 if (Test-Path -LiteralPath (J $root ".git")) { $branch = (& git -C $root branch --show-current 2>$null) } else { $branch = "" }
 if (-not $branch) { $branch = "unknown" }
-$trackerData = TrackerLines; $trackerReachable = $trackerData.Reachable; $tracking = ""; $subIssues = @()
-if ($trackerReachable) { foreach ($line in $trackerData.Lines) { if (-not $line) { continue }; $parts = $line -split "`t", 5; if ($parts[0] -eq "TRACK" -and $parts.Count -ge 2) { $tracking = $parts[1]; continue }; if ($parts[0] -eq "SUB" -and $parts.Count -ge 5) { $subIssues += [pscustomobject]@{ Number = $parts[1]; State = $parts[2]; Blockers = $parts[3]; Title = $parts[4] } } } }
-$slugs = ArtifactSlugs
-if (((-not $trackerReachable) -or ($trackerReachable -and -not $tracking)) -and $slugs.Count -eq 0) { Write-Output "NO ACTIVE FACTORY RUN"; Write-Output "spec: $(NewestSpec)"; exit 0 }
-Write-Output "STATUS TREE spec: $(NewestSpec) branch: $branch"
-if ($trackerReachable -and $tracking) { Write-Output "tracker: #$tracking" } elseif ($trackerReachable) { Write-Output "tracker: no open run" } else { Write-Output "tracker: unavailable (local view)" }
+
+$trackerData = TrackerLines $manifest $manifestMissing
+$trackerReachable = $trackerData.Reachable
+$tracking = ""
+$subIssues = @()
+if ($trackerReachable) {
+    foreach ($line in $trackerData.Lines) {
+        if (-not $line) { continue }
+        $parts = $line -split "`t", 5
+        if ($parts[0] -eq "TRACK" -and $parts.Count -ge 2) { $tracking = $parts[1]; continue }
+        if ($parts[0] -eq "SUB" -and $parts.Count -ge 5) {
+            $subIssues += [pscustomobject]@{ Number = $parts[1]; State = $parts[2]; Blockers = $parts[3]; Title = $parts[4] }
+        }
+    }
+}
+$slugs = ArtifactSlugs $run
+if ((-not $RunSlug) -and ((-not $trackerReachable) -or ($trackerReachable -and -not $tracking)) -and $slugs.Count -eq 0) {
+    Write-Output "NO ACTIVE FACTORY RUN"
+    Write-Output "spec: $(NewestSpec)"
+    exit 0
+}
+Write-Output "STATUS TREE spec: $(SpecName $manifest) branch: $branch"
+if ($trackerReachable -and $tracking) {
+    Write-Output "tracker: #$tracking"
+} elseif ($trackerReachable) {
+    Write-Output "tracker: no open run"
+} else {
+    $err = ""
+    if ($trackerData.ContainsKey("Error") -and $trackerData.Error) { $err = ": " + $trackerData.Error }
+    Write-Output "tracker: unavailable (local view)$err"
+}
 Write-Output "ORCHESTRATOR: local view"
-$wdCfg = @(Get-ChildItem -LiteralPath (J $root ".architect/tmp") -Filter "wd-*.json")
+$wdDir = J $root ".architect/tmp"
+$wdCfg = @()
+if (Test-Path -LiteralPath $wdDir -PathType Container) { $wdCfg = @(Get-ChildItem -LiteralPath $wdDir -Filter "wd-*.json") }
 $wdProc = @(Win32Processes | Where-Object { $_.CommandLine -match 'watchdog\.(ps1|sh)' })
 Write-Output "WATCHDOG: process=$($wdProc.Count -gt 0) config=$($wdCfg.Count)"
 if ($trackerReachable -and $tracking) {
-    foreach ($issue in $subIssues) { $slug = Slugify $issue.Title; $p = Phase $slug $issue.State $issue.Blockers; $extra = ""; if ($p[1] -eq "QUEUED") { $extra = " blocked-by: " + $issue.Blockers }; Write-Output "$($p[0]) #$($issue.Number) $($issue.Title) .architect/wt/$slug-01$extra"; if ($p[1] -eq "BUILDING") { $last = LastCommand $slug; if ($last) { Write-Output $last } } }
+    foreach ($issue in $subIssues) {
+        $slug = Slugify $issue.Title
+        $p = Phase $run $slug $issue.State $issue.Blockers
+        $extra = ""
+        if ($p[1] -eq "QUEUED") { $extra = " blocked-by: " + $issue.Blockers }
+        Write-Output "$($p[0]) #$($issue.Number) $($issue.Title) .architect/wt/$run/$slug-01$extra"
+        if ($p[1] -eq "BUILDING") {
+            $last = LastCommand $run $slug
+            if ($last) { Write-Output $last }
+        }
+    }
 } else {
-    foreach ($slug in $slugs) { $p = Phase $slug "" ""; if ($p[1] -in @("BUILDING", "BLOCKED", "JUDGING", "REPORTED")) { Write-Output "$($p[0]) $slug .architect/wt/$slug-01"; if ($p[1] -eq "BUILDING") { $last = LastCommand $slug; if ($last) { Write-Output $last } } } }
+    foreach ($slug in $slugs) {
+        $p = Phase $run $slug "" ""
+        if ($p[1] -in @("BUILDING", "BLOCKED", "JUDGING", "REPORTED")) {
+            Write-Output "$($p[0]) $slug .architect/wt/$run/$slug-01"
+            if ($p[1] -eq "BUILDING") {
+                $last = LastCommand $run $slug
+                if ($last) { Write-Output $last }
+            }
+        }
+    }
 }

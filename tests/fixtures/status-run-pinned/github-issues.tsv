@@ -1,0 +1,7 @@
+ISSUE	10	OPEN			architect-user	Run A Tracking
+ISSUE	11	OPEN	10		architect-user	Run A Slice
+ISSUE	12	OPEN	10		other-user	Wrong Author Slice
+ISSUE	20	OPEN			architect-user	Run B Tracking
+ISSUE	21	OPEN	20		architect-user	Run B Slice
+ISSUE	999	OPEN			other-user	Foreign Higher Tracking
+ISSUE	1000	OPEN	999		other-user	Foreign Higher Child

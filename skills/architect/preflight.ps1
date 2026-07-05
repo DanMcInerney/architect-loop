@@ -47,7 +47,7 @@ function Fail($Reason) {
 
 function FullPath($Path) {
     if ([System.IO.Path]::IsPathRooted($Path)) { return [System.IO.Path]::GetFullPath($Path) }
-    return [System.IO.Path]::GetFullPath((Join-Path (Get-Location).Path $Path))
+    return [System.IO.Path]::GetFullPath((Join-Path $script:RepoRoot $Path))
 }
 
 try {

@@ -88,7 +88,7 @@ retry-at-a-different-tier job (see `loop.md` "## Failure ladder").
 
 | | Claude Code (CLI + Desktop) | Codex (CLI + app) |
 |---|---|---|
-| Builder | Agent tool with `.claude/agents/architect-builder.md`; `disallowedTools` denies `Bash(git commit *)` and `Bash(git push *)`; `isolation: worktree`; `background: true`; model may be passed per invocation from the alias table. On the desktop app, the harness auto-creates the agent's isolation worktree (`.claude/worktrees/agent-<id>`) and its branch — integrate from that branch. On the CLI, spawns have been observed to run UNISOLATED in the orchestrator's checkout despite `isolation: worktree` frontmatter (D11) — pass isolation explicitly per invocation if supported, and never run two Claude-backend builder jobs concurrently unless each is verified to have its own worktree (`git worktree list` after spawn). In all cases, never pre-create a job worktree for Claude-backend jobs (a pre-made one is ignored); do not use `.architect/wt/<slice>-<NN>` (that pattern is Codex-backend only, below). | `spawn_agent` with defensive framing: "Your task is: ..."; worktree created by the orchestrator via git; use `/goal` semantics for persistent job completion. |
+| Builder | Agent tool with `.claude/agents/architect-builder.md`; `disallowedTools` denies `Bash(git commit *)` and `Bash(git push *)`; `isolation: worktree`; `background: true`; model may be passed per invocation from the alias table. On the desktop app, the harness auto-creates the agent's isolation worktree (`.claude/worktrees/agent-<id>`) and its branch — integrate from that branch. On the CLI, spawns have been observed to run UNISOLATED in the orchestrator's checkout despite `isolation: worktree` frontmatter (D11) — pass isolation explicitly per invocation if supported, and never run two Claude-backend builder jobs concurrently unless each is verified to have its own worktree (`git worktree list` after spawn). In all cases, never pre-create a job worktree for Claude-backend jobs (a pre-made one is ignored); do not use `.architect/wt/<run>/<slice>-<NN>` (that pattern is Codex-backend only, below). | `spawn_agent` with defensive framing: "Your task is: ..."; worktree created by the orchestrator via git; use `/goal` semantics for persistent job completion. |
 | Judge | Agent tool with `.claude/agents/architect-judge.md`; dispatch synchronously with `run_in_background: false` so the verdict is the tool result; read-only tools plus Bash for check commands; orchestrator tier via `model: inherit` or per-invocation model. | Background `codex exec -o <file>` typed-exit path with read-only instructions and the fixed judge template; the process exit wakes the loop. |
 | Monitor | Script watchdog (`watchdog.ps1` on Windows, `watchdog.sh` on POSIX) when the orchestrator can run background processes and receive exit notifications; LLM fallback template only otherwise. | Script watchdog (`watchdog.ps1` on Windows, `watchdog.sh` on POSIX) when background process exits wake the orchestrator; LLM fallback template only otherwise and it counts as one of the 6 `max_threads`. |
 | Parallelism | Background subagents; permission prompts surface to the main session. | Native subagents, `max_threads` 6, `max_depth` 1 (root session is depth 0; a spawned child may not spawn further — no nested orchestrators, the orchestrator dispatches builders directly), `wait_agent` for completion (the live collab event stream names the underlying tool call `wait`, not `wait_agent` — evidence: v4-codex CG4 architect-run canary `events.jsonl`). |
@@ -112,17 +112,17 @@ or reports the check BLOCKED — never silently skips a check or invents output.
 ## C5 judge delegation template
 
 The orchestrator must send this template as-is except for replacing placeholders. It must not add slice-specific prose, encouragement, summaries, or interpretation.
-Judge intent context is pointer-only: frozen check file, spec pointer, job report, and `docs/jobs/<issue-slug>-rulings.md` (orchestrator-owned, append-only; absent = no post-freeze rulings).
+Judge intent context is pointer-only: frozen check file, spec pointer, job report, and `docs/jobs/<run>/<issue-slug>-rulings.md` (orchestrator-owned, append-only; absent = no post-freeze rulings).
 
 <!-- architect-judge-template:start -->
 ```text
-Frozen check file path: <docs/checks/<slice>.md>
+Frozen check file path: <docs/checks/<run>/<slice>.md>
 Freeze commit SHA: <freeze-sha>
 Branch to judge: <branch>
 Spec pointer: <spec path named by the frozen check>
-Job report: <docs/jobs/<issue-slug>-01.md>
-checkrun evidence file path: <docs/jobs/<issue-slug>-checkrun.md>
-Rulings file: docs/jobs/<issue-slug>-rulings.md (absent = no post-freeze rulings)
+Job report: <docs/jobs/<run>/<issue-slug>-01.md>
+checkrun evidence file path: <docs/jobs/<run>/<issue-slug>-checkrun.md>
+Rulings file: docs/jobs/<run>/<issue-slug>-rulings.md (absent = no post-freeze rulings)
 
 Batch independent reads (frozen check file, spec, job report, rulings file, checkrun evidence file) into parallel tool calls in one turn; serialize only dependent steps and command re-runs.
 
@@ -149,11 +149,11 @@ The orchestrator must send this template as-is except for replacing the check fi
 
 <!-- architect-codex-judge-template:start -->
 ```text
-Frozen check file path: <docs/checks/<slice>.md>
+Frozen check file path: <docs/checks/<run>/<slice>.md>
 Freeze commit SHA: <freeze-sha>
 Branch to judge: <branch>
 Worktree note: <worktree note>
-checkrun evidence file path: <docs/jobs/<issue-slug>-checkrun.md>
+checkrun evidence file path: <docs/jobs/<run>/<issue-slug>-checkrun.md>
 
 You are a fresh read-only judge. You did not build this job. Flag only gaps
 that affect correctness, the stated requirements, or documented project
@@ -168,7 +168,7 @@ error 5 -> PowerShell same-pattern; uv AppData cache denial -> run with
 `UV_CACHE_DIR=.architect/tmp/uv-cache`; tracker posting unavailable -> report
 `MIRROR: ORCHESTRATOR`.
 
-Intent context pointers: frozen check file above; spec pointer named by the frozen check; job report named by the issue/check; rulings file `docs/jobs/<issue-slug>-rulings.md` (absent = no post-freeze rulings).
+Intent context pointers: frozen check file above; spec pointer named by the frozen check; job report named by the issue/check; rulings file `docs/jobs/<run>/<issue-slug>-rulings.md` (absent = no post-freeze rulings).
 
 Batch independent reads (frozen check file, spec, job report, rulings file, checkrun evidence file) into parallel tool calls in one turn; serialize only dependent steps and command re-runs.
 
@@ -199,17 +199,17 @@ Runner config JSON, written by the orchestrator per judgment:
 
 ```json
 {
-  "check_file": "docs/checks/<slug>.md",
+  "check_file": "docs/checks/<run>/<slice>.md",
   "workdir": "<worktree or repo path>",
   "freeze_sha": "<sha>",
-  "evidence_out": "docs/jobs/<issue-slug>-checkrun.md",
+  "evidence_out": "docs/jobs/<run>/<issue-slug>-checkrun.md",
   "executor": "powershell|bash",
   "max_output_lines": 60
 }
 ```
 
 Typed exits: 0 = evidence file written; 5 = `CHECKRUN: ERROR <reason>` on stdout, no partial evidence file left behind.
-Launch pattern: the orchestrator writes the config with file tools, then launches `skills/architect/check-runner.ps1` or `skills/architect/check-runner.sh` as a background process whose exit wakes the loop. On success, the orchestrator commits the evidence file `docs/jobs/<issue-slug>-checkrun.md` before judge dispatch.
+Launch pattern: the orchestrator writes the config with file tools, then launches `skills/architect/check-runner.ps1` or `skills/architect/check-runner.sh` as a background process whose exit wakes the loop. On success, the orchestrator commits the evidence file `docs/jobs/<run>/<issue-slug>-checkrun.md` before judge dispatch.
 
 ## Stress-test delegation template
 
@@ -219,7 +219,7 @@ or interpretation.
 
 <!-- architect-stress-test-template:start -->
 ```text
-Draft check file path: <docs/checks/<slice>.md>
+Draft check file path: <docs/checks/<run>/<slice>.md>
 Branch: <branch>
 Issue bodies: <pasted issue bodies for this plan>
 
@@ -268,13 +268,13 @@ codex exec -C <repo-root> --sandbox workspace-write \
 For 2-4 jobs, the orchestrator owns worktree creation and parallelism:
 
 ```bash
-git -C <repo-root> worktree add .architect/wt/<slice>-<NN> \
-  -b job/<slice>-<NN> <freeze-sha>
+git -C <repo-root> worktree add .architect/wt/<run>/<slice>-<NN> \
+  -b job/<run>/<slice>-<NN> <freeze-sha>
 
-codex exec -C <repo-root>/.architect/wt/<slice>-<NN> --sandbox workspace-write \
+codex exec -C <repo-root>/.architect/wt/<run>/<slice>-<NN> --sandbox workspace-write \
   -m gpt-5.5 -c model_reasoning_effort="xhigh" \
-  --json -o .architect/wt/<slice>-<NN>.last-run.md \
-  - < .architect/wt/<slice>-<NN>.block.md
+  --json -o .architect/wt/<run>/<slice>-<NN>.last-run.md \
+  - < .architect/wt/<run>/<slice>-<NN>.block.md
 ```
 
 A worktree's `.git` is a pointer file and the resolved git dir is
@@ -296,9 +296,9 @@ preflight config JSON:
 {
   "repo_root": "<abs path>",
   "freeze_sha": "<sha>",
-  "worktree": ".architect/wt/<slug>-<NN>",
-  "job_branch": "job/<slug>-<NN>",
-  "require_files": ["docs/checks/<slug>.md"]
+  "worktree": ".architect/wt/<run>/<slice>-<NN>",
+  "job_branch": "job/<run>/<slice>-<NN>",
+  "require_files": ["docs/checks/<run>/<slice>.md"]
 }
 ```
 
@@ -308,14 +308,14 @@ postflight config JSON:
 {
   "repo_root": "<abs path>",
   "factory_branch": "factory/<run>",
-  "job_branch": "job/<slug>-<NN>",
+  "job_branch": "job/<run>/<slice>-<NN>",
   "freeze_sha": "<sha>",
   "may_touch": ["skills/architect/preflight.ps1", "tests/fixtures/orchscripts/"],
-  "exempt": ["docs/jobs/"],
+  "exempt": ["docs/jobs/<run>/"],
   "merge_message": "<text>",
   "push": false,
   "remote": "origin",
-  "worktree": ".architect/wt/<slug>-<NN>"
+  "worktree": ".architect/wt/<run>/<slice>-<NN>"
 }
 ```
 
@@ -325,7 +325,7 @@ Typed exits:
 |---|---:|---|---|
 | preflight | 0 | `PREFLIGHT: OK` | worktree exists, HEAD equals `freeze_sha`, and every `require_files` path exists |
 | preflight | 5 | `PREFLIGHT: FAIL` | setup could not complete; record the line and fall back to the recorded manual sequence |
-| postflight | 0 | `POSTFLIGHT: OK` | touch-set audit, merge, optional push, and cleanup completed |
+| postflight | 0 | `POSTFLIGHT: OK` | touch-set audit, merge, optional push, and cleanup completed; may append `cleanup=deferred <path>` |
 | postflight | 2 | `POSTFLIGHT: VIOLATION` | automatic FAIL evidence for the job; do not merge |
 | postflight | 3 | `POSTFLIGHT: CONFLICT` | decomposition failure: kill the conflicting job and re-spec, per the existing rule |
 | postflight | 5 | `POSTFLIGHT: ERROR` | script/config/git error; abort partial merge state, then fall back to the recorded manual sequence |
@@ -341,7 +341,7 @@ Integration is architect-only, after per-job postflight passes. The default
 path is `postflight.ps1` or `postflight.sh` from `## Preflight and postflight
 dispatch`; it performs the touch-set audit, merge, optional push, and cleanup
 from the config. The manual sequence below is the recorded fallback for exit 5
-or an environment where the script cannot run. The `.architect/wt/<slice>-<NN>`
+or an environment where the script cannot run. The `.architect/wt/<run>/<slice>-<NN>`
 paths below are Codex-backend only. For Claude-backend jobs, skip `worktree
 add`/`worktree remove`; commit inside the harness's auto-created worktree, then
 `git -C <repo-root> merge --no-ff <agent-worktree-branch>` from the agent
@@ -351,12 +351,12 @@ Recorded fallback manual sequence:
 
 ```bash
 git -C <repo-root> checkout -b slice/<name> <freeze-sha>
-git -C <repo-root>/.architect/wt/<slice>-<NN> add -A
-git -C <repo-root>/.architect/wt/<slice>-<NN> commit -m "job <NN>: <what>"
-git -C <repo-root> merge --no-ff job/<slice>-<NN>
+git -C <repo-root>/.architect/wt/<run>/<slice>-<NN> add -A
+git -C <repo-root>/.architect/wt/<run>/<slice>-<NN> commit -m "job <NN>: <what>"
+git -C <repo-root> merge --no-ff job/<run>/<slice>-<NN>
 <run the check commands>
-git -C <repo-root> worktree remove .architect/wt/<slice>-<NN>
-git -C <repo-root> branch -d job/<slice>-<NN>
+git -C <repo-root> worktree remove .architect/wt/<run>/<slice>-<NN>
+git -C <repo-root> branch -d job/<run>/<slice>-<NN>
 ```
 
 A merge conflict means the job plan was not disjoint. Kill the conflicting
@@ -365,6 +365,10 @@ job and re-spec; do not hand-resolve builder conflicts.
 ## Issue conventions
 
 In markdown mode, every command below maps to an orchestrator file operation; see `tracker.md` `## Command mapping`.
+
+Every run issue body ends with `<!-- architect-run: <run> -->`. A sub-issue
+under the run parent with the wrong author or missing run marker is never
+dispatched; escalate it on the tracking-issue digest.
 
 In github mode, create sub-issues with native edges:
 `gh issue create --title <t> --body-file <f> --parent <tracking-n> --blocked-by <n,n>`.
@@ -449,7 +453,10 @@ background process whose exit wakes the loop.
 
 ## Status display
 
-`skills/architect/status.ps1` (Windows) and `skills/architect/status.sh` (POSIX) read only run artifacts plus tracker state.
+`skills/architect/status.ps1 [<run-slug>] [-RepoRoot <path>]` (Windows) and
+`skills/architect/status.sh [<run-slug>] [--repo-root <path>]` (POSIX) read
+only run artifacts plus tracker state; the first positional is always a run
+slug.
 Piped output is plain text by design; callers print it verbatim instead of hand-composing status.
 
 <!-- architect-monitor-fallback-template:start -->
@@ -460,7 +467,7 @@ watchdog process exit. You never kill, nudge, or decide - you only observe and
 report evidence.
 
 In-flight jobs:
-- Issue #<n>, events <path>, report <docs/jobs/<issue-slug>-01.md>,
+- Issue #<n>, events <path>, report <docs/jobs/<run>/<issue-slug>-01.md>,
   worktree <path>, duration hint <hint or none>.
   (one line per job)
 
@@ -559,7 +566,7 @@ The respawn spawn block is built from four pieces:
    spawn context is the delivery channel; a running builder does not re-read
    issue comments).
 3. What the previous session completed — read from its job report
-   (`docs/jobs/<issue-slug>-01.md`) and the worktree's actual `git status` /
+   (`docs/jobs/<run>/<issue-slug>-01.md`) and the worktree's actual `git status` /
    `git diff`, never assumed from conversation.
 4. Boundaries unchanged from the original issue: MAY TOUCH / MUST NOT TOUCH
    stay exactly as decomposed.
@@ -586,7 +593,7 @@ Rescue/respawn block template:
 You are resuming issue #<n>. Do not redo completed edits; working-tree edits
 survived unless the following command output proves otherwise.
 
-Previous session completed (from docs/jobs/<issue-slug>-01.md and worktree
+Previous session completed (from docs/jobs/<run>/<issue-slug>-01.md and worktree
 state): <summary of file:line evidence>.
 
 Orchestrator's answer/ruling (also posted on issue #<n>):
@@ -606,7 +613,7 @@ Required route-around:
 Boundaries remain:
 - MAY TOUCH: <files>
 - MUST NOT TOUCH: <files>
-- Report path: docs/jobs/<issue-slug>-01.md
+- Report path: docs/jobs/<run>/<issue-slug>-01.md
 - End with exactly one STATUS line.
 ```
 
@@ -638,7 +645,7 @@ PHASE 1 - The files under docs/checks/ are read-only at all times - editing
 them fails the slice regardless of results.
 
 PHASE 2 - Build YOUR JOB ONLY: exactly the files listed in BOUNDARIES. Job
-shape is ship|scout. Job identity: you are job <slice>-<NN>; if the spec
+shape is ship|scout. Job identity: you are job <run>/<slice>-<NN>; if the spec
 says you are the only builder, no other job exists. Files outside your job
 belong outside your authority - touching them fails your job. No placeholder
 implementations - search the codebase before implementing; full
@@ -665,7 +672,7 @@ When a known-bad pattern exists, the spec must name it as forbidden with
 evidence and provide exact command forms, flags included. Failed attempts in
 prior job reports are poisoned precedent unless explicitly marked forbidden.
 
-When done, write your job report to docs/jobs/<issue-slug>-01.md with RAW
+When done, write your job report to docs/jobs/<run>/<issue-slug>-01.md with RAW
 results only - tables, numbers, command output - no interpretation, no
 "promising". Every status claim must be backed by a command result from this
 run. Keep the report compact. Mirror your final STATUS line as a comment on
@@ -691,7 +698,7 @@ fully handled end-to-end.
 === DISAGREEMENT RULINGS (from last session) ===
 ...
 
-=== ACCEPTANCE CHECKS (frozen at docs/checks/<slice>.md - read-only) ===
+=== ACCEPTANCE CHECKS (frozen at docs/checks/<run>/<slice>.md - read-only) ===
 ...
 ```
 

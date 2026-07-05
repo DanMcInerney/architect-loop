@@ -20,13 +20,13 @@ Parallel rules: harness-native judge subagents (Claude Agent tool) dispatch sync
 
 1. **Dispatch the ready issues.** Compute the ready issues of the approved
    plan: up to 5 builder jobs plus one monitor subagent (see Monitor protocol,
-   and `dispatch.md` "## Monitor dispatch"). Check `docs/STOP` before every
-   wave.
+   and `dispatch.md` "## Monitor dispatch"). Check `docs/STOP` and
+   `docs/runs/<run>/STOP` before every wave.
 2. **Sleep.** Zero orchestrator work between dispatch and the next event —
    no polling.
 3. **Wake on one event**, exactly one of:
    - **Job DONE.** Ordering: write the runner config; launch `check-runner.ps1`
-     or `check-runner.sh` as a background process whose exit is the next wake; commit the checkrun artifact `docs/jobs/<issue-slug>-checkrun.md`; then dispatch the fixed judge template from `dispatch.md` by backend: Claude Agent-tool judges run synchronously with `run_in_background: false`, while codex-backend judges run the background `codex exec -o <file>` typed-exit path and wake on that process exit. Record the verdict in an issue comment (see Verdict comments). On PASS, run `postflight.ps1` or `postflight.sh`: exit 0 `POSTFLIGHT: OK` means merge completed with clean touch-set evidence; exit 2 `POSTFLIGHT: VIOLATION` is automatic FAIL evidence for the job; exit 3 `POSTFLIGHT: CONFLICT` is the merge-conflict decomposition-failure rail; exit 5 `POSTFLIGHT: ERROR` falls back to the recorded manual integration sequence in `dispatch.md`. On FAIL, diagnose (see Failure ladder). Exception: the finish-boundary docs job skips the judge (human-ruled; see SKILL.md `### 5. Finish`) — the orchestrator grades its checkrun evidence directly, then merges.
+     or `check-runner.sh` as a background process whose exit is the next wake; commit the checkrun artifact `docs/jobs/<run>/<issue-slug>-checkrun.md`; then dispatch the fixed judge template from `dispatch.md` by backend: Claude Agent-tool judges run synchronously with `run_in_background: false`, while codex-backend judges run the background `codex exec -o <file>` typed-exit path and wake on that process exit. Record the verdict in an issue comment (see Verdict comments). On PASS, run `postflight.ps1` or `postflight.sh`: exit 0 `POSTFLIGHT: OK` means merge completed with clean touch-set evidence; exit 2 `POSTFLIGHT: VIOLATION` is automatic FAIL evidence for the job; exit 3 `POSTFLIGHT: CONFLICT` is the merge-conflict decomposition-failure rail; exit 5 `POSTFLIGHT: ERROR` falls back to the recorded manual integration sequence in `dispatch.md`. On FAIL, diagnose (see Failure ladder). Exception: the finish-boundary docs job skips the judge (human-ruled; see SKILL.md `### 5. Finish`) — the orchestrator grades its checkrun evidence directly, then merges.
    - **Job BLOCKED.** A blocker comment on the issue is a completion event.
      Read it, rule an answer, and respawn a fresh builder job on the same
      issue with the answer in its spawn context (see `dispatch.md`
@@ -75,7 +75,7 @@ is posted on the job's issue with: per-check PASS/FAIL/INVALID, a
 checks-integrity verdict, a diff-vs-intent verdict, the slice call
 KILL/CONTINUE, and the decisive reason tied to raw evidence; exact tracker
 comment format lives in `dispatch.md` "## Issue conventions".
-The judge's intent context is exactly the frozen check file, spec, job report, checkrun evidence file, and `docs/jobs/<issue-slug>-rulings.md`. The checkrun artifact `docs/jobs/<issue-slug>-checkrun.md` is committed before judge dispatch. The rulings file is orchestrator-owned, append-only, and committed before judge dispatch; if it is absent, there are no post-freeze rulings. Judge dispatch blocks carry no ruling prose.
+The judge's intent context is exactly the frozen check file, spec, job report, checkrun evidence file, and `docs/jobs/<run>/<issue-slug>-rulings.md`. The checkrun artifact `docs/jobs/<run>/<issue-slug>-checkrun.md` is committed before judge dispatch. The rulings file is orchestrator-owned, append-only, and committed before judge dispatch; if it is absent, there are no post-freeze rulings. Judge dispatch blocks carry no ruling prose.
 The issue is closed on merge. No verdict comment on an issue means the
 next factory block must not build on it as accepted; the orchestrator may re-run
 judgment with a fresh judge if evidence is missing, but may not fill in a
@@ -89,7 +89,8 @@ fresh. The orchestrator never authors a missing verdict.
 Close-out: after consuming a subagent result or a background process's typed
 exit, stop or close that subagent or shell task in the same turn, batching
 independent close-outs into parallel calls; no polling and no per-close
-commentary. Kill any lingering job processes when a job is discarded.
+commentary. Before postflight, kill lingering codex children of any consumed
+exec; kill any lingering job processes when a job is discarded.
 
 ## Failure ladder
 
@@ -112,6 +113,7 @@ Batched on the tracking issue instead of interleaved per-job noise:
 - completed and failed jobs, with verdicts
 - open blockers and the answers given
 - decisions the approved spec genuinely does not answer
+- foreign sub-issues under the run parent with wrong author or missing run marker
 
 Ask-the-human items are batched here unless a hard stop below requires an
 immediate stop.
@@ -120,9 +122,10 @@ immediate stop.
 
 | Situation | Hard stop |
 |---|---|
-| `docs/STOP` exists | Stop before dispatching the next wave. |
+| `docs/STOP` exists in the run checkout or primary checkout, or `docs/runs/<run>/STOP` exists | Stop before dispatching the next wave; global stop halts all runs, per-run stop halts only this run and is never committed. |
 | No verdict comment for completed work | Do not build on it as accepted. |
 | Builder touched `docs/checks/` | Automatic FAIL for that job. |
+| Foreign sub-issue under the run parent | Never dispatch it; escalate on the tracking-issue digest. |
 | Merge conflict or postflight exit 3 | Decomposition failure: kill the job, re-spec. |
 | Second FAIL on the same issue | Re-decompose or escalate to the digest. |
 | Two consecutive KILLs | Stop the factory and ask the human. |

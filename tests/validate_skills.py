@@ -16,7 +16,12 @@ Run: python tests/validate_skills.py   (exit 0 = pass)
 
 from __future__ import annotations
 
+import json
 import re
+import os
+import shutil
+import subprocess
+import stat
 import sys
 from pathlib import Path
 
@@ -53,6 +58,14 @@ ARCHITECT_HANDOFF_FREE_FILES = [
     SKILLS / "architect" / "dispatch.md",
 ]
 errors: list[str] = []
+
+
+def rmtree_with_writable_retry(path: Path) -> None:
+    def clear_readonly_and_retry(func, failed_path, _excinfo):
+        os.chmod(failed_path, stat.S_IWRITE)
+        func(failed_path)
+
+    shutil.rmtree(path, onexc=clear_readonly_and_retry)
 
 
 def read_text(path: Path) -> str:
@@ -568,6 +581,275 @@ def check_status_contract() -> None:
                 errors.append("skills/architect/status.sh: NewestSpec must not select spec by lexical sort")
 
 
+def platform_status_command(repo_root: Path, run_slug: str | None) -> list[str]:
+    if os.name == "nt":
+        command = [
+            "powershell",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(SKILLS / "architect" / "status.ps1"),
+        ]
+        if run_slug is not None:
+            command.append(run_slug)
+        command.extend(["-RepoRoot", str(repo_root)])
+        return command
+    command = ["sh", str(SKILLS / "architect" / "status.sh")]
+    if run_slug is not None:
+        command.append(run_slug)
+    command.extend(["--repo-root", str(repo_root)])
+    return command
+
+
+def run_status_fixture(repo_root: Path, run_slug: str | None, env: dict[str, str]) -> str | None:
+    command = platform_status_command(repo_root, run_slug)
+    run_env = os.environ.copy()
+    run_env.update(env)
+    try:
+        result = subprocess.run(
+            command,
+            cwd=ROOT,
+            env=run_env,
+            text=True,
+            capture_output=True,
+            timeout=20,
+        )
+    except Exception as exc:
+        errors.append(f"status fixture: {' '.join(command)} raised {exc!r}")
+        return None
+    stdout = result.stdout.replace("\r\n", "\n")
+    stderr = result.stderr.replace("\r\n", "\n")
+    if result.returncode != 0:
+        errors.append(
+            "status fixture: command failed "
+            f"{' '.join(command)} exit {result.returncode}\nstdout:\n{stdout}\nstderr:\n{stderr}"
+        )
+        return None
+    return stdout
+
+
+def git_fixture(repo_root: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+    result = subprocess.run(
+        ["git", "-C", str(repo_root), *args],
+        text=True,
+        capture_output=True,
+        timeout=30,
+    )
+    if check and result.returncode != 0:
+        errors.append(
+            "postflight fixture git failed "
+            f"git -C {repo_root} {' '.join(args)} exit {result.returncode}\n"
+            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+    return result
+
+
+def write_fixture_file(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
+def configure_fixture_repo(repo_root: Path) -> str | None:
+    repo_root.mkdir(parents=True, exist_ok=True)
+    init = subprocess.run(
+        ["git", "init", str(repo_root)],
+        text=True,
+        capture_output=True,
+        timeout=30,
+    )
+    if init.returncode != 0:
+        errors.append(
+            "postflight fixture: git init failed "
+            f"exit {init.returncode}\nstdout:\n{init.stdout}\nstderr:\n{init.stderr}"
+        )
+        return None
+    git_fixture(repo_root, "config", "user.email", "postflight-fixture@example.invalid")
+    git_fixture(repo_root, "config", "user.name", "Postflight Fixture")
+    write_fixture_file(repo_root / "allowed.txt", "base\n")
+    git_fixture(repo_root, "add", "allowed.txt")
+    git_fixture(repo_root, "commit", "-m", "base")
+    git_fixture(repo_root, "branch", "-M", "factory")
+    freeze = git_fixture(repo_root, "rev-parse", "HEAD")
+    if freeze.returncode != 0:
+        return None
+    return freeze.stdout.strip()
+
+
+def platform_postflight_command(config: Path) -> list[str]:
+    if os.name == "nt":
+        return [
+            "powershell",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(SKILLS / "architect" / "postflight.ps1"),
+            "-Config",
+            str(config),
+        ]
+    return ["sh", str(SKILLS / "architect" / "postflight.sh"), str(config)]
+
+
+def run_postflight_fixture(config: Path, cwd: Path) -> subprocess.CompletedProcess[str] | None:
+    command = platform_postflight_command(config)
+    try:
+        return subprocess.run(
+            command,
+            cwd=cwd,
+            text=True,
+            capture_output=True,
+            timeout=45,
+        )
+    except Exception as exc:
+        errors.append(f"postflight fixture: {' '.join(command)} raised {exc!r}")
+        return None
+
+
+def write_postflight_config(
+    path: Path,
+    repo_root: Path,
+    freeze: str,
+    job_branch: str,
+    worktree: str | None,
+) -> None:
+    cfg: dict[str, object] = {
+        "repo_root": str(repo_root),
+        "factory_branch": "factory",
+        "job_branch": job_branch,
+        "freeze_sha": freeze,
+        "merge_message": "Merge fixture job",
+        "may_touch": ["allowed.txt"],
+        "push": False,
+    }
+    if worktree is not None:
+        cfg["worktree"] = worktree
+    write_fixture_file(path, json.dumps(cfg, indent=2))
+
+
+def check_postflight_lane_fixture() -> None:
+    base = ROOT / ".architect" / "tmp" / "postflight-lane-fixture"
+    if base.exists():
+        rmtree_with_writable_retry(base)
+    base.mkdir(parents=True)
+
+    lane_repo = base / "lane" / "repo"
+    lane_worktree = base / "lane" / "worktrees" / "job"
+    elsewhere = base / "elsewhere"
+    elsewhere.mkdir(parents=True)
+    freeze = configure_fixture_repo(lane_repo)
+    if freeze is None:
+        return
+    git_fixture(lane_repo, "worktree", "add", "-b", "job", str(lane_worktree), freeze)
+    write_fixture_file(lane_worktree / "allowed.txt", "lane\n")
+    lane_config = base / "configs" / "lane.json"
+    write_postflight_config(lane_config, lane_repo, freeze, "job", "../worktrees/job")
+
+    lane = run_postflight_fixture(lane_config, elsewhere)
+    if lane is not None:
+        stdout = lane.stdout.replace("\r\n", "\n")
+        stderr = lane.stderr.replace("\r\n", "\n")
+        if lane.returncode != 0:
+            errors.append(
+                "postflight fixture dirty lane: command failed "
+                f"exit {lane.returncode}\nstdout:\n{stdout}\nstderr:\n{stderr}"
+            )
+        if "POSTFLIGHT: OK merge=" not in stdout:
+            errors.append(f"postflight fixture dirty lane: missing OK line\nstdout:\n{stdout}")
+        if lane_worktree.exists():
+            errors.append("postflight fixture dirty lane: relative worktree was not removed")
+        head = git_fixture(lane_repo, "rev-parse", "factory")
+        if head.returncode == 0 and head.stdout.strip() == freeze:
+            errors.append("postflight fixture dirty lane: factory head did not advance")
+        log = git_fixture(lane_repo, "log", "--format=%s")
+        if log.returncode == 0 and "Merge fixture job (lane)" not in log.stdout:
+            errors.append("postflight fixture dirty lane: lane commit message missing")
+        content = (lane_repo / "allowed.txt").read_text(encoding="utf-8")
+        if content != "lane\n":
+            errors.append("postflight fixture dirty lane: merged file content missing")
+
+    noop_repo = base / "noop" / "repo"
+    noop_elsewhere = base / "noop-elsewhere"
+    noop_elsewhere.mkdir(parents=True)
+    noop_freeze = configure_fixture_repo(noop_repo)
+    if noop_freeze is None:
+        return
+    git_fixture(noop_repo, "branch", "job", noop_freeze)
+    noop_config = base / "configs" / "noop.json"
+    write_postflight_config(noop_config, noop_repo, noop_freeze, "job", None)
+    noop = run_postflight_fixture(noop_config, noop_elsewhere)
+    if noop is not None:
+        stdout = noop.stdout.replace("\r\n", "\n")
+        stderr = noop.stderr.replace("\r\n", "\n")
+        if noop.returncode != 5:
+            errors.append(
+                "postflight fixture noop: expected exit 5 "
+                f"got {noop.returncode}\nstdout:\n{stdout}\nstderr:\n{stderr}"
+            )
+        needle = "POSTFLIGHT: ERROR job branch has no commits beyond freeze"
+        if needle not in stdout:
+            errors.append(f"postflight fixture noop: missing {needle!r}\nstdout:\n{stdout}")
+
+
+def require_status_contains(label: str, output: str, needle: str) -> None:
+    if needle not in output:
+        errors.append(f"{label}: missing {needle!r}\noutput:\n{output}")
+
+
+def require_status_excludes(label: str, output: str, needle: str) -> None:
+    if needle in output:
+        errors.append(f"{label}: unexpectedly contains {needle!r}\noutput:\n{output}")
+
+
+def check_status_run_pinning_fixture() -> None:
+    fixture = ROOT / "tests" / "fixtures" / "status-run-pinned"
+    github_repo = fixture / "github-repo"
+    markdown_repo = fixture / "markdown-repo"
+    github_stub = fixture / "github-issues.tsv"
+    for path in (github_repo, markdown_repo, github_stub):
+        if not path.exists():
+            errors.append(f"status fixture: missing {path.relative_to(ROOT)}")
+            return
+
+    github_env = {
+        "NO_COLOR": "1",
+        "STATUS_GH_STUB": str(github_stub),
+        "STATUS_GH_LOGIN_STUB": "architect-user",
+    }
+    run_a = run_status_fixture(github_repo, "run-a", github_env)
+    if run_a is not None:
+        require_status_contains("status fixture run-a", run_a, "tracker: #10")
+        require_status_contains("status fixture run-a", run_a, "#11 Run A Slice")
+        require_status_excludes("status fixture run-a", run_a, "#12")
+        require_status_excludes("status fixture run-a", run_a, "#999")
+        require_status_excludes("status fixture run-a", run_a, "#1000")
+
+    run_b = run_status_fixture(github_repo, "run-b", github_env)
+    if run_b is not None:
+        require_status_contains("status fixture run-b", run_b, "tracker: #20")
+        require_status_contains("status fixture run-b", run_b, "#21 Run B Slice")
+        require_status_excludes("status fixture run-b", run_b, "#11")
+        require_status_excludes("status fixture run-b", run_b, "#999")
+
+    multi = run_status_fixture(github_repo, None, github_env)
+    if multi is not None:
+        require_status_contains("status fixture multi-active", multi, "RUN run-a #10 ACTIVE")
+        require_status_contains("status fixture multi-active", multi, "RUN run-b #20 ACTIVE")
+        require_status_excludes("status fixture multi-active", multi, "tracker: #999")
+
+    markdown = run_status_fixture(markdown_repo, "run-a", {"NO_COLOR": "1"})
+    if markdown is not None:
+        require_status_contains("status fixture markdown", markdown, "tracker: #10")
+        require_status_contains("status fixture markdown", markdown, "#11 Markdown Child")
+        require_status_excludes("status fixture markdown", markdown, "#12")
+        require_status_excludes("status fixture markdown", markdown, "Wrong Run Markdown Child")
+
+    markdown_default = run_status_fixture(markdown_repo, None, {"NO_COLOR": "1"})
+    if markdown_default is not None:
+        require_status_contains("status fixture markdown default", markdown_default, "tracker: #10")
+        require_status_contains("status fixture markdown default", markdown_default, "#11 Markdown Child")
+
+
 def check_tracker_contract() -> None:
     path = SKILLS / "architect" / "tracker.md"
     if not path.exists():
@@ -624,6 +906,8 @@ def main() -> int:
     check_codex_install_step()
     check_watchdog_contract()
     check_status_contract()
+    check_status_run_pinning_fixture()
+    check_postflight_lane_fixture()
     check_tracker_contract()
     check_architect_handoff_free()
     check_retired_loop_terms()

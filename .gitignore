@@ -11,6 +11,8 @@ Thumbs.db
 !/docs/gates/
 !/docs/lanes/
 !/docs/spec/
+!/docs/runs/
+/docs/runs/*/STOP
 !/docs/research/
 !/docs/solutions/
 /.architect/

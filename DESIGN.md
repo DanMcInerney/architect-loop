@@ -197,6 +197,25 @@ architect-v5 and architect-v5.1 specs, and loop-improvements research
   tools in one day (§7, D12) — backend choice is an intake-time risk, not a
   mid-wave surprise.
 
+- **Run identity is pinned by a manifest, not discovered by tracker scan.**
+  The multi-run spec (#89) closed the highest-open-parent failure mode: one
+  repo can have several live tracking issues, and GitHub native sub-issues are
+  not reserved for this factory. Each run now has
+  `docs/runs/<run>/manifest.md` with line-greppable `run`,
+  `tracking-issue`, `factory-branch`, `tracker`, `spec`, `state`, and
+  `created` fields. Status commands take a run slug and read TRACK from that
+  manifest; they never compute a tracker-wide max. Labels were rejected as
+  run identity because the durable pin must version with the spec, checks,
+  and factory branch.
+- **Foreign-issue immunity is by construction.** The tracking issue and every
+  orchestrator-created sub-issue carry `<!-- architect-run: <run> -->`.
+  Status emission is intentionally narrower than dispatch: it lists children
+  of the pinned parent written by the authenticated author, while the
+  dispatch-time orchestrator verifies the run marker before spawning a job.
+  A wrong-author or missing-marker sub-issue is escalated on the run digest,
+  never dispatched. The retired historical term was "sentinel"; shipped skill
+  text uses "run marker".
+
 ### Decomposition
 
 - **Vertical slices as issues, dispatched by ready issues (D5).** Each
@@ -253,7 +272,7 @@ architect-v5 and architect-v5.1 specs, and loop-improvements research
   ([Harness Design](https://www.anthropic.com/engineering/harness-design-long-running-apps));
   the reward-hacking literature adds the mechanical requirement to keep
   criteria out of the agent's editable blast radius. Checks live in
-  `docs/checks/<issue-slug>.md`, freeze at one commit, and **any builder edit
+  `docs/checks/<run>/<issue-slug>.md`, freeze at one commit, and **any builder edit
   under `docs/checks/` is an automatic FAIL regardless of results**. Visible
   test-iteration loops measurably raise cheating (33%→38%,
   [ImpossibleBench](https://arxiv.org/abs/2510.20270)), so builders get no
@@ -436,7 +455,7 @@ both directions.
   the direction in the verdict comment
   ([cross-provider review](https://www.mindstudio.ai/blog/openai-codex-plugin-claude-code-cross-provider-review)).
 - **Post-freeze rulings live in an append-only file (v5.1 D4).**
-  `docs/jobs/<issue-slug>-rulings.md`, orchestrator-owned, committed before
+  `docs/jobs/<run>/<issue-slug>-rulings.md`, orchestrator-owned, committed before
   judge dispatch and mirrored to the issue — so judges read rulings from a
   file, not from thread prose, and post-freeze intent has a durable in-repo
   home.
@@ -477,11 +496,11 @@ both directions.
   existence alone produced twice-observed false `ALL_DONE` evidence in the
   run #36 respawn case and the run #43 incremental-write case recorded in
   the loop-tuning spec (evidence: git history before the 2026-07-04 cleanup).
-- **Hard stops (D11).** the `docs/STOP` kill switch before any wave; irreversible actions;
-  two consecutive KILLs; a blocker colliding with a recorded assumption
-  (a spec-approval decision surfacing late); scope growth beyond the approved
-  spec; unsatisfiable preflight. All of them stop the factory and ask the
-  human.
+- **Hard stops (D11).** the `docs/STOP` kill-all switch before any wave;
+  `docs/runs/<run>/STOP` for one run; irreversible actions; two consecutive
+  KILLs; a blocker colliding with a recorded assumption (a spec-approval
+  decision surfacing late); scope growth beyond the approved spec;
+  unsatisfiable preflight. All of them stop the factory and ask the human.
 
 ### Model routing
 
@@ -655,7 +674,9 @@ decisions, from the 2026-06 evidence review and the r2 calibration pass
 | Check-passing but unmergeable work | Judge reads diff vs intent, not check output alone (METR) |
 | Builder gaming visible checks | Frozen read-only checks; no iterate-against-judge loop (ImpossibleBench 33%→38%) |
 | Stalled jobs | Watchdog script: growth + process + repeated-action checks; orchestrator rules on typed evidence; no kill ceilings |
-| Runaway factory | `docs/STOP` kill switch; two-consecutive-KILL hard stop; assumption-collision hard stop; tracking issue digest as the human channel |
+| Wrong run selected by tracker scan | `docs/runs/<run>/manifest.md` pins the tracking issue; status commands take the run slug and never compute a tracker-wide max |
+| Foreign sub-issue under a run parent | Authenticated-author filter in status plus dispatch-time run marker check; wrong-author or missing-marker issues go to the digest |
+| Runaway factory | `docs/STOP` kill-all switch; `docs/runs/<run>/STOP` per-run stop; two-consecutive-KILL hard stop; assumption-collision hard stop; tracking issue digest as the human channel |
 | Stale worktree snapshots | Freeze → push → dispatch ordering; post-spawn HEAD + file verification |
 | Shell-stripped subagents | Backend canary at preflight; BLOCKED-with-evidence; recorded substitutions (§7) |
 | Researcher context exhaustion | ≤5 subjects per researcher; compact returns; bisect dead researchers |
@@ -777,6 +798,17 @@ cleanup. Both namespaces are load-bearing in shipped text.)
   the job-report exemption was missing, and `find -maxdepth` was wrongly
   flagged even though BSD find supports it. A corrected-anchor re-judgment
   passed.
+- **Multi-run isolation run (2026-07-05).** Spec `docs/spec/multi-run.md`
+  (tracking issue #89) shipped #90 and #91: status scripts became
+  run-pinned, and skill text moved to run manifests, run markers,
+  run-namespaced artifacts, one checkout per live run, and per-run stop
+  files. The pre-freeze grill caught the validator-retired "sentinel" term
+  before it wedged the run and caught one unenforced acceptance criterion.
+  Live smoke after the merge: `skills/architect/status.ps1 multi-run` printed
+  `tracker: #89` from the manifest pin with both sub-issues merged. Postflight
+  docs debt from the same run produced the route-arounds in
+  `docs/solutions/postflight-lane-commit.md` and
+  `docs/solutions/worktree-cleanup-locks.md`.
 - **Dogfood runs.** v5 was built *by* the factory as a real issue plan (tracking issue
   #12, issues #13–#18): 1 judge FAIL, 3 respawns, all jobs fresh-judged.
   The v5.1 hardening run (tracking issue #20, issues #21–#25, on `factory/v5.1`)
