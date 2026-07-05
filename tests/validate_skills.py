@@ -281,7 +281,11 @@ def check_judge_template() -> None:
         "Verdict format:",
         "Checks integrity:",
         "Diff vs intent:",
-        "Per check:",
+        "Spot-check:",
+        "read the checkrun evidence SUMMARY",
+        "Do not grade RUN items from the evidence file",
+        "Re-run exactly ONE graded RUN item",
+        "mismatch is automatic INVALID",
     ):
         if required not in block:
             errors.append(f"skills/architect/dispatch.md: C5 judge template missing {required}")
@@ -310,7 +314,13 @@ def check_check_runner_dispatch_contract() -> None:
         errors.append("skills/architect/dispatch.md: missing ## Check-runner dispatch")
     if "## Preflight and postflight dispatch" not in text.splitlines():
         errors.append("skills/architect/dispatch.md: missing ## Preflight and postflight dispatch")
-    for marker in ("architect-judge-template", "architect-codex-judge-template"):
+    marker_blocks: dict[str, str] = {}
+    for marker in (
+        "architect-judge-template",
+        "architect-codex-judge-template",
+        "architect-stress-test-template",
+        "architect-monitor-fallback-template",
+    ):
         start = f"<!-- {marker}:start -->"
         end = f"<!-- {marker}:end -->"
         start_at = text.find(start)
@@ -318,11 +328,26 @@ def check_check_runner_dispatch_contract() -> None:
         if start_at == -1 or end_at == -1:
             errors.append(f"skills/architect/dispatch.md: missing {marker} marker block")
             continue
-        block = text[start_at + len(start) : end_at]
-        if "re-run at least one RUN command" not in block:
+        marker_blocks[marker] = text[start_at + len(start) : end_at]
+    for marker in ("architect-judge-template", "architect-codex-judge-template"):
+        block = marker_blocks.get(marker)
+        if block is None:
+            continue
+        for required in (
+            "read the checkrun evidence SUMMARY",
+            "Do not grade RUN items from the evidence file",
+            "Re-run exactly ONE graded RUN item",
+            "mismatch is automatic INVALID",
+        ):
+            if required not in block:
+                errors.append(
+                    "skills/architect/dispatch.md: "
+                    f"{marker} missing {required}"
+                )
+        if "before grading; grade RUN items from the evidence file" in block:
             errors.append(
                 "skills/architect/dispatch.md: "
-                f"{marker} missing re-run at least one RUN command"
+                f"{marker} still tells judges to grade RUN items from the evidence file"
             )
         if block.count("independent reads") != 1:
             errors.append(

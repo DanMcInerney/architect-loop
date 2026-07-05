@@ -8,6 +8,7 @@
 - C5 judge delegation template
 - Codex judge delegation template
 - Check-runner dispatch
+- Scout dispatch
 - Stress-test delegation template
 - Codex backend from a Claude orchestrator
 - Preflight and postflight dispatch
@@ -119,8 +120,7 @@ or reports the check BLOCKED — never silently skips a check or invents output.
 
 ## C5 judge delegation template
 
-The orchestrator must send this template as-is except for replacing placeholders. It must not add slice-specific prose, encouragement, summaries, or interpretation.
-Judge intent context is pointer-only: frozen check file, spec pointer, job report, and `docs/jobs/<run>/<issue-slug>-rulings.md` (orchestrator-owned, append-only; absent = no post-freeze rulings).
+The orchestrator must send this template as-is except for replacing placeholders. It must not add slice-specific prose, encouragement, summaries, or interpretation. Judge intent context is pointer-only: frozen check file, spec pointer, job report, and `docs/jobs/<run>/<issue-slug>-rulings.md` (orchestrator-owned, append-only; absent = no post-freeze rulings).
 
 <!-- architect-judge-template:start -->
 ```text
@@ -134,20 +134,9 @@ Rulings file: docs/jobs/<run>/<issue-slug>-rulings.md (absent = no post-freeze r
 
 Batch independent reads (frozen check file, spec, job report, rulings file, checkrun evidence file) into parallel tool calls in one turn; serialize only dependent steps and command re-runs.
 
-Evidence rules: read the checkrun evidence file before grading; grade RUN items from the evidence file; execute judge-only items yourself; re-run at least one RUN command and compare with the evidence file -- any mismatch is automatic INVALID with both outputs quoted; missing/stale evidence (integrity false or freeze SHA mismatch) -> INVALID, never FAIL.
+Evidence rules: read the checkrun evidence SUMMARY before intent review. Do not grade RUN items from the evidence file. Re-run exactly ONE graded RUN item and compare the verdicts; any mismatch is automatic INVALID with both outputs quoted. Missing or stale evidence (integrity false or freeze SHA mismatch) is INVALID, never FAIL.
 
-Verdict format:
-- Checks integrity: PASS | FAIL | INVALID
-  Raw evidence: <git diff <freeze-sha>..HEAD -- docs/checks/>
-- Diff vs intent: PASS | FAIL | INVALID
-  Raw evidence: <file:line evidence from the diff and frozen check/spec text>
-- Per check:
-  - <check id>: PASS | FAIL | INVALID
-    Command: <exact command from the frozen check>
-    Source: evidence-file | re-run
-    Raw evidence: <verbatim stdout/stderr and exit code>
-- Slice verdict: PASS | FAIL | INVALID
-  Decisive reason: <one sentence tied to raw evidence>
+Verdict format: Checks integrity: PASS | FAIL | INVALID with raw `git diff <freeze-sha>..HEAD -- docs/checks/`; Diff vs intent: PASS | FAIL | INVALID with file:line evidence; Spot-check: PASS | FAIL | INVALID with item and both quoted outputs; Slice verdict: PASS | FAIL | INVALID with one decisive reason.
 ```
 <!-- architect-judge-template:end -->
 
@@ -163,67 +152,43 @@ Branch to judge: <branch>
 Worktree note: <worktree note>
 checkrun evidence file path: <docs/jobs/<run>/<issue-slug>-checkrun.md>
 
-You are a fresh read-only judge. You did not build this job. Flag only gaps
-that affect correctness, the stated requirements, or documented project
-invariants -- cite file:line evidence for every finding. Do not report
-stylistic preferences.
-
-Tree audit: workspace-write exists only so validators can run. Any tracked-file
-modification during judgment means the verdict is discarded INVALID.
-
-Sanctioned substitutions, recorded per check: Git Bash CreateFileMapping Win32
-error 5 -> PowerShell same-pattern; uv AppData cache denial -> run with
-`UV_CACHE_DIR=.architect/tmp/uv-cache`; tracker posting unavailable -> report
-`MIRROR: ORCHESTRATOR`.
+You are a fresh read-only judge. You did not build this job. Flag only gaps that affect correctness, the stated requirements, or documented project invariants; cite file:line evidence. Do not report stylistic preferences.
+Tree audit: workspace-write exists only so validators can run. Any tracked-file modification during judgment means the verdict is discarded INVALID.
+Sanctioned substitutions, recorded per check: Git Bash CreateFileMapping Win32 error 5 -> PowerShell same-pattern; uv AppData cache denial -> run with `UV_CACHE_DIR=.architect/tmp/uv-cache`; tracker posting unavailable -> report `MIRROR: ORCHESTRATOR`.
 
 Intent context pointers: frozen check file above; spec pointer named by the frozen check; job report named by the issue/check; rulings file `docs/jobs/<run>/<issue-slug>-rulings.md` (absent = no post-freeze rulings).
 
 Batch independent reads (frozen check file, spec, job report, rulings file, checkrun evidence file) into parallel tool calls in one turn; serialize only dependent steps and command re-runs.
 
-Evidence rules: read the checkrun evidence file before grading; grade RUN items from the evidence file; execute judge-only items yourself; re-run at least one RUN command and compare with the evidence file -- any mismatch is automatic INVALID with both outputs quoted; missing/stale evidence (integrity false or freeze SHA mismatch) -> INVALID, never FAIL.
+Evidence rules: read the checkrun evidence SUMMARY before intent review. Do not grade RUN items from the evidence file. Re-run exactly ONE graded RUN item and compare the verdicts; any mismatch is automatic INVALID with both outputs quoted. Missing or stale evidence (integrity false or freeze SHA mismatch) is INVALID, never FAIL.
 
-Verdict format:
-- Checks integrity: PASS | FAIL | INVALID
-  Raw evidence: <git diff <freeze-sha>..HEAD -- docs/checks/>
-- Diff vs intent: PASS | FAIL | INVALID
-  Raw evidence: <file:line evidence from the diff and frozen check/spec text>
-- Per check:
-  - <check id>: PASS | FAIL | INVALID
-    Command: <exact command from the frozen check>
-    Executor: <executor used>
-    Source: evidence-file | re-run
-    Raw evidence: <verbatim stdout/stderr and exit code>
-- Slice verdict: PASS | FAIL | INVALID
-  Decisive reason: <one sentence tied to raw evidence>
+Verdict format: Checks integrity: PASS | FAIL | INVALID with raw `git diff <freeze-sha>..HEAD -- docs/checks/`; Diff vs intent: PASS | FAIL | INVALID with file:line evidence; Spot-check: PASS | FAIL | INVALID with item, executor, and both quoted outputs; Slice verdict: PASS | FAIL | INVALID with one decisive reason.
 ```
 <!-- architect-codex-judge-template:end -->
 
 ## Check-runner dispatch
 
-RUN grammar for check files is normative from judge-runner D1 (evidence: judge-runner spec, git history): a runnable check is a list line beginning `- RUN:` whose first single backtick span is the complete command, executable verbatim in the file's named executor. Everything after the closing backtick is judge-facing prose the runner ignores. The check file header names one `Executor:`; items without `RUN:` are judge-only.
-Example line: ``- RUN: `git grep -c "needle" -- path/to/file.md` -> 1``
+Graded RUN grammar is normative from the shipped s1 runner in `skills/architect/check-runner.ps1`: first backtick span is the command; expectation begins immediately after the closing backtick as ``-> exit:<n>`` with optional `match:"<substring>"`. `match:` is a fixed, case-sensitive stdout substring check, never regex. Text after the expectation is judge-facing prose; non-RUN items are judge-only. A RUN item without an expectation exits 5 with `CHECKRUN: ERROR missing RUN expectation`, and no partial evidence is kept.
+Example line: ``- RUN: `git grep -F -c "needle" -- path/to/file.md` -> exit:0 match:"needle"``
 
-Runner config JSON, written by the orchestrator per judgment:
+Evidence contains per-item `expected:` and `verdict:` lines, then `CHECKRUN SUMMARY: run_items=<n> pass=<n> fail=<n>`.
+Typed exits: 0 = all RUN items pass; 2 = any RUN item fails; 5 = error, no partial evidence file left behind.
+Launch pattern: run `skills/architect/check-runner.ps1` or `check-runner.sh` in the background and commit `docs/jobs/<run>/<issue-slug>-checkrun.md` before judge dispatch on exit 0. Exit 2 routes to the failure ladder with no judge dispatch; `loop.md` owns the full rule.
 
-```json
-{
-  "check_file": "docs/checks/<run>/<slice>.md",
-  "workdir": "<worktree or repo path>",
-  "freeze_sha": "<sha>",
-  "evidence_out": "docs/jobs/<run>/<issue-slug>-checkrun.md",
-  "executor": "powershell|bash",
-  "max_output_lines": 60
-}
+## Scout dispatch
+
+Dispatch one scout during intake when the run needs a code map. The scout uses the resolved builders model, job shape `scout`, and read-only tools only. The orchestrator names the output path; the scout writes there, and the orchestrator commits it at `docs/runs/<run>/map.md`.
+
+```text
+You are a read-only code scout. Output path: <docs/runs/<run>/map.md>.
+Return <= ~2,500 tokens. No recommendations.
+Include only anchored entries: key modules/files; load-bearing types/function signatures; conventions/patterns; testing seams; gotchas.
+Every entry must carry a real file:line anchor. If a requested category is absent, write `NOT FOUND: <category> - <searched paths>`. No implementation plan, no edits.
 ```
-
-Typed exits: 0 = evidence file written; 5 = `CHECKRUN: ERROR <reason>` on stdout, no partial evidence file left behind.
-Launch pattern: the orchestrator writes the config with file tools, then launches `skills/architect/check-runner.ps1` or `skills/architect/check-runner.sh` as a background process whose exit wakes the loop. On success, the orchestrator commits the evidence file `docs/jobs/<run>/<issue-slug>-checkrun.md` before judge dispatch.
 
 ## Stress-test delegation template
 
-The orchestrator must send this template as-is except for replacing
-placeholders. It must not add slice-specific prose, encouragement, summaries,
-or interpretation.
+The orchestrator must send this template as-is except for replacing placeholders. It must not add slice-specific prose, encouragement, summaries, or interpretation.
 
 <!-- architect-stress-test-template:start -->
 ```text
@@ -231,17 +196,14 @@ Draft check file path: <docs/checks/<run>/<slice>.md>
 Branch: <branch>
 Issue bodies: <pasted issue bodies for this plan>
 
-Grill clause: every mechanical check MUST use `- RUN:` form; a mechanical check not in RUN form is a check defect.
+Grill clause: every mechanical check MUST use `- RUN:` form with a `->` expectation; a RUN item without an expectation is a check defect.
 
 Task: try to falsify this draft. Execute each check command against the current tree, verify every referenced path/SHA/pointer resolves, attack each acceptance criterion and pasted issue bodies against the spec for contradictions and non-falsifiability, including patterns that collide with repo realities (e.g. a grep pattern matching the repo's own name), and flag any assumption not evidenced in the repo.
 For every file a job deletes or renames, grep the whole repo for references and verify the owning job's boundary covers them or a dependency edge orders the fix.
 For every NEW artifact path a job will create, run `git check-ignore <path>` and flag the plan if ignored.
+If a run map exists, sample map entries and verify each file:line anchor resolves; a dangling anchor is a check defect.
 
-Defect report format:
-- <check id or clause>: FALSIFIED | HOLDS
-  Evidence: <command run and verbatim output, or file:line>
-- Plan findings: <delete/rename reference and ignored-new-path findings, or none>
-- Assumptions not evidenced in the repo: <list or none>
+Defect report format: `<check id or clause>: FALSIFIED | HOLDS` with command output or file:line evidence; plan findings; assumptions not evidenced.
 ```
 <!-- architect-stress-test-template:end -->
 
