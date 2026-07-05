@@ -20,7 +20,7 @@ templates live behind these pointers:
 
 - dispatch.md section `## Model alias table`
 - dispatch.md section `## Issue conventions`
-- dispatch.md section `## Monitor dispatch`
+- dispatch.md sections `## Scout dispatch`, `## Monitor dispatch`
 - dispatch.md section `## Respawn-with-answer template`
 - loop.md section `## Factory block procedure`; `research.md` for research fan-out
 - `tracker.md` sections `## Preflight per mode`, `## Finish per mode`, `## Command mapping`
@@ -33,7 +33,7 @@ templates live behind these pointers:
 2. **Checks freeze in git before dispatch.** Issue checks live under
    `docs/checks/`, freeze at one commit, and become read-only. Any builder edit
    under `docs/checks/` is an automatic FAIL.
-3. **Nobody grades their own work.** Builders report raw evidence only. A fresh, independent judge at the builders model checks intent. Frozen checks are executed by the deterministic check-runner; the judge grades the evidence and spot-checks. The orchestrator may not turn a judge FAIL into a merge.
+3. **Nobody grades their own work.** Builders report raw evidence only. The deterministic check-runner grades frozen RUN items. A fresh, independent builders-model judge grades intent plus one spot-check, not per-RUN evidence. The orchestrator may not turn a judge FAIL into a merge.
 4. **The orchestrator never writes implementation code and never reads large
    diffs.** Builders code; verifier and judge subagents inspect large diffs.
 5. **Fresh builder per issue.** Use worktree isolation and one issue per
@@ -84,6 +84,7 @@ timed-ruling protocol (`### 2. Spec Approval`) — plaintext options plus the
 5-minute timer, never a blocking question UI. Questions unanswered at timer
 expiry become recorded `## Assumptions` in the spec, using the orchestrator's
 recommended option.
+In parallel with that batch and timer, dispatch one read-only code scout at the builders model using the `scout` job shape and `dispatch.md` `## Scout dispatch`; commit its returned map at `docs/runs/<run>/map.md`. The spec and every issue cite the map pointer.
 
 Preflight is tracker-conditional (see `tracker.md` `## Preflight per mode`):
 github mode requires a GitHub remote, passing `gh auth status`, and `gh` >=
@@ -176,22 +177,12 @@ entry, or rejection is recorded.
 
 Compile the approved spec into tracker issues:
 
-- Add sub-issues under the existing tracking issue, which is the dashboard and
-  digest target.
-- Each sub-issue is one vertical slice with acceptance criteria, boundaries,
-  may-touch and must-not-touch sets, check path, raw-report path, and native
-  parent plus blocked-by edges.
-- Checks per issue live in `docs/checks/<run>/` and freeze in git before dispatch.
-- Dispatch has hard-stop preconditions, in order: freeze committed on the
-  factory branch; factory branch pushed; `preflight.ps1`/`preflight.sh`
-  executes worktree creation, freeze-verify, and frozen-file spot-check.
-  Builders still perform FIRST-ACTION input verification as the last defense.
-- Run one fresh read-only stress-test pass over the whole decomposition, not per
-  issue. It attacks the plan, checks, file-touch sets, dependency edges,
-  missing context, non-falsifiable checks, and repo-name grep collisions.
-- Design parallelism at this point: concurrently schedulable issues must not
-  share files, migrations, lockfiles, generated artifacts, config, schemas,
-  dev servers, databases, or other mutable runtime state.
+- Add sub-issues under the existing tracking issue, the dashboard and digest target.
+- Each sub-issue is one vertical slice with acceptance criteria, boundaries, may-touch/must-not-touch sets, check path, raw-report path, native parent plus blocked-by edges, the map pointer `docs/runs/<run>/map.md`, and a compact `change-skeleton` (~<=30 lines: files, signatures, data flow, invariants).
+- A `change-skeleton` is structure only: a contract, not a line mandate; PHASE 0 is the disagreement channel when reality conflicts with it.
+- Checks live in `docs/checks/<run>/` and freeze in git before dispatch. Preconditions: freeze committed on the factory branch, factory branch pushed, and `preflight.ps1`/`preflight.sh` verifies worktree creation, freeze, and frozen-file spot-check. Builders still FIRST-ACTION verify inputs.
+- Run one fresh read-only stress-test pass over the whole decomposition, not per issue; it attacks the plan, checks, file-touch sets, dependency edges, missing context, non-falsifiable checks, and repo-name grep collisions.
+- Compute the parallel frontier from `change-skeleton` file-ownership: concurrent issues must not share files, migrations, lockfiles, generated artifacts, config, schemas, dev servers, databases, or other mutable runtime state.
 
 Embed D9 in the issue graph:
 
@@ -235,7 +226,7 @@ Use `loop.md` `## Factory block procedure` for the detailed event loop.
   `skills/architect/status.sh <run>` on POSIX; use `-RepoRoot <path>` /
   `--repo-root <path>` for explicit roots. Print output verbatim in a fenced
   code block, answer in prose, and never hand-compose the tree.
-- On DONE, write the runner config, launch the check-runner in the background, let its exit wake the loop, commit the checkrun evidence file, then send a fresh, independent builders-model judge with the evidence path: Claude Agent-tool judges dispatch synchronously with `run_in_background: false`; codex-backend judges use the background typed-exit path.
+- On DONE, write the runner config, launch the check-runner in the background, and let its typed exit wake the loop: exit 0 commits evidence and sends a fresh builders-model intent judge with the evidence path; exit 2 commits failure evidence and enters the failure ladder without judge dispatch; exit 5 stays on the recorded error rail. Claude Agent-tool judges dispatch synchronously with `run_in_background: false`; codex-backend judges use the background typed-exit path.
   Merge through postflight only after a passing verdict; `POSTFLIGHT: OK` exit
   0 is the clean touch-set evidence.
 - On BLOCKED, answer on the issue, cite durable evidence, and respawn a fresh
@@ -245,8 +236,7 @@ Use `loop.md` `## Factory block procedure` for the detailed event loop.
   and respawn-with-answer summaries. The orchestrator owns the file, commits it
   before judge dispatch, mirrors it to the issue thread for humans, and judges
   read the file rather than thread prose.
-- On check failure, diagnose from judge evidence, not a large direct diff. Fix
-  the input, re-decompose, or stop; do not change tier because of failure.
+- On check failure, diagnose from checkrun evidence; on judge FAIL, diagnose from judge evidence. Never use a large direct diff; fix the input, re-decompose, or stop, and do not change tier because of failure.
 - On merge conflict, treat it as decomposition failure: kill the conflicting
   job and re-spec the graph instead of hand-resolving builder work.
 - Calibrate open-ended reviews with this line: "Flag only gaps that affect
@@ -262,19 +252,8 @@ human digest item.
 
 ### 5. Finish
 
-Dispatch one dedicated builder docs job before the finish boundary; the
-orchestrator never writes those docs directly. Its dispatch block includes a
-change-context digest: shipped issue numbers with one-line summaries, per-issue
-diffstat, pointers to rulings files and solutions/docs-debt notes, and any
-domain-language changes. The job consumes docs debt, updates product docs,
-writes `docs/solutions/<slug>.md` entries, and codifies changed domain language
-or sparse ADRs. The docs job needs no cold judge (human-ruled exception to
-Hard Rule 3): the orchestrator runs its frozen checks through the check-runner
-and grades the evidence directly before merging. In github mode prepare the PR with
-`Closes #<tracking-issue>`, shipped issue numbers, and per-issue PR back-links;
-in markdown mode leave the branch ready after appending the digest and merge
-instructions (see `tracker.md` `## Finish per mode`). Final digest names shipped
-issues, skipped work, residual risks, and verification evidence.
+Open finish with a timed-ruling closing review question: recommended default YES; 5-minute silence applies it. On YES, dispatch one fresh subagent at the resolved orchestrator model at MEDIUM effort, in a worktree from the factory branch head; it reads the spec, then `docs/runs/<run>/map.md`, then the run diff; edits directly; treats `docs/checks/` as read-only (an edit fails the pass); keeps every graded RUN item across the run green; re-runs the full closing checkrun plus named test suites; and is green-or-discard. Red review changes never merge: discard the worktree whole and record the discard on the digest. Merge green review work through postflight, then post verdict plus diffstat on the tracking issue. On NO, record the ruling and skip.
+Then dispatch one dedicated builder docs job before the finish boundary; the orchestrator never writes those docs directly. Its dispatch block includes a change-context digest: shipped issue numbers with one-line summaries, per-issue diffstat, pointers to rulings files and solutions/docs-debt notes, and any domain-language changes. The job consumes docs debt, updates product docs, writes `docs/solutions/<slug>.md` entries, and codifies changed domain language or sparse ADRs. The docs job needs no cold judge (human-ruled exception to Hard Rule 3): the orchestrator runs its frozen checks through the check-runner and grades the evidence directly before merging. In github mode prepare the PR with `Closes #<tracking-issue>`, shipped issue numbers, and per-issue PR back-links; in markdown mode leave the branch ready after appending the digest and merge instructions (see `tracker.md` `## Finish per mode`). Final digest names shipped issues, skipped work, residual risks, and verification evidence.
 
 Done when docs debt is consumed, the mode-specific finish artifact is ready,
 the tracking issue digest is posted, and no issue remains silently unresolved.

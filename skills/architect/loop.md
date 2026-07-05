@@ -25,8 +25,7 @@ Parallel rules: harness-native judge subagents (Claude Agent tool) dispatch sync
 2. **Sleep.** Zero orchestrator work between dispatch and the next event —
    no polling.
 3. **Wake on one event**, exactly one of:
-   - **Job DONE.** Ordering: write the runner config; launch `check-runner.ps1`
-     or `check-runner.sh` as a background process whose exit is the next wake; commit the checkrun artifact `docs/jobs/<run>/<issue-slug>-checkrun.md`; then dispatch the fixed judge template from `dispatch.md` by backend: Claude Agent-tool judges run synchronously with `run_in_background: false`, while codex-backend judges run the background `codex exec -o <file>` typed-exit path and wake on that process exit. Record the verdict in an issue comment (see Verdict comments). On PASS, run `postflight.ps1` or `postflight.sh`: exit 0 `POSTFLIGHT: OK` means merge completed with clean touch-set evidence; exit 2 `POSTFLIGHT: VIOLATION` is automatic FAIL evidence for the job; exit 3 `POSTFLIGHT: CONFLICT` is the merge-conflict decomposition-failure rail; exit 5 `POSTFLIGHT: ERROR` falls back to the recorded manual integration sequence in `dispatch.md`. On FAIL, diagnose (see Failure ladder). Exception: the finish-boundary docs job skips the judge (human-ruled; see SKILL.md `### 5. Finish`) — the orchestrator grades its checkrun evidence directly, then merges.
+   - **Job DONE.** Ordering: write the runner config; launch `check-runner.ps1` or `check-runner.sh` as a background process whose typed exit is the next wake. Exit 0: commit the checkrun artifact `docs/jobs/<run>/<issue-slug>-checkrun.md`, then dispatch the fixed intent judge template from `dispatch.md` by backend; Claude Agent-tool judges run synchronously with `run_in_background: false`, while codex-backend judges run the background `codex exec -o <file>` typed-exit path. Exit 2: commit failure evidence and enter the Failure ladder without judge dispatch. Exit 5: stay on the recorded error rail. After judge PASS, run `postflight.ps1` or `postflight.sh`: exit 0 `POSTFLIGHT: OK` means merge completed with clean touch-set evidence; exit 2 `POSTFLIGHT: VIOLATION` is automatic FAIL evidence; exit 3 `POSTFLIGHT: CONFLICT` is the decomposition-failure rail; exit 5 `POSTFLIGHT: ERROR` falls back to the recorded manual integration sequence in `dispatch.md`. Exception: after the closing review is applied or skipped, the finish-boundary docs job skips the judge (human-ruled; see SKILL.md `### 5. Finish`) and the orchestrator grades its checkrun evidence directly before merge.
    - **Job BLOCKED.** A blocker comment on the issue is a completion event.
      Read it, rule an answer, and respawn a fresh builder job on the same
      issue with the answer in its spawn context (see `dispatch.md`
@@ -42,8 +41,8 @@ Parallel rules: harness-native judge subagents (Claude Agent tool) dispatch sync
      protocol, SKILL.md "### 2. Spec Approval"); already resolved is a no-op.
 4. **Recompute the ready issues.** Closing an issue may unblock others;
    recompute and dispatch the next wave.
-5. **Repeat** until no issues remain open, then post the escalation
-   digest's end-of-run summary on the tracking issue.
+5. **Finish boundary.** When build issues close, run the SKILL.md `### 5. Finish` timed-ruling closing review before the docs job: default YES, 5-minute silence applies; YES uses one fresh resolved-orchestrator-model MEDIUM subagent from the factory branch head, reading spec -> `docs/runs/<run>/map.md` -> run diff, editing directly with `docs/checks/` read-only, keeping every graded RUN green, rerunning the full closing checkrun plus named suites, and merging only green review work through postflight. Red review changes are discarded whole and recorded on the digest; verdict plus diffstat is posted on the tracking issue.
+6. **Repeat** until no issues remain open, the closing review/docs finish boundary is handled, then post the escalation digest's end-of-run summary on the tracking issue.
 
 ## Monitor protocol
 
@@ -70,12 +69,8 @@ detection-only boundary and per-job evidence requirements.
 
 ## Verdict comments
 
-Judgment is recorded on the issue, not in a file. At judgment, one comment
-is posted on the job's issue with: per-check PASS/FAIL/INVALID, a
-checks-integrity verdict, a diff-vs-intent verdict, the slice call
-KILL/CONTINUE, and the decisive reason tied to raw evidence; exact tracker
-comment format lives in `dispatch.md` "## Issue conventions".
-The judge's intent context is exactly the frozen check file, spec, job report, checkrun evidence file, and `docs/jobs/<run>/<issue-slug>-rulings.md`. The checkrun artifact `docs/jobs/<run>/<issue-slug>-checkrun.md` is committed before judge dispatch. The rulings file is orchestrator-owned, append-only, and committed before judge dispatch; if it is absent, there are no post-freeze rulings. Judge dispatch blocks carry no ruling prose.
+Judgment is recorded on the issue, not in a file. At judgment, one comment is posted on the job's issue with: the check-runner typed summary, checks-integrity verdict, diff-vs-intent verdict, one spot-check result, slice call KILL/CONTINUE, and the decisive reason tied to raw evidence; exact tracker comment format lives in `dispatch.md` "## Issue conventions".
+The judge's intent context is exactly the frozen check file, spec, job report, checkrun evidence file, and `docs/jobs/<run>/<issue-slug>-rulings.md`. The checkrun artifact `docs/jobs/<run>/<issue-slug>-checkrun.md` is committed before judge dispatch. The rulings file is orchestrator-owned, append-only, and committed before judge dispatch; if it is absent, there are no post-freeze rulings. Judge dispatch blocks carry no ruling prose and do not re-grade every RUN item.
 The issue is closed on merge. No verdict comment on an issue means the
 next factory block must not build on it as accepted; the orchestrator may re-run
 judgment with a fresh judge if evidence is missing, but may not fill in a
@@ -94,8 +89,10 @@ exec; kill any lingering job processes when a job is discarded.
 
 ## Failure ladder
 
-First FAIL on an issue: the orchestrator diagnoses from the judge's evidence (not
-the full diff), may fan out researcher agents to inform the diagnosis, fixes
+First FAIL on an issue: on a judge FAIL, the orchestrator diagnoses from the
+judge's evidence; on check-runner exit 2, where no judge exists on that path, it
+diagnoses from the checkrun evidence file's failing items (not the full diff),
+may fan out researcher agents to inform the diagnosis, fixes
 the input — issue text, missing context, or a forbidden-pattern note — and
 respawns a fresh builder job at the same tier.
 The tier is set once, at decomposition (config plus dispatch rules), and
