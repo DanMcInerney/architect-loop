@@ -569,13 +569,27 @@ both directions.
   ([Latent Space](https://www.latent.space/p/harness-eng)). A standing
   maintenance rule says: re-read the skill each model generation and delete
   what models now do unprompted.
-- **An 800-non-blank-line size guard is enforced by the validator (P5).**
-  Models silently skip steps past an instruction-budget ceiling
-  (HumanLayer/RPI; evidence: loop-improvements research, in git history before
-  the 2026-07-04 cleanup).
+- **A 1100-non-blank-line size guard is enforced by the validator (P5).**
+  The evidence cliff is exhaustive/comprehensive skill content and skill count
+  (SkillsBench v4), not a 200-line target; compaction reattach economics are
+  the binding local constraint: first 5,000 tokens per invoked skill, 25,000
+  combined.
   `tests/validate_skills.py` also freezes the load-bearing contracts: alias
   table, config grammar, judge templates, agent-definition constraints, and
   a guard that no retired handoff reference re-enters the skill text.
+- **Trigger-eval fixture checks the trigger layer.** The fragile surface is the
+  skill listing and description layer: descriptions can miss intended factory
+  requests, overtrigger on ordinary coding or narrow fact-checks, and disappear
+  under listing-budget truncation. The durable check is
+  `docs/evals/trigger-prompts.md`, a per-model-generation fixture with
+  `PROMPT`, `SKILL`, and `EXPECT` blocks for explicit, implicit, contextual,
+  and negative cases. The `skills/architect/trigger-eval.ps1` and `.sh`
+  harnesses are manual host tools, not sandbox proof: in the Codex Windows
+  sandbox, default `claude -p --output-format stream-json` hit a SessionEnd
+  hook `EPERM` spawning Git Bash, while `--bare` omitted repo skills and
+  returned `Unknown command: /architect` or authentication failures. The
+  shipped invariant is fixture-backed evaluation plus explicit NOT_VIABLE
+  evidence when the harness cannot observe Skill events.
 
 ### The research skill
 
@@ -645,7 +659,7 @@ decisions, from the 2026-06 evidence review and the r2 calibration pass
 | Stale worktree snapshots | Freeze → push → dispatch ordering; post-spawn HEAD + file verification |
 | Shell-stripped subagents | Backend canary at preflight; BLOCKED-with-evidence; recorded substitutions (§7) |
 | Researcher context exhaustion | ≤5 subjects per researcher; compact returns; bisect dead researchers |
-| Harness bloat / obsolescence | Thin declarative skill; 800-line guard; per-model-generation pruning review |
+| Harness bloat / obsolescence | Thin declarative skill; 1100-non-blank-line guard; per-model-generation pruning review |
 
 ---
 

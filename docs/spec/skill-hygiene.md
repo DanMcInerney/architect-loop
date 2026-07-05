@@ -199,4 +199,7 @@ findings:
 
 ## Approval record
 
-- (pending)
+- 2026-07-04 — In-session approval by repo owner (dan.h.mcinerney@gmail.com)
+  in the invoking conversation, verbatim: "approve". Authorizes the whole
+  issue plan including assumptions A1–A5 as recommended. Mirrored to
+  tracking issue #80.

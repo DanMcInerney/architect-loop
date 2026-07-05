@@ -1,14 +1,12 @@
 ---
 name: architect-research
 description: >
-  Discovery-scale research harness: a cheap scout researcher maps the topic,
-  the orchestrator designs topic-specific parallel researcher assignments from the
-  scout report (drawing on a source-class tactics library — academic, repos,
-  production patterns, web, experts), then verifies claims against sources and
-  synthesizes a decision-oriented report. Use when
-  brainstorming a project or feature, choosing a technology, or asked to
-  "research X", "what's the state of the art", "deep research". For narrow
-  slice-level fact checks inside the build loop, /architect handles those inline.
+  Use when the user asks for discovery-scale research that informs a decision:
+  brainstorming a project or feature, choosing a technology, or requests like
+  "research X", "what's the state of the art", or "deep research". Use this
+  skill to turn broad, uncertain questions into sourced decision evidence and
+  a reusable research handoff. For narrow slice-level fact checks inside the
+  build loop, /architect handles those inline.
 effort: high
 ---
 
@@ -45,18 +43,14 @@ the final report so the reader can audit scope drift.
 
 ### 2. Scout, then design the researchers
 
-The surveyed production deep-research systems and 4/5 leading OSS frameworks
-use LLM-designed, topic-specific decomposition rather than a fixed
-taxonomy. Researcher assignments are designed per topic, not taken from a template.
+Design researcher assignments per topic, not from a fixed taxonomy.
 
 **Scout (brainstorm scale only):** dispatch ONE cheap researcher (~10
 searches, same codex command as step 3) to map the terrain: canonical
 terminology, the 5–10 load-bearing systems/papers/repos, the named people,
 which source classes look rich vs empty, and the topic's natural fault lines.
-The scout returns a map, not findings — discovering the topic's actual
-perspectives from sources substantially increased source diversity in STORM's
-ablations. Skip the scout when you already know the terrain (comparisons,
-fact-finds) — an upfront pass that tells you nothing new is pure latency.
+The scout returns a map, not findings. Skip the scout when you already know the
+terrain (comparisons, fact-finds).
 
 **Design (you, from the scout report):** decompose into 3–6 sub-questions
 along the topic's own fault lines — distinct perspectives, never keyword
@@ -179,5 +173,4 @@ stay in `.architect/research/` (gitignored).
 A later session resumes work by reading the committed research handoff and
 dispatching gap researchers against its Open-questions section instead of
 restarting the harness. If this feeds the build loop: distill the report
-into `docs/spec/<slice>.md` per `/architect` and continue there. The
-builder's PHASE 0 will challenge the spec's claims — that's a feature.
+into `docs/spec/<slice>.md` per `/architect` and continue there.

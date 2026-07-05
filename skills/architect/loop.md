@@ -1,5 +1,15 @@
 # Factory-loop reference
 
+## Contents
+
+- Factory block procedure
+- Monitor protocol
+- Verdict comments
+- Failure ladder
+- Escalation digest
+- Hard Stops
+- Context discipline
+
 The loop is one orchestrator session that runs the factory to completion after
 the spec approval approves the issue plan. Tracker issues carry coordination
 state; git carries specs and frozen checks. The orchestrator dispatches the
@@ -16,7 +26,7 @@ Parallel rules: harness-native judge subagents (Claude Agent tool) dispatch sync
    no polling.
 3. **Wake on one event**, exactly one of:
    - **Job DONE.** Ordering: write the runner config; launch `check-runner.ps1`
-     or `check-runner.sh` as a background process whose exit is the next wake; commit the checkrun artifact `docs/jobs/<issue-slug>-checkrun.md`; then dispatch the fixed judge template from `dispatch.md` by backend: Claude Agent-tool judges run synchronously with `run_in_background: false`, while codex-backend judges run the background `codex exec -o <file>` typed-exit path and wake on that process exit. Record the verdict in an issue comment (see Verdict comments). On PASS, run `postflight.ps1` or `postflight.sh`: exit 0 `POSTFLIGHT: OK` means merge completed with clean touch-set evidence; exit 2 `POSTFLIGHT: VIOLATION` is automatic FAIL evidence for the job; exit 3 `POSTFLIGHT: CONFLICT` is the merge-conflict decomposition-failure rail; exit 5 `POSTFLIGHT: ERROR` falls back to the recorded manual integration sequence in `dispatch.md`. On FAIL, diagnose (see Failure ladder).
+     or `check-runner.sh` as a background process whose exit is the next wake; commit the checkrun artifact `docs/jobs/<issue-slug>-checkrun.md`; then dispatch the fixed judge template from `dispatch.md` by backend: Claude Agent-tool judges run synchronously with `run_in_background: false`, while codex-backend judges run the background `codex exec -o <file>` typed-exit path and wake on that process exit. Record the verdict in an issue comment (see Verdict comments). On PASS, run `postflight.ps1` or `postflight.sh`: exit 0 `POSTFLIGHT: OK` means merge completed with clean touch-set evidence; exit 2 `POSTFLIGHT: VIOLATION` is automatic FAIL evidence for the job; exit 3 `POSTFLIGHT: CONFLICT` is the merge-conflict decomposition-failure rail; exit 5 `POSTFLIGHT: ERROR` falls back to the recorded manual integration sequence in `dispatch.md`. On FAIL, diagnose (see Failure ladder). Exception: the finish-boundary docs job skips the judge (human-ruled; see SKILL.md `### 5. Finish`) — the orchestrator grades its checkrun evidence directly, then merges.
    - **Job BLOCKED.** A blocker comment on the issue is a completion event.
      Read it, rule an answer, and respawn a fresh builder job on the same
      issue with the answer in its spawn context (see `dispatch.md`
@@ -126,5 +136,3 @@ immediate stop.
   comments, and job reports carry state across sessions, not the
   conversation.
 - Compact proactively when the harness supports it.
-- Ending a degraded session is free because the tracker and git are the
-  memory.

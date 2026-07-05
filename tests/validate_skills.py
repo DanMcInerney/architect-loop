@@ -23,6 +23,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SKILLS = ROOT / "skills"
 MAX_DESC = 1024
+ARCHITECT_SKILL_TEXT_MAX_NON_BLANK = 1100
+ARCHITECT_RESEARCH_TEXT_MAX_NON_BLANK = 500
+SKILL_BODY_TOKEN_PROXY_MAX = 5_000
+SKILL_BODY_TOKEN_PROXY_FACTOR = 1.33
+REFERENCE_TOC_NON_BLANK_THRESHOLD = 100
 REQUIRED_SIBLINGS = {
     "architect": [
         "dispatch.md",
@@ -52,6 +57,18 @@ errors: list[str] = []
 
 def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
+
+
+def non_blank_line_count(path: Path) -> int:
+    return sum(1 for line in read_text(path).splitlines() if line.strip())
+
+
+def skill_body(path: Path) -> str:
+    text = read_text(path)
+    m = re.match(r"---\n.*?\n---\n", text, re.DOTALL)
+    if m:
+        return text[m.end() :]
+    return text
 
 
 def frontmatter(path: Path) -> dict[str, str] | None:
@@ -373,29 +390,95 @@ def check_agent_definitions() -> None:
 
 
 def check_skill_text_size() -> None:
-    """P5 (loop-hardening) instruction-budget guard: models silently skip
-    steps past a system-prompt instruction ceiling (evidence:
-    loop-improvements research, git history; measured 510 non-blank lines across these three
-    files at freeze time). FAIL if the combined NON-BLANK line count of
-    SKILL.md + loop.md + dispatch.md exceeds 900."""
+    """P5/G4 instruction-budget guard: the evidence cliff is
+    exhaustive/comprehensive content and skill count (SkillsBench v4), not a
+    200-line target. Compaction reattach economics are the binding constraint:
+    first 5,000 tokens per invoked skill, 25,000 combined. FAIL if the
+    combined NON-BLANK line count of the five architect files exceeds the
+    approved cap."""
     paths = [
         SKILLS / "architect" / "SKILL.md",
-        SKILLS / "architect" / "loop.md",
         SKILLS / "architect" / "dispatch.md",
+        SKILLS / "architect" / "loop.md",
+        SKILLS / "architect" / "tracker.md",
+        SKILLS / "architect" / "research.md",
     ]
     total = 0
     for path in paths:
         if not path.exists():
             errors.append(f"{path.relative_to(ROOT)}: missing (required for skill-text size guard)")
             continue
-        total += sum(1 for line in read_text(path).splitlines() if line.strip())
-    # Issue #71 ruling 2026-07-04: typed-exit script config contracts in
-    # dispatch.md are load-bearing dispatch mechanics; SKILL+loop+dispatch is
-    # legitimately ~848 lines after run #68 wiring, so the guard is 900.
-    if total > 900:
+        total += non_blank_line_count(path)
+    if total > ARCHITECT_SKILL_TEXT_MAX_NON_BLANK:
         errors.append(
             f"skills/architect: combined non-blank line count {total} exceeds "
-            "900 (P5 instruction-budget guard; evidence: loop-improvements research, git history)"
+            f"{ARCHITECT_SKILL_TEXT_MAX_NON_BLANK} (A1 five-file guard; evidence: "
+            "SkillsBench v4 exhaustive/comprehensive content and skill count cliff; "
+            "compaction reattaches first 5,000 tokens per invoked skill, 25,000 combined)"
+        )
+
+
+def check_architect_research_text_size() -> None:
+    paths = [
+        SKILLS / "architect-research" / "SKILL.md",
+        SKILLS / "architect-research" / "tactics.md",
+    ]
+    total = 0
+    for path in paths:
+        if not path.exists():
+            errors.append(f"{path.relative_to(ROOT)}: missing (required for architect-research size guard)")
+            continue
+        total += non_blank_line_count(path)
+    if total > ARCHITECT_RESEARCH_TEXT_MAX_NON_BLANK:
+        errors.append(
+            "skills/architect-research: combined SKILL.md + tactics.md non-blank "
+            f"line count {total} exceeds {ARCHITECT_RESEARCH_TEXT_MAX_NON_BLANK} "
+            "(A1 research pair guard; evidence: G4 guard-scope loophole fix)"
+        )
+
+
+def check_skill_body_token_budgets() -> None:
+    for path in sorted(SKILLS.glob("*/SKILL.md")):
+        # Deterministic local proxy per A4: estimated tokens = word count * 1.33.
+        estimated_tokens = len(re.findall(r"\S+", skill_body(path))) * SKILL_BODY_TOKEN_PROXY_FACTOR
+        if estimated_tokens >= SKILL_BODY_TOKEN_PROXY_MAX:
+            errors.append(
+                f"{path.relative_to(ROOT)}: SKILL.md body proxy token count "
+                f"{estimated_tokens:.0f} >= {SKILL_BODY_TOKEN_PROXY_MAX} "
+                "(A4 words x 1.33; compaction reattaches first 5,000 tokens per invoked skill)"
+            )
+
+
+def check_reference_tocs() -> None:
+    for path in sorted(SKILLS.glob("*/*.md")):
+        if path.name == "SKILL.md":
+            continue
+        non_blank = non_blank_line_count(path)
+        if non_blank <= REFERENCE_TOC_NON_BLANK_THRESHOLD:
+            continue
+        if not any(line.strip() == "## Contents" for line in read_text(path).splitlines()):
+            errors.append(
+                f"{path.relative_to(ROOT)}: {non_blank} non-blank lines > "
+                f"{REFERENCE_TOC_NON_BLANK_THRESHOLD} but missing ## Contents "
+                "(official skill reference-file TOC rule)"
+            )
+
+
+def check_design_guard_cap() -> None:
+    path = ROOT / "DESIGN.md"
+    text = read_text(path)
+    match = re.search(
+        r"(?m)^- \*\*An? ([0-9][0-9,]*)-non-blank-line size guard is enforced by the validator \(P5\)\.\*\*$",
+        text,
+    )
+    if not match:
+        errors.append("DESIGN.md: missing non-blank-line size guard sentence for drift guard")
+        return
+    design_cap = int(match.group(1).replace(",", ""))
+    if design_cap != ARCHITECT_SKILL_TEXT_MAX_NON_BLANK:
+        errors.append(
+            f"DESIGN.md: stated skill-text guard cap {design_cap} != validator cap "
+            f"{ARCHITECT_SKILL_TEXT_MAX_NON_BLANK} (drift guard for 800-vs-900 class)"
         )
 
 
@@ -545,6 +628,10 @@ def main() -> int:
     check_architect_handoff_free()
     check_retired_loop_terms()
     check_skill_text_size()
+    check_architect_research_text_size()
+    check_skill_body_token_budgets()
+    check_reference_tocs()
+    check_design_guard_cap()
     if errors:
         print(f"FAIL - {len(errors)} problem(s):")
         for e in errors:
