@@ -1,1 +1,1 @@
-{"check_file":"tests/fixtures/checkrun/DOES-NOT-EXIST.md","workdir":".","freeze_sha":"HEAD","evidence_out":".architect/tmp/checkrun-missing.md","executor":"powershell","max_output_lines":60}
+{"check_file":"tests/fixtures/checkrun/fixture-checks-missing-ps.md","workdir":".","freeze_sha":"HEAD","evidence_out":".architect/tmp/checkrun-missing-ps.md","executor":"powershell","max_output_lines":60}

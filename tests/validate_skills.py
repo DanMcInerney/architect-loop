@@ -791,6 +791,143 @@ def check_postflight_lane_fixture() -> None:
             errors.append(f"postflight fixture noop: missing {needle!r}\nstdout:\n{stdout}")
 
 
+def check_runner_cases() -> list[tuple[str, list[str], dict[str, Path]]]:
+    cases: list[tuple[str, list[str], dict[str, Path]]] = []
+    powershell = shutil.which("powershell")
+    if powershell:
+        cases.append(
+            (
+                "powershell",
+                [
+                    powershell,
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    str(SKILLS / "architect" / "check-runner.ps1"),
+                    "-Config",
+                ],
+                {
+                    "pass": ROOT / "tests" / "fixtures" / "checkrun" / "config-ps.json",
+                    "fail": ROOT / "tests" / "fixtures" / "checkrun" / "config-quoted-ps.json",
+                    "missing": ROOT / "tests" / "fixtures" / "checkrun" / "config-missing.json",
+                },
+            )
+        )
+    bash = shutil.which("bash")
+    if bash and os.name != "nt":
+        cases.append(
+            (
+                "bash",
+                [bash, str(SKILLS / "architect" / "check-runner.sh")],
+                {
+                    "pass": ROOT / "tests" / "fixtures" / "checkrun" / "config-bash.json",
+                    "fail": ROOT / "tests" / "fixtures" / "checkrun" / "config-quoted-bash.json",
+                    "missing": ROOT / "tests" / "fixtures" / "checkrun" / "config-missing-bash.json",
+                },
+            )
+        )
+    return cases
+
+
+def run_check_runner_case(
+    label: str,
+    command_prefix: list[str],
+    config: Path,
+    expected_exit: int,
+) -> tuple[subprocess.CompletedProcess[str] | None, str]:
+    cfg = json.loads(read_text(config))
+    evidence = ROOT / cfg["evidence_out"]
+    evidence.unlink(missing_ok=True)
+    command = [*command_prefix, str(config)]
+    try:
+        result = subprocess.run(
+            command,
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            timeout=45,
+        )
+    except Exception as exc:
+        errors.append(f"check-runner fixture {label}: {' '.join(command)} raised {exc!r}")
+        return None, ""
+    stdout = result.stdout.replace("\r\n", "\n")
+    stderr = result.stderr.replace("\r\n", "\n")
+    if result.returncode != expected_exit:
+        errors.append(
+            f"check-runner fixture {label}: expected exit {expected_exit} "
+            f"got {result.returncode}\nstdout:\n{stdout}\nstderr:\n{stderr}"
+        )
+    if expected_exit == 5:
+        if evidence.exists():
+            errors.append(f"check-runner fixture {label}: evidence file exists after exit 5")
+        return result, ""
+    if not evidence.exists():
+        errors.append(f"check-runner fixture {label}: missing evidence file {evidence.relative_to(ROOT)}")
+        return result, ""
+    return result, read_text(evidence).replace("\r\n", "\n")
+
+
+def require_checkrun_evidence(label: str, evidence: str, needle: str) -> None:
+    if needle not in evidence:
+        errors.append(f"check-runner fixture {label}: missing {needle!r}\nevidence:\n{evidence}")
+
+
+def check_check_runner_fixture() -> None:
+    cases = check_runner_cases()
+    if not cases:
+        errors.append("check-runner fixture: no runnable executor found")
+        return
+    for runner, command_prefix, configs in cases:
+        _, pass_evidence = run_check_runner_case(
+            f"{runner} pass",
+            command_prefix,
+            configs["pass"],
+            0,
+        )
+        if pass_evidence:
+            require_checkrun_evidence(
+                f"{runner} pass",
+                pass_evidence,
+                "CHECKRUN SUMMARY: run_items=4 pass=4 fail=0",
+            )
+            require_checkrun_evidence(f"{runner} pass", pass_evidence, 'expected: exit:0 match:"')
+            require_checkrun_evidence(f"{runner} pass", pass_evidence, 'expected: exit:0 match:"a*b?c"')
+            require_checkrun_evidence(f"{runner} pass", pass_evidence, "expected: exit:1")
+            require_checkrun_evidence(f"{runner} pass", pass_evidence, "verdict: PASS")
+            if "verdict: FAIL" in pass_evidence:
+                errors.append(f"check-runner fixture {runner} pass: unexpected FAIL verdict")
+
+        _, fail_evidence = run_check_runner_case(
+            f"{runner} fail",
+            command_prefix,
+            configs["fail"],
+            2,
+        )
+        if fail_evidence:
+            require_checkrun_evidence(
+                f"{runner} fail",
+                fail_evidence,
+                "CHECKRUN SUMMARY: run_items=3 pass=1 fail=2",
+            )
+            require_checkrun_evidence(f"{runner} fail", fail_evidence, "expected: exit:1")
+            require_checkrun_evidence(f"{runner} fail", fail_evidence, 'expected: exit:0 match:"a*b?c"')
+            require_checkrun_evidence(f"{runner} fail", fail_evidence, "verdict: FAIL")
+
+        missing_result, _ = run_check_runner_case(
+            f"{runner} missing",
+            command_prefix,
+            configs["missing"],
+            5,
+        )
+        if missing_result is not None:
+            stdout = missing_result.stdout.replace("\r\n", "\n")
+            if "CHECKRUN: ERROR missing RUN expectation" not in stdout:
+                errors.append(
+                    f"check-runner fixture {runner} missing: missing grammar error\nstdout:\n{stdout}"
+                )
+
+
 def require_status_contains(label: str, output: str, needle: str) -> None:
     if needle not in output:
         errors.append(f"{label}: missing {needle!r}\noutput:\n{output}")
@@ -908,6 +1045,7 @@ def main() -> int:
     check_status_contract()
     check_status_run_pinning_fixture()
     check_postflight_lane_fixture()
+    check_check_runner_fixture()
     check_tracker_contract()
     check_architect_handoff_free()
     check_retired_loop_terms()

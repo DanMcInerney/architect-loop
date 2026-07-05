@@ -1,10 +1,11 @@
-# Fixture Checks: Quoted Bash
+# Fixture Checks: Failing Bash
 
 Executor: bash
 
 ## Fixture
 
-QUOTED MARKER sentinel
+CHECKRUN_BASH_PRESENT_MARKER
 
-- RUN: `git --version` -> records git version.
-- RUN: `git grep -c "QUOTED MARKER" -- tests/fixtures/checkrun/fixture-checks-quoted-bash.md` -> records quoted grep count.
+- RUN: `printf 'quoted marker\n'` -> exit:0 match:"quoted marker"
+- RUN: `git grep -F -q "CHECKRUN_BASH_PRESENT_MARKER" -- tests/fixtures/checkrun/fixture-checks-quoted-bash.md` -> exit:1
+- RUN: `printf 'glob candidate: axxbZc\n'` -> exit:0 match:"a*b?c"
