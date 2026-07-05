@@ -89,7 +89,8 @@ fresh. The orchestrator never authors a missing verdict.
 Close-out: after consuming a subagent result or a background process's typed
 exit, stop or close that subagent or shell task in the same turn, batching
 independent close-outs into parallel calls; no polling and no per-close
-commentary. Kill any lingering job processes when a job is discarded.
+commentary. Before postflight, kill lingering codex children of any consumed
+exec; kill any lingering job processes when a job is discarded.
 
 ## Failure ladder
 
