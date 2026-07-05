@@ -145,16 +145,25 @@ printf '%s\n' "$rows" | while IFS="$(printf '\t')" read -r idx skill expect prom
   old_tmp=${TMPDIR:-}
   TMPDIR="$tmp_root"
   export TMPDIR
+  # stdin from /dev/null: an inherited open pipe makes claude -p wait on stdin and fail
   if [ "$bare" -eq 1 ]; then
-    output=$("$claude_bin" -p "$prompt" --bare --output-format stream-json --verbose --include-hook-events --no-session-persistence --permission-mode dontAsk --disallowedTools Bash,Edit,Write 2>&1)
+    output=$("$claude_bin" -p "$prompt" --bare --output-format stream-json --verbose --include-hook-events --no-session-persistence --permission-mode dontAsk --disallowedTools Bash,Edit,Write < /dev/null 2>&1)
   else
-    output=$("$claude_bin" -p "$prompt" --output-format stream-json --verbose --include-hook-events --no-session-persistence --permission-mode dontAsk --disallowedTools Bash,Edit,Write 2>&1)
+    output=$("$claude_bin" -p "$prompt" --output-format stream-json --verbose --include-hook-events --no-session-persistence --permission-mode dontAsk --disallowedTools Bash,Edit,Write < /dev/null 2>&1)
   fi
   code=$?
   if [ -n "$old_tmp" ]; then TMPDIR=$old_tmp; export TMPDIR; else unset TMPDIR; fi
+  # Explicit "/<skill> ..." prompts expand harness-side (no Skill tool_use
+  # event); "Unknown command: /<skill>" is the definitive negative there.
+  # event codes: 0 unknown, 1 structural Skill event, 2 explicit trigger,
+  # 3 explicit no-trigger.
   event=0
+  explicit=0
+  case "$prompt" in "/$skill"|"/$skill "*) explicit=1;; esac
   if [ "$code" -eq 0 ]; then
-    if command -v python3 >/dev/null 2>&1; then
+    if [ "$explicit" -eq 1 ]; then
+      if printf '%s\n' "$output" | grep -q "Unknown command: /$skill"; then event=3; else event=2; fi
+    elif command -v python3 >/dev/null 2>&1; then
       detected=$(printf '%s\n' "$output" | python3 -c "$json_detector" "$skill" 2>/dev/null || printf unknown)
       [ "$detected" = trigger ] && event=1
     else
@@ -178,8 +187,10 @@ while IFS="$(printf '\t')" read -r idx skill expect event code prompt; do
   detected=unknown
   if [ "$code" -ne 0 ]; then
     detected=error
-  elif [ "$event" = 1 ]; then
+  elif [ "$event" = 1 ] || [ "$event" = 2 ]; then
     detected=trigger
+  elif [ "$event" = 3 ]; then
+    detected=no-trigger
   elif [ "$reliable" -eq 1 ]; then
     detected=no-trigger
   fi

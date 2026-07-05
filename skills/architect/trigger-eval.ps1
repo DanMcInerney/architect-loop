@@ -157,7 +157,9 @@ function Invoke-ClaudePrompt($Prompt) {
     $env:TEMP = $tmpRoot
     $env:TMP = $tmpRoot
     try {
-        $output = & $script:Claude @args 2>&1
+        # $null pipe closes stdin immediately; an inherited open pipe makes
+        # claude -p wait on stdin ("no stdin data received in 3s") and fail.
+        $output = $null | & $script:Claude @args 2>&1
         $exitCode = $LASTEXITCODE
     } catch {
         $output = @($_.Exception.Message)
@@ -215,9 +217,22 @@ foreach ($row in $selected) {
     )
     Write-Output ("COMMAND[{0}]: {1}" -f $row.Index, ($displayArgs -join " "))
     $run = Invoke-ClaudePrompt $row.Prompt
+    # Explicit "/<skill> ..." prompts are expanded harness-side before the
+    # model runs, so they emit NO Skill tool_use event; the definitive
+    # negative for that path is "Unknown command: /<skill>" in the output.
     $event = $false
+    $explicit = $row.Prompt -match ('^/' + [regex]::Escape($row.Skill) + '(\s|$)')
+    $explicitDetected = $null
     if ($run.ExitCode -eq 0) {
-        $event = Test-OutputHasSkillEvent $run.Lines $row.Skill
+        if ($explicit) {
+            $unknown = $false
+            foreach ($line in $run.Lines) {
+                if (([string]$line) -match ('Unknown command: /' + [regex]::Escape($row.Skill))) { $unknown = $true; break }
+            }
+            $explicitDetected = -not $unknown
+        } else {
+            $event = Test-OutputHasSkillEvent $run.Lines $row.Skill
+        }
     }
     if ($ShowRaw) {
         Write-Output ("RAW[{0}]: BEGIN" -f $row.Index)
@@ -228,6 +243,8 @@ foreach ($row in $selected) {
         Row = $row
         ExitCode = $run.ExitCode
         SkillEvent = $event
+        Explicit = $explicit
+        ExplicitDetected = $explicitDetected
     }
 }
 
@@ -238,6 +255,8 @@ foreach ($run in $runs) {
     $detected = "unknown"
     if ($run.ExitCode -ne 0) {
         $detected = "error"
+    } elseif ($run.Explicit -and $null -ne $run.ExplicitDetected) {
+        if ($run.ExplicitDetected) { $detected = "trigger" } else { $detected = "no-trigger" }
     } elseif ($run.SkillEvent) {
         $detected = "trigger"
     } elseif ($reliable) {
