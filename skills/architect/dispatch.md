@@ -173,17 +173,17 @@ Example line: ``- RUN: `git grep -F -c "needle" -- path/to/file.md` -> exit:0 ma
 
 Evidence contains per-item `expected:` and `verdict:` lines, then `CHECKRUN SUMMARY: run_items=<n> pass=<n> fail=<n>`.
 Typed exits: 0 = all RUN items pass; 2 = any RUN item fails; 5 = error, no partial evidence file left behind.
-Launch pattern: run `skills/architect/check-runner.ps1` or `check-runner.sh` in the background and commit `docs/jobs/<run>/<issue-slug>-checkrun.md` before judge dispatch on exit 0. Exit 2 routes to the failure ladder with no judge dispatch; `loop.md` owns the full rule.
+Launch pattern: write the runner config JSON — fields `check_file`, `workdir`, `freeze_sha`, `evidence_out`, `executor` (`powershell`|`bash`), `max_output_lines` (default 60) — then run `skills/architect/check-runner.ps1 -Config <path>` or `check-runner.sh <path>` in the background and commit `docs/jobs/<run>/<issue-slug>-checkrun.md` before judge dispatch on exit 0. Exit 2 routes to the failure ladder with no judge dispatch; `loop.md` owns the full rule.
 
 ## Scout dispatch
 
-Dispatch one scout during intake when the run needs a code map. The scout uses the resolved builders model, job shape `scout`, and read-only tools only. The orchestrator names the output path; the scout writes there, and the orchestrator commits it at `docs/runs/<run>/map.md`.
+Dispatch one scout during intake when the run needs a code map. The scout uses the resolved builders model and job shape `scout`, read-only except its single write: the orchestrator names the output path, the scout writes the map there, and the orchestrator commits it at `docs/runs/<run>/map.md`.
 
 ```text
 You are a read-only code scout. Output path: <docs/runs/<run>/map.md>.
 Return <= ~2,500 tokens. No recommendations.
 Include only anchored entries: key modules/files; load-bearing types/function signatures; conventions/patterns; testing seams; gotchas.
-Every entry must carry a real file:line anchor. If a requested category is absent, write `NOT FOUND: <category> - <searched paths>`. No implementation plan, no edits.
+Every entry must carry a real file:line anchor. If a requested category is absent, write `NOT FOUND: <category> - <searched paths>`. No implementation plan, no edits beyond the output path.
 ```
 
 ## Stress-test delegation template

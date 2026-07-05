@@ -142,6 +142,8 @@ function ParseRunExpectation($Text, $File, $LineNo) {
         $matchText = $match.Groups[1].Value
         $expected = $expected + ' match:"' + $matchText + '"'
         $rest = $match.Groups[2].Value
+    } elseif ([regex]::IsMatch($rest, '^\s*match:"')) {
+        StopRun "malformed RUN match expectation ${File}:$LineNo"
     }
 
     return [pscustomobject]@{ ExitCode = $expectedExit; Match = $matchText; Text = $expected }
