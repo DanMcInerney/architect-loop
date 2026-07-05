@@ -4,7 +4,7 @@ tracking-issue: 95
 factory-branch: factory/script-hardening
 tracker: github
 spec: docs/spec/script-hardening.md
-state: ACTIVE
+state: FINISHED
 created: 2026-07-05
 ---
 
