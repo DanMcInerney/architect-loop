@@ -74,9 +74,11 @@ known from tool evidence.
 
 Orchestrator explores the request and repo, then asks at most about five questions in
 one batch. Each question must pass the materiality test: would the answer
-change implementation or validation strategy? Unanswered questions become
-recorded `## Assumptions` in the spec, using the orchestrator's recommended
-option.
+change implementation or validation strategy? Ask the batch through the
+timed-ruling protocol (`### 2. Spec Approval`) — plaintext options plus the
+5-minute timer, never a blocking question UI. Questions unanswered at timer
+expiry become recorded `## Assumptions` in the spec, using the orchestrator's
+recommended option.
 
 Preflight is tracker-conditional (see `tracker.md` `## Preflight per mode`):
 github mode requires a GitHub remote, passing `gh auth status`, and `gh` >=
@@ -111,7 +113,7 @@ or vetoes assumptions, and approves or rejects the plan. Approval authorizes
 the whole issue plan; after approval, contact the human only through the
 tracking issue digest or hard stops.
 
-Approval has exactly two explicit forms:
+Approval has exactly three forms:
 
 - In-session approval: the human explicitly authorizes the run in the current
   session, including the invocation itself. Record that authorization VERBATIM
@@ -119,23 +121,45 @@ Approval has exactly two explicit forms:
 - Tracking-issue approval: the repo owner comments on the tracking issue with
   exactly `APPROVE`, or `APPROVE with edits: <text>`. A repo-owner comment
   beginning exactly `REJECT <reason>` rejects the plan.
+- Timer approval: the approval request was asked through the timed-ruling
+  protocol and the timer expired with no reply in-session or on the tracker;
+  the orchestrator proceeds with the recommended plan and records
+  `APPROVE (auto, 5m silence)` plus its reasoning in the approval record for
+  after-the-fact veto.
 
-Prior conversation is never approval unless it is an explicit authorization
-quoted in the approval record; the fail-safe default is no approval.
+Approval is never inferred from prior conversation or context; only these
+three recorded forms count.
 
-If the human is absent, ask in-session and wait about 5 minutes: use the
-harness ~60s prompt, schedule one ~4-minute recheck, then rule with the
-orchestrator's best judgment, record the ruling and reasoning on the tracking
-issue for after-the-fact veto, and continue. This applies to every human question
-in the loop, including spec approval, oddity escalations, and rail rulings. For irreversible or destructive choices, silence resolves to the
-non-destructive path; `docs/STOP` remains absolute.
+Every question the loop asks a human uses the timed-ruling protocol, whether
+or not the human seems present. Never ask through a blocking question UI
+(AskUserQuestion / ask_user_question): no harness times those out, so an
+absent human hangs the factory permanently. Instead:
+
+1. Print the question, numbered options, and the recommended default as plain
+   text in-session, and record the same text as a `RULING PENDING` tracker
+   comment naming the default.
+2. Arm a ~5-minute timer and end the turn: on the Claude harness a detached
+   background `sleep 300` whose exit wakes the orchestrator (the watchdog
+   primitive); on backends without background-exit wakes, a foreground sleep
+   with the shell timeout raised above 300s.
+3. Human answer first: apply it and kill the timer; a timer wake for an
+   already-resolved ruling is a no-op. Timer first, with no answer in-session
+   or on the tracker: apply the recommended default, record
+   `RULING (auto, 5m silence): <decision> - <why>` on the tracking issue for
+   after-the-fact veto, and continue.
+
+This applies to every human question in the loop: intake questions, spec
+approval, oddity escalations, and rail rulings. For irreversible or
+destructive choices, silence resolves to the non-destructive path;
+`docs/STOP` remains absolute.
 
 On approval, cut `factory/<run>`. ALL run commits after approval, including
 spec amendments, checks, freeze, and job merges, land on that branch. Main stays
 untouched until the single closing PR.
 
-Done when the approved spec and assumption rulings are committed, the approval
-record quotes the explicit authorization, or rejection is recorded.
+Done when the approved spec and assumption rulings are committed and the
+approval record quotes the explicit authorization or the timer-approval
+entry, or rejection is recorded.
 
 ### 3. Decompose
 

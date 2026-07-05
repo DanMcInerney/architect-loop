@@ -36,6 +36,10 @@ Parallel rules: harness-native judge subagents (Claude Agent tool) dispatch sync
      healthy-long-run (redispatch the monitor, sleep again), needs a nudge
      or answer, or wedged (kill the job, discard its worktree, respawn
      from the frozen check with a route-around).
+   - **Ruling timer expiry.** A pending timed ruling's timer exit is a wake:
+     if the ruling is still unanswered in-session and on the tracker, apply
+     the recommended default and record the auto-ruling (timed-ruling
+     protocol, SKILL.md "### 2. Spec Approval"); already resolved is a no-op.
 4. **Recompute the ready issues.** Closing an issue may unblock others;
    recompute and dispatch the next wave.
 5. **Repeat** until no issues remain open, then post the escalation
