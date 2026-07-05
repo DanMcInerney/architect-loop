@@ -68,3 +68,14 @@ lands...") produced `{"type":"tool_use","name":"Skill","input":{"skill":
 harness from a NON-repo working directory: a triggered /architect session
 grounds, finds no git repo, and hard-stops harmlessly instead of acting on the
 real repo (PowerShell is not in the harness's disallowed-tools list).
+
+## A/B Result (2026-07-05, post-merge)
+
+Before/after comparison of the /architect-research description rewrite
+(spec skill-hygiene open question 2): baseline with the pre-rewrite installed
+description = 20/20 PASS; after PR #85 merge + installer re-run, same suite =
+20/20 PASS. The trigger-only rewrite preserved every routing path (explicit,
+implicit, contextual) and both skills' negative controls held in both legs —
+assumption A3 confirmed by measurement. Open question 4 resolves: no
+description-only misses observed in either leg, so `when_to_use` frontmatter
+is not needed.
