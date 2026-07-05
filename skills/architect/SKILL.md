@@ -60,13 +60,17 @@ Run this at every factory block boundary.
 - Read operating docs in authority order: `CLAUDE.md` / `AGENTS.md`, then
   `README.md`, architecture docs, the active spec, `docs/solutions/`, open
   issues, issue comments, job reports, checks, branch heads, and worktrees.
+- Load `docs/runs/<run>/manifest.md`; tracker reads are scoped to the pinned
+  tracking issue plus its children carrying `<!-- architect-run: <run> -->`.
+  The wider tracker is out of scope for the loop.
 - Reconcile tracker state against git reality: open/closed issues, blocked-by
   edges, unjudged jobs, stale reports, check freeze SHAs, and branch heads.
 - Resolve orchestrator and builder models from `.architect/config`, then
   `~/.architect/config`, then `dispatch.md` `## Model alias table` and config
   rules; judges run at orchestrator tier and the monitor is a script, not a
   model.
-- Check `docs/STOP` before any dispatch wave.
+- Check `docs/STOP` in the run checkout and primary checkout (`git rev-parse
+  --git-common-dir`), plus uncommitted `docs/runs/<run>/STOP`, before dispatch.
 
 Done when repo state, tracker state, model routing, and active hard stops are
 known from tool evidence.
@@ -100,12 +104,15 @@ up front so builder jobs do not invent seams mid-flight.
 At the end of intake, before approval, create the tracking issue. Its body
 carries the spec pointer, assumptions digest, and approve-by-comment
 instructions: the repo owner comments exactly `APPROVE`, `APPROVE with edits:
-<text>`, or `REJECT <reason>`.
+<text>`, or `REJECT <reason>`. The body also carries
+`<!-- architect-run: <run> -->` and the future manifest path. Then write
+`docs/runs/<run>/manifest.md` with its number. The manifest must be
+committable; if `docs/runs` is ignored, fix ignore rules before proceeding.
 
 Done when the spec contains goal, non-goals, assumptions, validation strategy,
 domain language, preflight evidence, any open human decisions, and the tracking
-issue exists with the spec pointer, assumptions digest, and approve-by-comment
-instructions.
+issue and manifest exist with the run marker, spec pointer, assumptions digest,
+and approve-by-comment instructions.
 
 ### 2. Spec Approval
 
@@ -157,6 +164,9 @@ destructive choices, silence resolves to the non-destructive path;
 On approval, cut `factory/<run>`. ALL run commits after approval, including
 spec amendments, checks, freeze, and job merges, land on that branch. Main stays
 untouched until the single closing PR.
+Each concurrently live run operates in its own git worktree on its own
+`factory/<run>` branch (local convention `.architect/runs/<slug>`,
+machine-local); never run two orchestrator sessions in one checkout.
 
 Done when the approved spec and assumption rulings are committed and the
 approval record quotes the explicit authorization or the timer-approval
@@ -171,7 +181,7 @@ Compile the approved spec into tracker issues:
 - Each sub-issue is one vertical slice with acceptance criteria, boundaries,
   may-touch and must-not-touch sets, check path, raw-report path, and native
   parent plus blocked-by edges.
-- Checks per issue live in `docs/checks/` and freeze in git before dispatch.
+- Checks per issue live in `docs/checks/<run>/` and freeze in git before dispatch.
 - Dispatch has hard-stop preconditions, in order: freeze committed on the
   factory branch; factory branch pushed; `preflight.ps1`/`preflight.sh`
   executes worktree creation, freeze-verify, and frozen-file spot-check.
@@ -221,14 +231,17 @@ Use `loop.md` `## Factory block procedure` for the detailed event loop.
   or killed evidence; when the watchdog exits with anomaly evidence; or when
   the ready issues need recomputation.
 - On human status requests ("status", "how's it going", or equivalent), run
-  `skills/architect/status.ps1` on Windows or `skills/architect/status.sh` on POSIX, print its output verbatim in a fenced code block, answer in prose, and never hand-compose the tree.
+  `skills/architect/status.ps1 <run>` on Windows or
+  `skills/architect/status.sh <run>` on POSIX; use `-RepoRoot <path>` /
+  `--repo-root <path>` for explicit roots. Print output verbatim in a fenced
+  code block, answer in prose, and never hand-compose the tree.
 - On DONE, write the runner config, launch the check-runner in the background, let its exit wake the loop, commit the checkrun evidence file, then send a fresh, independent orchestrator-tier judge with the evidence path: Claude Agent-tool judges dispatch synchronously with `run_in_background: false`; codex-backend judges use the background typed-exit path.
   Merge through postflight only after a passing verdict; `POSTFLIGHT: OK` exit
   0 is the clean touch-set evidence.
 - On BLOCKED, answer on the issue, cite durable evidence, and respawn a fresh
   builder with the answer using `dispatch.md` `## Respawn-with-answer template`.
 - Post-freeze rulings live append-only in
-  `docs/jobs/<issue-slug>-rulings.md`: PHASE-0 rulings, boundary amendments,
+  `docs/jobs/<run>/<issue-slug>-rulings.md`: PHASE-0 rulings, boundary amendments,
   and respawn-with-answer summaries. The orchestrator owns the file, commits it
   before judge dispatch, mirrors it to the issue thread for humans, and judges
   read the file rather than thread prose.
@@ -270,7 +283,9 @@ the tracking issue digest is posted, and no issue remains silently unresolved.
 
 Stop and ask the human when any hard stop fires:
 
-- `docs/STOP`, the kill switch, exists before dispatch.
+- `docs/STOP`, the kill-all switch, exists in the run checkout or primary checkout.
+- `docs/runs/<run>/STOP`, the per-run stop file, exists before dispatch; it is
+  never committed.
 - An irreversible or destructive action is needed.
 - Two consecutive KILL decisions happen in the factory.
 - A blocker collides with a recorded assumption.
