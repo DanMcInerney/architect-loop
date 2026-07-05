@@ -33,7 +33,7 @@ templates live behind these pointers:
 2. **Checks freeze in git before dispatch.** Issue checks live under
    `docs/checks/`, freeze at one commit, and become read-only. Any builder edit
    under `docs/checks/` is an automatic FAIL.
-3. **Nobody grades their own work.** Builders report raw evidence only. A fresh, independent orchestrator-tier judge checks intent. Frozen checks are executed by the deterministic check-runner; the judge grades the evidence and spot-checks. The orchestrator may not turn a judge FAIL into a merge.
+3. **Nobody grades their own work.** Builders report raw evidence only. A fresh, independent judge at the builders model checks intent. Frozen checks are executed by the deterministic check-runner; the judge grades the evidence and spot-checks. The orchestrator may not turn a judge FAIL into a merge.
 4. **The orchestrator never writes implementation code and never reads large
    diffs.** Builders code; verifier and judge subagents inspect large diffs.
 5. **Fresh builder per issue.** Use worktree isolation and one issue per
@@ -67,8 +67,8 @@ Run this at every factory block boundary.
   edges, unjudged jobs, stale reports, check freeze SHAs, and branch heads.
 - Resolve orchestrator and builder models from `.architect/config`, then
   `~/.architect/config`, then `dispatch.md` `## Model alias table` and config
-  rules; judges run at orchestrator tier and the monitor is a script, not a
-  model.
+  rules; judges run at the resolved builders model and the monitor is a
+  script, not a model.
 - Check `docs/STOP` in the run checkout and primary checkout (`git rev-parse
   --git-common-dir`), plus uncommitted `docs/runs/<run>/STOP`, before dispatch.
 
@@ -235,7 +235,7 @@ Use `loop.md` `## Factory block procedure` for the detailed event loop.
   `skills/architect/status.sh <run>` on POSIX; use `-RepoRoot <path>` /
   `--repo-root <path>` for explicit roots. Print output verbatim in a fenced
   code block, answer in prose, and never hand-compose the tree.
-- On DONE, write the runner config, launch the check-runner in the background, let its exit wake the loop, commit the checkrun evidence file, then send a fresh, independent orchestrator-tier judge with the evidence path: Claude Agent-tool judges dispatch synchronously with `run_in_background: false`; codex-backend judges use the background typed-exit path.
+- On DONE, write the runner config, launch the check-runner in the background, let its exit wake the loop, commit the checkrun evidence file, then send a fresh, independent builders-model judge with the evidence path: Claude Agent-tool judges dispatch synchronously with `run_in_background: false`; codex-backend judges use the background typed-exit path.
   Merge through postflight only after a passing verdict; `POSTFLIGHT: OK` exit
   0 is the clean touch-set evidence.
 - On BLOCKED, answer on the issue, cite durable evidence, and respawn a fresh

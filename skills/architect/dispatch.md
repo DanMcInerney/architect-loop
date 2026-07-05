@@ -75,6 +75,14 @@ default above. Absent dispatch rules = the codex-first default. A matching
 rule is still a judgment aid; the orchestrator records which rule was used
 and may override it with a reason recorded on the issue.
 
+Builder speed default: when the resolved builders backend is Codex under
+ChatGPT auth, every builder `codex exec` appends the Fast-mode pins
+`-c service_tier="fast" -c features.fast_mode=true` — same model, faster
+inference (gpt-5.5 at 2.5x credit burn), never a tier change. Verify at the
+intake canary; API-key auth cannot use Fast mode — drop the two pins and
+record the substitution on the tracking issue (no silent fallback). The
+default is builder-only; judges and the monitor never carry the Fast pins.
+
 Configured builders CLI absent at preflight -> fall back per the codex-first
 default (on Claude Code without Codex: `claude/tier-down`) and write one
 tracking-issue comment naming requested vs substituted. Cross-family
@@ -89,7 +97,7 @@ retry-at-a-different-tier job (see `loop.md` "## Failure ladder").
 | | Claude Code (CLI + Desktop) | Codex (CLI + app) |
 |---|---|---|
 | Builder | Agent tool with `.claude/agents/architect-builder.md`; `disallowedTools` denies `Bash(git commit *)` and `Bash(git push *)`; `isolation: worktree`; `background: true`; model may be passed per invocation from the alias table. On the desktop app, the harness auto-creates the agent's isolation worktree (`.claude/worktrees/agent-<id>`) and its branch — integrate from that branch. On the CLI, spawns have been observed to run UNISOLATED in the orchestrator's checkout despite `isolation: worktree` frontmatter (D11) — pass isolation explicitly per invocation if supported, and never run two Claude-backend builder jobs concurrently unless each is verified to have its own worktree (`git worktree list` after spawn). In all cases, never pre-create a job worktree for Claude-backend jobs (a pre-made one is ignored); do not use `.architect/wt/<run>/<slice>-<NN>` (that pattern is Codex-backend only, below). | `spawn_agent` with defensive framing: "Your task is: ..."; worktree created by the orchestrator via git; use `/goal` semantics for persistent job completion. |
-| Judge | Agent tool with `.claude/agents/architect-judge.md`; dispatch synchronously with `run_in_background: false` so the verdict is the tool result; read-only tools plus Bash for check commands; orchestrator tier via `model: inherit` or per-invocation model. | Background `codex exec -o <file>` typed-exit path with read-only instructions and the fixed judge template; the process exit wakes the loop. |
+| Judge | Agent tool with `.claude/agents/architect-judge.md`; dispatch synchronously with `run_in_background: false` so the verdict is the tool result; read-only tools plus Bash for check commands; the resolved builders model passed per invocation (the def's `model: inherit` is only the fallback where per-invocation model is unsupported). | Background `codex exec -o <file>` typed-exit path with read-only instructions and the fixed judge template; the process exit wakes the loop. |
 | Monitor | Script watchdog (`watchdog.ps1` on Windows, `watchdog.sh` on POSIX) when the orchestrator can run background processes and receive exit notifications; LLM fallback template only otherwise. | Script watchdog (`watchdog.ps1` on Windows, `watchdog.sh` on POSIX) when background process exits wake the orchestrator; LLM fallback template only otherwise and it counts as one of the 6 `max_threads`. |
 | Parallelism | Background subagents; permission prompts surface to the main session. | Native subagents, `max_threads` 6, `max_depth` 1 (root session is depth 0; a spawned child may not spawn further — no nested orchestrators, the orchestrator dispatches builders directly), `wait_agent` for completion (the live collab event stream names the underlying tool call `wait`, not `wait_agent` — evidence: v4-codex CG4 architect-run canary `events.jsonl`). |
 | Review (high-stakes) | `codex review --base` when Codex is installed; otherwise a fresh same-CLI subagent with bias caveat. | `/review` / `review_model`; Claude reviewer when installed. |
@@ -252,6 +260,7 @@ Single-job slice in the current checkout, resolved builders `codex/best`:
 ```bash
 codex exec -C <repo-root> --sandbox workspace-write \
   -m gpt-5.5 -c model_reasoning_effort="xhigh" \
+  -c service_tier="fast" -c features.fast_mode=true \
   --json -o .architect/last-run.md \
   - < .architect/dispatch-block.md
 ```
@@ -261,6 +270,7 @@ If the effort call resolves to `codex/tier-down`, change only the effort pin:
 ```bash
 codex exec -C <repo-root> --sandbox workspace-write \
   -m gpt-5.5 -c model_reasoning_effort="high" \
+  -c service_tier="fast" -c features.fast_mode=true \
   --json -o .architect/last-run.md \
   - < .architect/dispatch-block.md
 ```
@@ -273,6 +283,7 @@ git -C <repo-root> worktree add .architect/wt/<run>/<slice>-<NN> \
 
 codex exec -C <repo-root>/.architect/wt/<run>/<slice>-<NN> --sandbox workspace-write \
   -m gpt-5.5 -c model_reasoning_effort="xhigh" \
+  -c service_tier="fast" -c features.fast_mode=true \
   --json -o .architect/wt/<run>/<slice>-<NN>.last-run.md \
   - < .architect/wt/<run>/<slice>-<NN>.block.md
 ```
