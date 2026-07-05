@@ -38,8 +38,10 @@ the spec, the decomposition skeletons, and every builder.
 
 - **G1 — Graded RUN checks with typed runner verdicts.** Extend the RUN
   grammar with machine-readable expectations immediately after the command
-  span: `- RUN: `<cmd>` -> exit:<n>` with optional `match:"<regex>"` against
-  stdout. Text after the expectation stays judge-facing prose. The
+  span: `- RUN: `<cmd>` -> exit:<n>` with optional `match:"<substring>"`
+  (fixed substring, grep -F semantics) against stdout — amended from regex by
+  the pre-freeze ruling on #98: .NET-regex-vs-POSIX-ERE divergence between
+  the ps1/sh runners would make graded verdicts executor-dependent. Text after the expectation stays judge-facing prose. The
   check-runner grades each RUN item, records per-item PASS/FAIL plus a
   summary in the evidence file, and exits typed: 0 = all RUN items PASS,
   2 = any FAIL, 5 = `CHECKRUN: ERROR` unchanged. The orchestrator rules on
@@ -114,9 +116,10 @@ the spec, the decomposition skeletons, and every builder.
 
 ## Assumptions (approve or veto at approval)
 
-- **A1:** Expectation grammar is exactly `-> exit:<n>` with optional
-  `match:"<regex>"` (regex over stdout, case-sensitive). Veto → propose an
-  alternative form at approval; the graded-runner requirement itself stands.
+- **A1 (amended by #98 ruling):** Expectation grammar is exactly
+  `-> exit:<n>` with optional `match:"<substring>"` — fixed substring over
+  stdout, case-sensitive, never regex. Regex upgrade deferred until a real
+  check needs it.
 - **A2:** A builders-model judge may be same-family as the builder (codex
   judging codex): the #17 catch was a codex judge on codex work, and
   cross-family review remains the recorded high-stakes escape hatch.
@@ -183,5 +186,5 @@ after-the-fact veto instructions.
   session files expose.
 - Should judges also carry the Fast pins now that they run the builders
   model? Human call; default no.
-- `match:` semantics on multi-line stdout (first match anywhere vs. anchored)
-  — settle at decomposition with the fixture as the tiebreaker.
+- `match:` semantics: settled by the #98 ruling — fixed substring found
+  anywhere in captured stdout; no anchoring, no regex.
