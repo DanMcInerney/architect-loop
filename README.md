@@ -41,6 +41,9 @@ GPT-5.5, xhigh) does the heavy lifting. Both are overridable — see
 - A fresh orchestrator-tier model adversarially reviews the spec.
 - Orchestrator breaks the work into parallelizable GitHub issues.
 - Orchestrator freezes the acceptance checks in git.
+- A run manifest in `docs/runs/<run>/manifest.md` pins the tracking issue,
+  factory branch, tracker, and spec; status commands take the run slug and
+  read that pin instead of scanning every issue.
 - Orchestrator loops through the issues, assigning builders until every
   issue is fully complete:
   - progress lands on the GitHub issue as builders work;
@@ -110,6 +113,11 @@ git — not left as advice. Full evidence and citations: [DESIGN.md](DESIGN.md).
 - **Builders get their own git worktree and no commit rights.** *quality* —
   A broken builder can't reach a branch; the orchestrator owns every commit
   and merge.
+- **Run identity is pinned, not discovered.** *quality* — Each run has a
+  committed `docs/runs/<run>/manifest.md` plus a run marker in every issue
+  body. Status reads `skills/architect/status.ps1 <run>` or
+  `skills/architect/status.sh <run>` from that manifest; foreign issues under
+  the same parent are escalated instead of dispatched.
 - **Builders must argue with the spec before coding.** *quality* —
   Builder-class models follow specs literally, so spec errors are only
   catchable before execution; every disagreement gets an explicit ruling.
@@ -157,12 +165,13 @@ git — not left as advice. Full evidence and citations: [DESIGN.md](DESIGN.md).
   Product docs are the highest-contention files in a repo; one docs job
   consumes the accumulated pointers instead of every builder fighting over
   the README.
-- **Hard stops.** *quality* — The `docs/STOP` kill switch, irreversible
-  actions, two consecutive killed jobs, or scope growth beyond the approved
-  spec halt the factory and ask you.
+- **Hard stops.** *quality* — The `docs/STOP` kill-all switch,
+  `docs/runs/<run>/STOP` for one run, irreversible actions, two consecutive
+  killed jobs, or scope growth beyond the approved spec halt the factory and
+  ask you.
 - **`tracker = markdown` runs the same loop without GitHub.** *quality* —
-  Issues live in git-tracked `docs/issues/` for GitLab or fully local repos;
-  every rule, judge, check, and the status tree work identically.
+  Issues live in git-tracked `docs/issues/<run>/` for GitLab or fully local
+  repos; every rule, judge, check, and the status tree work identically.
 
 ### /architect-research
 
@@ -222,21 +231,25 @@ issue — never a hard fail.
 
 `tracker = markdown` runs the identical loop with no GitHub dependency —
 for GitLab-hosted or fully local repos. Issues become git-tracked files in
-`docs/issues/<NNN>-<slug>.md` with the same states, parent/blocker edges,
-and comment log, so every rule, judge, and frozen check works unchanged.
-Only a git repo is required; a remote is optional and `gh` isn't needed.
-Two differences: spec approval is in-session only, and the run ends with
-the factory branch ready plus merge instructions instead of an auto-merged
-PR. The default `tracker = github` needs a GitHub remote, authenticated
-`gh` ≥ 2.94.0, and push access.
+`docs/issues/<run>/<NNN>-<slug>.md` with per-run numbering, the same states,
+parent/blocker edges, and comment log, so every rule, judge, check, and
+the status tree work unchanged. Only a git repo is required; a remote is
+optional and `gh` isn't needed. Two differences: spec approval is
+in-session only, and the run ends with the factory branch ready plus merge
+instructions instead of an auto-merged PR. The default `tracker = github`
+needs a GitHub remote, authenticated `gh` ≥ 2.94.0, and push access.
 
 ### Run artifacts
 
-A run writes specs to `docs/spec/`, frozen checks to `docs/checks/`, job
-reports and check evidence to `docs/jobs/`, and reusable fix notes to
-`docs/solutions/`. Builder worktrees live under `.architect/wt/` and are
-removed at merge. An empty `docs/STOP` file halts the factory at the next
-dispatch boundary.
+A run writes specs to `docs/spec/`, its manifest to
+`docs/runs/<run>/manifest.md`, frozen checks to `docs/checks/<run>/`, job
+reports and check evidence to `docs/jobs/<run>/`, markdown issues to
+`docs/issues/<run>/`, and reusable fix notes to `docs/solutions/`. Each
+concurrent run uses its own orchestrator checkout on `factory/<run>` (local
+convention: `.architect/runs/<slug>`), while builder worktrees live under
+`.architect/wt/<run>/` and are removed at merge. An empty `docs/STOP` file
+halts every factory at the next dispatch boundary; an empty
+`docs/runs/<run>/STOP` halts only that run and is never committed.
 
 ## License
 
