@@ -569,10 +569,11 @@ both directions.
   ([Latent Space](https://www.latent.space/p/harness-eng)). A standing
   maintenance rule says: re-read the skill each model generation and delete
   what models now do unprompted.
-- **An 800-non-blank-line size guard is enforced by the validator (P5).**
-  Models silently skip steps past an instruction-budget ceiling
-  (HumanLayer/RPI; evidence: loop-improvements research, in git history before
-  the 2026-07-04 cleanup).
+- **A 1100-non-blank-line size guard is enforced by the validator (P5).**
+  The evidence cliff is exhaustive/comprehensive skill content and skill count
+  (SkillsBench v4), not a 200-line target; compaction reattach economics are
+  the binding local constraint: first 5,000 tokens per invoked skill, 25,000
+  combined.
   `tests/validate_skills.py` also freezes the load-bearing contracts: alias
   table, config grammar, judge templates, agent-definition constraints, and
   a guard that no retired handoff reference re-enters the skill text.
@@ -645,7 +646,7 @@ decisions, from the 2026-06 evidence review and the r2 calibration pass
 | Stale worktree snapshots | Freeze → push → dispatch ordering; post-spawn HEAD + file verification |
 | Shell-stripped subagents | Backend canary at preflight; BLOCKED-with-evidence; recorded substitutions (§7) |
 | Researcher context exhaustion | ≤5 subjects per researcher; compact returns; bisect dead researchers |
-| Harness bloat / obsolescence | Thin declarative skill; 800-line guard; per-model-generation pruning review |
+| Harness bloat / obsolescence | Thin declarative skill; 1100-non-blank-line guard; per-model-generation pruning review |
 
 ---
 
