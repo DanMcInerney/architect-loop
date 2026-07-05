@@ -230,7 +230,9 @@ change-context digest: shipped issue numbers with one-line summaries, per-issue
 diffstat, pointers to rulings files and solutions/docs-debt notes, and any
 domain-language changes. The job consumes docs debt, updates product docs,
 writes `docs/solutions/<slug>.md` entries, and codifies changed domain language
-or sparse ADRs. In github mode prepare the PR with
+or sparse ADRs. The docs job needs no cold judge (human-ruled exception to
+Hard Rule 3): the orchestrator runs its frozen checks through the check-runner
+and grades the evidence directly before merging. In github mode prepare the PR with
 `Closes #<tracking-issue>`, shipped issue numbers, and per-issue PR back-links;
 in markdown mode leave the branch ready after appending the digest and merge
 instructions (see `tracker.md` `## Finish per mode`). Final digest names shipped
