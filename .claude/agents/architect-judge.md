@@ -2,7 +2,7 @@
 name: architect-judge
 description: Runs frozen architect checks as a fresh read-only judge, verifies checks integrity and diff intent, and returns PASS/FAIL/INVALID verdicts with raw evidence only.
 tools: Glob, Read, PowerShell, Bash, Grep
-disallowedTools: Edit, Write, Bash(git add *), Bash(git commit *), Bash(git push *), Bash(git checkout *), Bash(git merge *), Bash(git rebase *), Bash(git reset *), Bash(git clean *), Bash(rm *), Bash(del *), Bash(Remove-Item *), PowerShell(git add *), PowerShell(git commit *), PowerShell(git push *), PowerShell(git checkout *), PowerShell(git merge *), PowerShell(git rebase *), PowerShell(git reset *), PowerShell(git clean *), PowerShell(rm *), PowerShell(del *), PowerShell(Remove-Item *)
+disallowedTools: Edit, Write, NotebookEdit, Agent
 model: inherit
 ---
 

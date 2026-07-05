@@ -336,14 +336,16 @@ def check_agent_definitions() -> None:
     if builder.exists():
         fm = frontmatter(builder) or {}
         disallowed = set(split_csv(fm.get("disallowedTools", "")))
-        if "Bash(git commit *)" not in disallowed:
-            errors.append(".claude/agents/architect-builder.md: missing disallowedTools Bash(git commit *)")
-        if "Bash(git push *)" not in disallowed:
-            errors.append(".claude/agents/architect-builder.md: missing disallowedTools Bash(git push *)")
-        if "PowerShell(git commit *)" not in disallowed:
-            errors.append(".claude/agents/architect-builder.md: missing disallowedTools PowerShell(git commit *)")
-        if "PowerShell(git push *)" not in disallowed:
-            errors.append(".claude/agents/architect-builder.md: missing disallowedTools PowerShell(git push *)")
+        shell_patterns = [d for d in disallowed if d.startswith("Bash(") or d.startswith("PowerShell(")]
+        if shell_patterns:
+            errors.append(
+                ".claude/agents/architect-builder.md: disallowedTools must not contain "
+                f"Bash(...)/PowerShell(...) patterns {sorted(shell_patterns)} - the harness "
+                "collapses a pattern-scoped shell deny into removal of the whole tool "
+                "(D14, verified 2026-07-04); commit/push bans live in prose + postflight audit"
+            )
+        if "Never commit" not in read_text(builder):
+            errors.append(".claude/agents/architect-builder.md: body must carry the Never commit prose ban (replaces deny patterns, D14)")
         if fm.get("isolation") != "worktree":
             errors.append(".claude/agents/architect-builder.md: isolation must be worktree")
         if fm.get("model") != "inherit":
@@ -357,14 +359,14 @@ def check_agent_definitions() -> None:
             errors.append(".claude/agents/architect-judge.md: tools must not include Edit or Write")
         if "Edit" not in disallowed or "Write" not in disallowed:
             errors.append(".claude/agents/architect-judge.md: disallowedTools must include Edit and Write")
-        for mirror in (
-            "PowerShell(git commit *)",
-            "PowerShell(git push *)",
-            "PowerShell(Remove-Item *)",
-            "PowerShell(rm *)",
-        ):
-            if mirror not in disallowed:
-                errors.append(f".claude/agents/architect-judge.md: missing disallowedTools {mirror}")
+        shell_patterns = [d for d in disallowed if d.startswith("Bash(") or d.startswith("PowerShell(")]
+        if shell_patterns:
+            errors.append(
+                ".claude/agents/architect-judge.md: disallowedTools must not contain "
+                f"Bash(...)/PowerShell(...) patterns {sorted(shell_patterns)} - the harness "
+                "collapses a pattern-scoped shell deny into removal of the whole tool "
+                "(D14, verified 2026-07-04); mutation bans live in prose + tree/postflight audits"
+            )
         if fm.get("model") != "inherit":
             errors.append(".claude/agents/architect-judge.md: model must be inherit")
         check_tools_pad(".claude/agents/architect-judge.md", split_csv(fm.get("tools", "")))

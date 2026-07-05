@@ -2,7 +2,7 @@
 name: architect-builder
 description: Runs one architect builder job from a frozen slice spec, respecting job boundaries, worktree isolation, raw-only reporting, and never committing or pushing.
 tools: Glob, Read, Edit, Write, PowerShell, Bash, Grep
-disallowedTools: Bash(git commit *), Bash(git push *), PowerShell(git commit *), PowerShell(git push *)
+disallowedTools: Agent
 model: inherit
 isolation: worktree
 background: true

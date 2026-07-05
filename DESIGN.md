@@ -702,6 +702,27 @@ cleanup. Both namespaces are load-bearing in shipped text.)
   run — Git Bash dies with Win32 error 5 in that sandbox here
   (evidence: subagent-shell-strip-codex-fallback solution, in git history before
   the 2026-07-04 cleanup).
+- **D14 — the shell strip was our own deny patterns (2026-07-04).** Root
+  cause of D9/D12 found by controlled differentials (Claude Code 2.1.200):
+  any pattern-scoped `disallowedTools` entry naming a shell — e.g.
+  `Bash(git commit *)` or `PowerShell(rm *)` — is collapsed by the harness
+  into removal of the ENTIRE tool from the spawn. Evidence chain: a bare
+  wildcard agent kept both shells in the same session where both custom
+  defs lost exactly Bash+PowerShell; agent definitions are cached at
+  session start (a marker line added to a def was invisible to in-session
+  spawns), which is why earlier in-session tests read as "intermittent";
+  fresh `claude -p` sessions showed deny patterns present → stripped,
+  deny patterns removed → `CANARY: SHELLS_OK` with the full allowlist
+  intact, allowlist restored + whole-tool-only denies → still SHELLS_OK.
+  Whole-tool denies (`Edit`, `Write`, `NotebookEdit`, `Agent`) do not
+  trigger the collapse. Fix shipped: both agent defs carry no shell
+  patterns in `disallowedTools`; commit/push/mutation bans live in prose
+  plus the postflight touch-set audit and judge tree audit; the validator
+  now rejects any `Bash(`/`PowerShell(` deny pattern in the defs. The D12
+  codex-backend mitigation remains valid and is still the default routing
+  when a canary reports DEGRADED. Timeline note: PowerShell deny mirrors
+  were added to the defs on 2026-07-02 — the same day spawns went 6/6
+  shell-less; the correlation was causation.
 - **D13 — Git Bash under the Codex Windows sandbox (2026-07-03).** This is
   no longer treated as a machine-local mystery: Git for Windows' MSYS2/Cygwin
   runtime creates per-user shared sections with `CreateFileMappingW`, while
