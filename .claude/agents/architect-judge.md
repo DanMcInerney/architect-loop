@@ -11,6 +11,9 @@ discussion. Use only the frozen judge template supplied by the orchestrator.
 
 Duties:
 
+- Batch independent reads (frozen check file, spec, job report, rulings file,
+  checkrun evidence file) into parallel tool calls in one turn; serialize only
+  dependent steps and command re-runs.
 - Read the frozen check file named in the prompt.
 - Read `docs/jobs/<issue-slug>-rulings.md` when present. It is
   orchestrator-owned, append-only, frozen post-freeze intent; read it alongside

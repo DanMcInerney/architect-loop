@@ -29,6 +29,11 @@ You need [Claude Code](https://claude.com/claude-code) on any paid plan; the
 Codex CLI on a ChatGPT plan is optional but recommended — builders default
 to it. No API keys.
 
+The scripts are kept portable across Windows PowerShell 5.1+, macOS bash
+3.2+, and Linux bash. The factory can be orchestrated from Claude Code or
+Codex; the checked-in scripts avoid platform-specific assumptions beyond
+those shells.
+
 ## Use
 
 ```
@@ -46,11 +51,11 @@ Everything else runs without you, and the run ends in a single PR plus a
 digest of what shipped.
 
 The build factory preconditions are per tracker mode. In GitHub mode, it
-needs a GitHub repo: a remote, `gh auth status` passing, and `gh` ≥ 2.94.0
-(native sub-issue and blocked-by flags). In markdown mode, it needs only a
-git repo; `gh` is not required, the remote is optional, and pushes are
-push-if-remote-exists. Missing preconditions fail loudly for the selected
-mode — there is no silent fallback to another tracker.
+needs a GitHub repo: a remote, `gh auth status` passing, and `gh` >= 2.94.0
+for native `gh issue create --parent` and `--blocked-by` edges. In markdown
+mode, it needs only a git repo; `gh` is not required, the remote is optional,
+and pushes are push-if-remote-exists. Missing preconditions fail loudly for
+the selected mode; there is no silent fallback to another tracker.
 
 ### GitLab or fully local? markdown mode
 
@@ -117,9 +122,9 @@ survives unless its URL was actually fetched. One author writes the report.
    earlier conversation.
 3. **The plan.** The spec compiles into sub-issues — vertical slices with
    acceptance criteria, may-touch/must-not-touch file boundaries, and native
-   blocked-by links. Issues scheduled in parallel share no files, schemas,
-   or other mutable state. Each issue's acceptance checks are frozen in git
-   under `docs/checks/` *before* any builder exists; a builder editing a
+   parent plus blocked-by links. Issues scheduled in parallel share no files,
+   schemas, or other mutable state. Each issue's acceptance checks are frozen
+   in git under `docs/checks/` *before* any builder exists; a builder editing a
    check file fails automatically. Then a fresh adversarial reviewer
    **stress-tests the whole plan** — executing draft check commands,
    attacking criteria for contradictions and non-falsifiability — so bad
@@ -143,12 +148,24 @@ survives unless its URL was actually fetched. One author writes the report.
    - **Stuck builders stop instead of thrashing.** A blocker is posted on
      the issue; the orchestrator answers durably there and respawns a fresh
      builder with the answer in its starting context.
+   - **Missing background results have a recovery ladder.** Retrieve the
+     harness task output, nudge once for the missing artifact, then discard
+     and respawn fresh. The orchestrator never authors a missing verdict.
    - **A fresh judge owns every merge.** A deterministic check-runner script
      executes the frozen checks exactly as written and records the evidence;
      the judge grades that evidence, spot-checks at least one command, and
-     reads the diff against the spec's intent — passing checks with wrong code
-     still fails. Verdicts land as issue comments: PASS / FAIL / INVALID. The
-     orchestrator cannot overrule a FAIL.
+     reads the diff against the spec's intent. Claude Agent-tool judges run
+     synchronously (`run_in_background: false`), so the verdict returns as
+     the tool result instead of disappearing into a background final message;
+     codex-backend judges keep the typed-exit background path. Inside the
+     judge, independent reads are batched in parallel, then dependent grading
+     stays serial. Passing checks with wrong code still fails. Verdicts land
+     as issue comments: PASS / FAIL / INVALID. The orchestrator cannot
+     overrule a FAIL.
+   - **Close-out is part of the loop.** Once a subagent result or shell
+     process exit has been consumed, the orchestrator stops or closes that
+     task in the same turn, batching independent close-outs and keeping the
+     bookkeeping token-minimal.
    - **Failures fix inputs, not models.** First failure: diagnose from the
      judge's evidence, amend the issue, respawn at the same tier. Second:
      re-plan or escalate. A merge conflict means the plan was wrong — kill
@@ -156,11 +173,11 @@ survives unless its URL was actually fetched. One author writes the report.
      is orchestrator-owned and may fan out researchers before the orchestrator
      updates the plan, issues, and checks.
 5. **Finish.** A docs job consumes the run's documentation debt and codifies
-   reusable diagnoses into `docs/solutions/` (read back at the start of
-   every future run). GitHub mode opens one PR that closes the tracking
-   issue; markdown mode leaves the factory branch ready and appends the
-   digest and merge instructions to the tracking issue file. The digest
-   lists what shipped, what was skipped, and the evidence.
+   durable lessons in the product docs before the final digest. GitHub mode
+   opens one PR that closes the tracking issue; markdown mode leaves the
+   factory branch ready and appends the digest and merge instructions to the
+   tracking issue file. The digest lists what shipped, what was skipped, and
+   the evidence.
 
 Hard stops — the factory halts and asks you — include `docs/STOP` (the kill
 switch), irreversible actions, two consecutive killed jobs, scope growing

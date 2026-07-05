@@ -259,6 +259,17 @@ def check_judge_template() -> None:
         errors.append("skills/architect/dispatch.md: C5 template does not forbid slice-specific prose")
 
 
+def check_loop_hygiene_contract() -> None:
+    loop = SKILLS / "architect" / "loop.md"
+    if not loop.exists():
+        errors.append("skills/architect/loop.md: missing (required for loop hygiene contract)")
+        return
+    text = read_text(loop)
+    for required in ("run_in_background: false", "close-out"):
+        if required not in text:
+            errors.append(f"skills/architect/loop.md: missing {required}")
+
+
 def check_check_runner_dispatch_contract() -> None:
     dispatch = SKILLS / "architect" / "dispatch.md"
     if not dispatch.exists():
@@ -282,6 +293,11 @@ def check_check_runner_dispatch_contract() -> None:
             errors.append(
                 "skills/architect/dispatch.md: "
                 f"{marker} missing re-run at least one RUN command"
+            )
+        if block.count("independent reads") != 1:
+            errors.append(
+                "skills/architect/dispatch.md: "
+                f"{marker} must contain independent reads exactly once"
             )
 
 
@@ -356,8 +372,8 @@ def check_agent_definitions() -> None:
 
 def check_skill_text_size() -> None:
     """P5 (loop-hardening) instruction-budget guard: models silently skip
-    steps past a system-prompt instruction ceiling (docs/research/
-    loop-improvements.md P5; measured 510 non-blank lines across these three
+    steps past a system-prompt instruction ceiling (evidence:
+    loop-improvements research, git history; measured 510 non-blank lines across these three
     files at freeze time). FAIL if the combined NON-BLANK line count of
     SKILL.md + loop.md + dispatch.md exceeds 900."""
     paths = [
@@ -377,7 +393,7 @@ def check_skill_text_size() -> None:
     if total > 900:
         errors.append(
             f"skills/architect: combined non-blank line count {total} exceeds "
-            "900 (P5 instruction-budget guard, docs/research/loop-improvements.md)"
+            "900 (P5 instruction-budget guard; evidence: loop-improvements research, git history)"
         )
 
 
@@ -517,6 +533,7 @@ def main() -> int:
     check_model_alias_table()
     check_config_example()
     check_judge_template()
+    check_loop_hygiene_contract()
     check_check_runner_dispatch_contract()
     check_agent_definitions()
     check_codex_install_step()

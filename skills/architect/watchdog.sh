@@ -27,7 +27,7 @@ cpu_sum(){
     done
     printf '%s' "$total"
   else
-    ps -eo time=,args= | awk -v w="$w" 'index($0,w){split($1,a,":"); n=split($1,b,"-"); t=(n==2?b[2]:$1); split(t,c,":"); if(length(c)==3)s+=c[1]*3600+c[2]*60+c[3]; else s+=c[1]*60+c[2]} END{print s+0}'
+    ps -eo time= -o args= | awk -v w="$w" 'index($0,w){split($1,a,":"); n=split($1,b,"-"); t=(n==2?b[2]:$1); split(t,c,":"); if(length(c)==3)s+=c[1]*3600+c[2]*60+c[3]; else s+=c[1]*60+c[2]} END{print s+0}'
   fi
 }
 

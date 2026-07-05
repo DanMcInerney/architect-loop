@@ -3,7 +3,8 @@ set -u
 
 cfg=${1:-}
 repo_root=
-tmp_files=
+tmp_files=()
+tmp_dir=
 
 json_unescape(){ printf '%s' "$1" | sed 's/\\"/"/g; s#\\/#/#g; s/\\\\/\\/g'; }
 json_string(){ sed -n "s/^[[:space:]]*\"$1\"[[:space:]]*:[[:space:]]*\"\(.*\)\"[[:space:]]*,[[:space:]]*$/\1/p; s/^[[:space:]]*\"$1\"[[:space:]]*:[[:space:]]*\"\(.*\)\"[[:space:]]*$/\1/p" "$cfg" | sed -n '1p' | while IFS= read -r v; do json_unescape "$v"; done; }
@@ -25,9 +26,13 @@ json_array(){
 }
 to_bash_path(){ case "$1" in [A-Za-z]:\\*) if command -v cygpath >/dev/null 2>&1; then cygpath -u "$1"; else printf '%s' "$1"; fi;; *) printf '%s' "$1";; esac; }
 abs_path(){ p=$(to_bash_path "$1"); case "$p" in /*) printf '%s' "$p";; *) printf '%s/%s' "$(pwd -P)" "$p";; esac; }
-add_tmp(){ tmp_files="${tmp_files}${tmp_files:+ }$1"; }
-cleanup_tmp(){ for f in $tmp_files; do rm -f "$f"; done; }
+add_tmp(){ tmp_files[${#tmp_files[@]}]=$1; }
+cleanup_tmp(){ for f in "${tmp_files[@]}"; do [ -n "$f" ] && rm -f "$f"; done; }
 trap cleanup_tmp EXIT
+make_tmp(){
+  [ -n "$tmp_dir" ] || err "tmp unavailable"
+  mktemp "$tmp_dir/$1.XXXXXX" 2>/dev/null || err "tmp unavailable"
+}
 git_repo(){ git -C "$repo_root" "$@"; }
 in_merge(){ [ -n "$repo_root" ] && git_repo rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; }
 abort_merge(){
@@ -79,6 +84,8 @@ EOF
 repo_root=$(to_bash_path "$repo_root")
 case "$repo_root" in /*) ;; *) printf 'POSTFLIGHT: ERROR repo_root not absolute\n'; exit 5;; esac
 [ -d "$repo_root" ] || { printf 'POSTFLIGHT: ERROR repo_root missing\n'; exit 5; }
+tmp_dir="$repo_root/.architect/tmp/postflight"
+mkdir -p "$tmp_dir" 2>/dev/null || err "tmp unavailable"
 
 current=$(git_repo rev-parse --abbrev-ref HEAD 2>/dev/null) || err "current branch unavailable"
 # Refuse to run off the configured factory branch before touch audit or merge.
@@ -87,8 +94,8 @@ if in_merge; then err "merge in progress"; fi
 git_repo cat-file -e "$freeze_sha^{commit}" >/dev/null 2>&1 || err "freeze_sha not found"
 git_repo show-ref --verify --quiet "refs/heads/$job_branch" || err "job_branch not found"
 
-changed_tmp=$(mktemp); add_tmp "$changed_tmp"
-violations_tmp=$(mktemp); add_tmp "$violations_tmp"
+changed_tmp=$(make_tmp changed); add_tmp "$changed_tmp"
+violations_tmp=$(make_tmp violations); add_tmp "$violations_tmp"
 git_repo diff --name-only "$freeze_sha..$job_branch" > "$changed_tmp" || err "diff failed"
 changed_count=0
 while IFS= read -r path || [ -n "$path" ]; do
@@ -99,9 +106,9 @@ while IFS= read -r path || [ -n "$path" ]; do
 done < "$changed_tmp"
 if [ -s "$violations_tmp" ]; then cat "$violations_tmp"; exit 2; fi
 
-merge_tmp=$(mktemp); add_tmp "$merge_tmp"
+merge_tmp=$(make_tmp merge); add_tmp "$merge_tmp"
 if ! git_repo merge --no-ff "$job_branch" -m "$merge_message" > "$merge_tmp" 2>&1; then
-  conflicts_tmp=$(mktemp); add_tmp "$conflicts_tmp"
+  conflicts_tmp=$(make_tmp conflicts); add_tmp "$conflicts_tmp"
   git_repo diff --name-only --diff-filter=U > "$conflicts_tmp" 2>/dev/null || :
   if [ -s "$conflicts_tmp" ]; then
     abort_merge

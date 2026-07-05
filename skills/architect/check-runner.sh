@@ -3,11 +3,20 @@ set -u
 
 out=
 tmp=
+tmp_base=
+tmp_files=()
+add_tmp(){ tmp_files[${#tmp_files[@]}]=$1; }
+cleanup_tmp(){ for f in "${tmp_files[@]}"; do [ -n "$f" ] && rm -f "$f"; done; }
 die(){
+  cleanup_tmp
   [ -n "${out:-}" ] && rm -f "$out"
   [ -n "${tmp:-}" ] && rm -f "$tmp"
   printf 'CHECKRUN: ERROR %s\n' "$1"
   exit 5
+}
+make_tmp(){
+  [ -n "$tmp_base" ] || die "tmp unavailable"
+  mktemp "$tmp_base/$1.XXXXXX" 2>/dev/null || die "tmp unavailable"
 }
 
 cfg=${1:-}
@@ -27,13 +36,16 @@ max_output_lines=$(numfield max_output_lines)
 
 [ -f "$check_file" ] || die "missing check file"
 git --version >/dev/null 2>&1 || die "git unavailable"
+[ -n "$workdir" ] || die "missing workdir"
+tmp_base="$workdir/.architect/tmp/check-runner"
+mkdir -p "$tmp_base" 2>/dev/null || die "tmp unavailable"
 
 disk_hash=$(git hash-object -- "$check_file" 2>/dev/null || printf '')
 freeze_hash=$(git rev-parse "$freeze_sha:$check_file" 2>/dev/null || printf '')
 check_match=false
 [ -n "$disk_hash" ] && [ -n "$freeze_hash" ] && [ "$disk_hash" = "$freeze_hash" ] && check_match=true
 head=$(git -C "$workdir" rev-parse HEAD 2>/dev/null || printf '')
-changed_tmp=$(mktemp)
+changed_tmp=$(make_tmp changed); add_tmp "$changed_tmp"
 git -C "$workdir" diff --name-only "$freeze_sha..HEAD" > "$changed_tmp" 2>/dev/null || :
 changed_count=$(awk 'NF{n++} END{print n+0}' "$changed_tmp")
 docs_touched=$(awk 'BEGIN{x="false"} /^docs\/checks\//{x="true"} END{print x}' "$changed_tmp")
@@ -86,7 +98,7 @@ slug=$(basename "$out" .md)
   cat "$changed_tmp"
   i=0
   while [ "$i" -lt "$count" ]; do
-    run_out=$(mktemp)
+    run_out=$(make_tmp run); add_tmp "$run_out"
     start=$(now_ms)
     if [ "$executor" = powershell ]; then
       (cd "$workdir" && powershell -NoProfile -Command "${commands[$i]}") > "$run_out" 2>&1
@@ -111,5 +123,5 @@ slug=$(basename "$out" .md)
 } > "$tmp"
 
 mv "$tmp" "$out"
-rm -f "$changed_tmp"
+cleanup_tmp
 exit 0

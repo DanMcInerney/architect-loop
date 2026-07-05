@@ -57,13 +57,50 @@ if (`$global:LASTEXITCODE -ne `$null) { exit `$global:LASTEXITCODE }
     return EncodePowerShellCommand $wrapper
 }
 
-function CaptureCommand($Executor, $Command, $Workdir) {
+function IsWindowsPlatform {
+    return ([System.IO.Path]::DirectorySeparatorChar.ToString() -eq "\")
+}
+
+function ResolveGitBash {
+    try {
+        $gitCommand = @(Get-Command git -CommandType Application -ErrorAction Stop | Select-Object -First 1)[0]
+        $gitPath = [string]$gitCommand.Source
+        if (-not $gitPath -and ($gitCommand.PSObject.Properties.Name -contains "Path")) { $gitPath = [string]$gitCommand.Path }
+        if ($gitPath) {
+            $gitDir = Split-Path -Parent $gitPath
+            $installRoot = Split-Path -Parent $gitDir
+            if ($installRoot) {
+                $candidate = Join-Path -Path (Join-Path -Path $installRoot -ChildPath "bin") -ChildPath "bash.exe"
+                if (Test-Path -LiteralPath $candidate -PathType Leaf) { return (Resolve-Path -LiteralPath $candidate).Path }
+            }
+        }
+    } catch {}
+
+    if ($env:ProgramFiles) {
+        $fallback = Join-Path -Path (Join-Path -Path (Join-Path -Path $env:ProgramFiles -ChildPath "Git") -ChildPath "bin") -ChildPath "bash.exe"
+        if (Test-Path -LiteralPath $fallback -PathType Leaf) { return (Resolve-Path -LiteralPath $fallback).Path }
+    }
+
+    return $null
+}
+
+function ResolveExecutor($Executor) {
+    if ($Executor -eq "powershell") { return "powershell" }
+    if ((IsWindowsPlatform) -and $Executor -eq "bash") {
+        $gitBash = ResolveGitBash
+        if (-not $gitBash) { StopRun "git-bash not found" }
+        return $gitBash
+    }
+    return "bash"
+}
+
+function CaptureCommand($Executor, $ExecutorResolved, $Command, $Workdir) {
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     if ($Executor -eq "powershell") {
-        $psi.FileName = "powershell"
+        $psi.FileName = $ExecutorResolved
         $psi.Arguments = "-NoProfile -EncodedCommand " + (BuildPowerShellInvocation $Command)
     } else {
-        $psi.FileName = "bash"
+        $psi.FileName = $ExecutorResolved
         $psi.Arguments = "-c " + (QuoteArg $Command)
     }
     $psi.WorkingDirectory = (Resolve-Path -LiteralPath $Workdir).Path
@@ -122,6 +159,7 @@ if ($cfg.PSObject.Properties.Name -contains "max_output_lines") { $maxOutputLine
 if (-not (Test-Path -LiteralPath $checkFile)) { StopRun "missing check file" }
 try { & git --version > $null 2> $null } catch { StopRun "git unavailable" }
 if ($LASTEXITCODE -ne 0) { StopRun "git unavailable" }
+$executorResolved = ResolveExecutor $executor
 
 $diskHash = ""; $freezeHash = ""
 try { $diskHash = @(& git hash-object -- $checkFile 2> $null)[0] } catch {}
@@ -159,12 +197,13 @@ $slug = [System.IO.Path]::GetFileNameWithoutExtension($evidenceOut)
 [void]$e.Add("check_file: $checkFile  freeze_sha: $freezeSha")
 if ($executorHeader) { [void]$e.Add($executorHeader) }
 [void]$e.Add("executor_config: $executor")
+[void]$e.Add("executor_resolved: $executorResolved")
 [void]$e.Add("integrity: check_file_matches_freeze=$checkMatch head=$head")
 [void]$e.Add("changed_files: $($changed.Count) listed below; docs_checks_touched=$docsTouched")
 foreach ($path in $changed) { [void]$e.Add($path) }
 
 foreach ($run in $runs) {
-    $result = CaptureCommand $executor $run.Command $workdir
+    $result = CaptureCommand $executor $executorResolved $run.Command $workdir
     $bytes = [System.Text.Encoding]::UTF8.GetByteCount($result.Output)
     $slice = OutputSlice $result.Output $maxOutputLines
     $mark = ""
