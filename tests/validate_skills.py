@@ -17,6 +17,8 @@ Run: python tests/validate_skills.py   (exit 0 = pass)
 from __future__ import annotations
 
 import re
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -568,6 +570,113 @@ def check_status_contract() -> None:
                 errors.append("skills/architect/status.sh: NewestSpec must not select spec by lexical sort")
 
 
+def platform_status_command(repo_root: Path, run_slug: str | None) -> list[str]:
+    if os.name == "nt":
+        command = [
+            "powershell",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(SKILLS / "architect" / "status.ps1"),
+        ]
+        if run_slug is not None:
+            command.append(run_slug)
+        command.extend(["-RepoRoot", str(repo_root)])
+        return command
+    command = ["sh", str(SKILLS / "architect" / "status.sh")]
+    if run_slug is not None:
+        command.append(run_slug)
+    command.extend(["--repo-root", str(repo_root)])
+    return command
+
+
+def run_status_fixture(repo_root: Path, run_slug: str | None, env: dict[str, str]) -> str | None:
+    command = platform_status_command(repo_root, run_slug)
+    run_env = os.environ.copy()
+    run_env.update(env)
+    try:
+        result = subprocess.run(
+            command,
+            cwd=ROOT,
+            env=run_env,
+            text=True,
+            capture_output=True,
+            timeout=20,
+        )
+    except Exception as exc:
+        errors.append(f"status fixture: {' '.join(command)} raised {exc!r}")
+        return None
+    stdout = result.stdout.replace("\r\n", "\n")
+    stderr = result.stderr.replace("\r\n", "\n")
+    if result.returncode != 0:
+        errors.append(
+            "status fixture: command failed "
+            f"{' '.join(command)} exit {result.returncode}\nstdout:\n{stdout}\nstderr:\n{stderr}"
+        )
+        return None
+    return stdout
+
+
+def require_status_contains(label: str, output: str, needle: str) -> None:
+    if needle not in output:
+        errors.append(f"{label}: missing {needle!r}\noutput:\n{output}")
+
+
+def require_status_excludes(label: str, output: str, needle: str) -> None:
+    if needle in output:
+        errors.append(f"{label}: unexpectedly contains {needle!r}\noutput:\n{output}")
+
+
+def check_status_run_pinning_fixture() -> None:
+    fixture = ROOT / "tests" / "fixtures" / "status-run-pinned"
+    github_repo = fixture / "github-repo"
+    markdown_repo = fixture / "markdown-repo"
+    github_stub = fixture / "github-issues.tsv"
+    for path in (github_repo, markdown_repo, github_stub):
+        if not path.exists():
+            errors.append(f"status fixture: missing {path.relative_to(ROOT)}")
+            return
+
+    github_env = {
+        "NO_COLOR": "1",
+        "STATUS_GH_STUB": str(github_stub),
+        "STATUS_GH_LOGIN_STUB": "architect-user",
+    }
+    run_a = run_status_fixture(github_repo, "run-a", github_env)
+    if run_a is not None:
+        require_status_contains("status fixture run-a", run_a, "tracker: #10")
+        require_status_contains("status fixture run-a", run_a, "#11 Run A Slice")
+        require_status_excludes("status fixture run-a", run_a, "#12")
+        require_status_excludes("status fixture run-a", run_a, "#999")
+        require_status_excludes("status fixture run-a", run_a, "#1000")
+
+    run_b = run_status_fixture(github_repo, "run-b", github_env)
+    if run_b is not None:
+        require_status_contains("status fixture run-b", run_b, "tracker: #20")
+        require_status_contains("status fixture run-b", run_b, "#21 Run B Slice")
+        require_status_excludes("status fixture run-b", run_b, "#11")
+        require_status_excludes("status fixture run-b", run_b, "#999")
+
+    multi = run_status_fixture(github_repo, None, github_env)
+    if multi is not None:
+        require_status_contains("status fixture multi-active", multi, "RUN run-a #10 ACTIVE")
+        require_status_contains("status fixture multi-active", multi, "RUN run-b #20 ACTIVE")
+        require_status_excludes("status fixture multi-active", multi, "tracker: #999")
+
+    markdown = run_status_fixture(markdown_repo, "run-a", {"NO_COLOR": "1"})
+    if markdown is not None:
+        require_status_contains("status fixture markdown", markdown, "tracker: #10")
+        require_status_contains("status fixture markdown", markdown, "#11 Markdown Child")
+        require_status_excludes("status fixture markdown", markdown, "#12")
+        require_status_excludes("status fixture markdown", markdown, "Wrong Run Markdown Child")
+
+    markdown_default = run_status_fixture(markdown_repo, None, {"NO_COLOR": "1"})
+    if markdown_default is not None:
+        require_status_contains("status fixture markdown default", markdown_default, "tracker: #10")
+        require_status_contains("status fixture markdown default", markdown_default, "#11 Markdown Child")
+
+
 def check_tracker_contract() -> None:
     path = SKILLS / "architect" / "tracker.md"
     if not path.exists():
@@ -624,6 +733,7 @@ def main() -> int:
     check_codex_install_step()
     check_watchdog_contract()
     check_status_contract()
+    check_status_run_pinning_fixture()
     check_tracker_contract()
     check_architect_handoff_free()
     check_retired_loop_terms()
