@@ -34,7 +34,7 @@ function ErrorExit($Reason) {
 }
 function FullPath($Path) {
     if ([System.IO.Path]::IsPathRooted($Path)) { return [System.IO.Path]::GetFullPath($Path) }
-    return [System.IO.Path]::GetFullPath((Join-Path (Get-Location).Path $Path))
+    return [System.IO.Path]::GetFullPath((Join-Path $script:RepoRoot $Path))
 }
 function PropString($Obj, $Name) {
     if (@($Obj.PSObject.Properties.Name) -contains $Name -and $Obj.$Name -ne $null) { return [string]$Obj.$Name }
@@ -86,6 +86,27 @@ if ($cat.Code -ne 0) { ErrorExit "freeze_sha not found" }
 $branch = GitRun -GitArgs @("-C", $script:RepoRoot, "show-ref", "--verify", "--quiet", "refs/heads/$job")
 if ($branch.Code -ne 0) { ErrorExit "job_branch not found" }
 
+$wt = ""
+if ($worktree) {
+    $wt = FullPath $worktree
+    if (-not (Test-Path -LiteralPath $wt -PathType Container)) { ErrorExit "worktree missing" }
+    $laneStatus = GitRun -GitArgs @("-C", $wt, "status", "--porcelain")
+    if ($laneStatus.Code -ne 0) { ErrorExit "worktree status failed" }
+    $laneDirty = @($laneStatus.Lines | Where-Object { [string]$_ -ne "" })
+    if ($laneDirty.Count -gt 0) {
+        $laneAdd = GitRun -GitArgs @("-C", $wt, "add", "-A")
+        if ($laneAdd.Code -ne 0) { ErrorExit "lane add failed" }
+        $laneCommit = GitRun -GitArgs @("-C", $wt, "commit", "-m", ($message + " (lane)"))
+        if ($laneCommit.Code -ne 0) { ErrorExit "lane commit failed" }
+    }
+}
+
+$freezeRev = GitRun -GitArgs @("-C", $script:RepoRoot, "rev-parse", $freeze)
+if ($freezeRev.Code -ne 0 -or @($freezeRev.Lines).Count -lt 1) { ErrorExit "freeze rev unavailable" }
+$jobRev = GitRun -GitArgs @("-C", $script:RepoRoot, "rev-parse", $job)
+if ($jobRev.Code -ne 0 -or @($jobRev.Lines).Count -lt 1) { ErrorExit "job rev unavailable" }
+if (([string]$jobRev.Lines[0]).Trim() -eq ([string]$freezeRev.Lines[0]).Trim()) { ErrorExit "job branch has no commits beyond freeze" }
+
 $diff = GitRun -GitArgs @("-C", $script:RepoRoot, "diff", "--name-only", ($freeze + ".." + $job))
 if ($diff.Code -ne 0) { ErrorExit "diff failed" }
 $changed = @($diff.Lines | Where-Object { [string]$_ -ne "" } | ForEach-Object { ([string]$_) -replace "\\", "/" })
@@ -113,16 +134,27 @@ if ($push) {
     $p = GitRun -GitArgs @("-C", $script:RepoRoot, "push", $remote, $factory)
     if ($p.Code -ne 0) { ErrorExit "push failed" }
 }
+$cleanupDeferred = $false
+$cleanupPath = ""
 if ($worktree) {
-    $wt = FullPath $worktree
     if (Test-Path -LiteralPath $wt) {
         $wr = GitRun -GitArgs @("-C", $script:RepoRoot, "worktree", "remove", $wt)
-        if ($wr.Code -ne 0) { ErrorExit "worktree remove failed" }
+        if ($wr.Code -ne 0) {
+            Start-Sleep -Seconds 2
+            $wr = GitRun -GitArgs @("-C", $script:RepoRoot, "worktree", "remove", $wt)
+        }
+        if ($wr.Code -ne 0) { $wr = GitRun -GitArgs @("-C", $script:RepoRoot, "worktree", "remove", "--force", $wt) }
+        if ($wr.Code -ne 0) {
+            $cleanupDeferred = $true
+            $cleanupPath = $wt
+        }
     }
 }
 $del = GitRun -GitArgs @("-C", $script:RepoRoot, "branch", "-d", $job)
 if ($del.Code -ne 0) { Write-Output "POSTFLIGHT: WARNING branch-delete $job" }
 $head = GitRun -GitArgs @("-C", $script:RepoRoot, "rev-parse", "HEAD")
 if ($head.Code -ne 0 -or @($head.Lines).Count -lt 1) { ErrorExit "merge sha unavailable" }
-Write-Output "POSTFLIGHT: OK merge=$(([string]$head.Lines[0]).Trim()) changed=$($changed.Count)"
+$okLine = "POSTFLIGHT: OK merge=$(([string]$head.Lines[0]).Trim()) changed=$($changed.Count)"
+if ($cleanupDeferred) { $okLine = "$okLine cleanup=deferred $cleanupPath" }
+Write-Output $okLine
 exit 0

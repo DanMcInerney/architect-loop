@@ -325,7 +325,7 @@ Typed exits:
 |---|---:|---|---|
 | preflight | 0 | `PREFLIGHT: OK` | worktree exists, HEAD equals `freeze_sha`, and every `require_files` path exists |
 | preflight | 5 | `PREFLIGHT: FAIL` | setup could not complete; record the line and fall back to the recorded manual sequence |
-| postflight | 0 | `POSTFLIGHT: OK` | touch-set audit, merge, optional push, and cleanup completed |
+| postflight | 0 | `POSTFLIGHT: OK` | touch-set audit, merge, optional push, and cleanup completed; may append `cleanup=deferred <path>` |
 | postflight | 2 | `POSTFLIGHT: VIOLATION` | automatic FAIL evidence for the job; do not merge |
 | postflight | 3 | `POSTFLIGHT: CONFLICT` | decomposition failure: kill the conflicting job and re-spec, per the existing rule |
 | postflight | 5 | `POSTFLIGHT: ERROR` | script/config/git error; abort partial merge state, then fall back to the recorded manual sequence |

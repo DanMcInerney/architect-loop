@@ -25,7 +25,7 @@ json_array(){
   ' "$cfg" | while IFS= read -r v; do json_unescape "$v"; printf '\n'; done
 }
 to_bash_path(){ case "$1" in [A-Za-z]:\\*) if command -v cygpath >/dev/null 2>&1; then cygpath -u "$1"; else printf '%s' "$1"; fi;; *) printf '%s' "$1";; esac; }
-abs_path(){ p=$(to_bash_path "$1"); case "$p" in /*) printf '%s' "$p";; *) printf '%s/%s' "$(pwd -P)" "$p";; esac; }
+abs_path(){ p=$(to_bash_path "$1"); case "$p" in /*) printf '%s' "$p";; *) printf '%s/%s' "$repo_root" "$p";; esac; }
 add_tmp(){ tmp_files[${#tmp_files[@]}]=$1; }
 cleanup_tmp(){ for f in "${tmp_files[@]}"; do [ -n "$f" ] && rm -f "$f"; done; }
 trap cleanup_tmp EXIT
@@ -94,6 +94,22 @@ if in_merge; then err "merge in progress"; fi
 git_repo cat-file -e "$freeze_sha^{commit}" >/dev/null 2>&1 || err "freeze_sha not found"
 git_repo show-ref --verify --quiet "refs/heads/$job_branch" || err "job_branch not found"
 
+wt=
+if [ -n "$worktree" ]; then
+  wt=$(abs_path "$worktree")
+  [ -d "$wt" ] || err "worktree missing"
+  lane_status_tmp=$(make_tmp lane-status); add_tmp "$lane_status_tmp"
+  git -C "$wt" status --porcelain > "$lane_status_tmp" || err "worktree status failed"
+  if [ -s "$lane_status_tmp" ]; then
+    git -C "$wt" add -A || err "lane add failed"
+    git -C "$wt" commit -m "$merge_message (lane)" || err "lane commit failed"
+  fi
+fi
+
+freeze_rev=$(git_repo rev-parse "$freeze_sha") || err "freeze rev unavailable"
+job_rev=$(git_repo rev-parse "$job_branch") || err "job rev unavailable"
+if [ "$job_rev" = "$freeze_rev" ]; then err "job branch has no commits beyond freeze"; fi
+
 changed_tmp=$(make_tmp changed); add_tmp "$changed_tmp"
 violations_tmp=$(make_tmp violations); add_tmp "$violations_tmp"
 git_repo diff --name-only "$freeze_sha..$job_branch" > "$changed_tmp" || err "diff failed"
@@ -120,11 +136,26 @@ if ! git_repo merge --no-ff "$job_branch" -m "$merge_message" > "$merge_tmp" 2>&
 fi
 
 if [ "$push" = true ]; then git_repo push "$remote" "$factory_branch" >/dev/null 2>&1 || err "push failed"; fi
+cleanup_deferred=false
+cleanup_path=
 if [ -n "$worktree" ]; then
-  wt=$(abs_path "$worktree")
-  if [ -e "$wt" ]; then git_repo worktree remove "$wt" >/dev/null 2>&1 || err "worktree remove failed"; fi
+  if [ -e "$wt" ]; then
+    if ! git_repo worktree remove "$wt" >/dev/null 2>&1; then
+      sleep 2
+      if ! git_repo worktree remove "$wt" >/dev/null 2>&1; then
+        if ! git_repo worktree remove --force "$wt" >/dev/null 2>&1; then
+          cleanup_deferred=true
+          cleanup_path=$wt
+        fi
+      fi
+    fi
+  fi
 fi
 if ! git_repo branch -d "$job_branch" >/dev/null 2>&1; then printf 'POSTFLIGHT: WARNING branch-delete %s\n' "$job_branch"; fi
 merge_sha=$(git_repo rev-parse HEAD) || err "merge sha unavailable"
-printf 'POSTFLIGHT: OK merge=%s changed=%s\n' "$merge_sha" "$changed_count"
+if [ "$cleanup_deferred" = true ]; then
+  printf 'POSTFLIGHT: OK merge=%s changed=%s cleanup=deferred %s\n' "$merge_sha" "$changed_count" "$cleanup_path"
+else
+  printf 'POSTFLIGHT: OK merge=%s changed=%s\n' "$merge_sha" "$changed_count"
+fi
 exit 0
