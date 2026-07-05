@@ -1,0 +1,87 @@
+# Trigger Eval Prompts
+
+Purpose: lightweight fixture for checking whether Claude Code routes prompts to
+the architect and architect-research skills.
+Run: `skills/architect/trigger-eval.ps1 -Limit 4` or
+`skills/architect/trigger-eval.sh --limit 4`; add `-Bare` or `--bare` if
+local hooks fail in a sandbox.
+
+- PROMPT: /architect continue the factory run for issue #82 and dispatch the next ready builder.
+  SKILL: architect
+  EXPECT: trigger
+
+- PROMPT: Use the architect skill to turn this goal into a spec-approved tracker issue plan.
+  SKILL: architect
+  EXPECT: trigger
+
+- PROMPT: Continue the factory after the builder report lands and judge the completed job.
+  SKILL: architect
+  EXPECT: trigger
+
+- PROMPT: The watchdog found a stalled builder; diagnose the blocker and decide whether to respawn.
+  SKILL: architect
+  EXPECT: trigger
+
+- PROMPT: We have an approved spec and frozen checks; dispatch builders for the ready issues.
+  SKILL: architect
+  EXPECT: trigger
+
+- PROMPT: Convert this loose product goal into approved tracker issues with frozen checks.
+  SKILL: architect
+  EXPECT: trigger
+
+- PROMPT: A job report says BLOCKED because docs/STOP exists; record the blocker and stop the factory.
+  SKILL: architect
+  EXPECT: trigger
+
+- PROMPT: How is the factory going? Show the current status tree from the run artifacts.
+  SKILL: architect
+  EXPECT: trigger
+
+- PROMPT: Change the CSS button color in src/App.tsx and run the relevant tests.
+  SKILL: architect
+  EXPECT: no-trigger
+
+- PROMPT: Explain what this Python helper returns; no factory, tracker, or issue planning is needed.
+  SKILL: architect
+  EXPECT: no-trigger
+
+- PROMPT: /architect-research research the state of the art for browser automation agents in 2026.
+  SKILL: architect-research
+  EXPECT: trigger
+
+- PROMPT: Use architect-research to map the literature on skill invocation evals and cite sources.
+  SKILL: architect-research
+  EXPECT: trigger
+
+- PROMPT: Do deep research on best practices for routing agent skills and summarize the evidence.
+  SKILL: architect-research
+  EXPECT: trigger
+
+- PROMPT: What is the state of the art in autonomous software factory orchestration?
+  SKILL: architect-research
+  EXPECT: trigger
+
+- PROMPT: Build a discovery-scale source map across Reddit, arXiv, GitHub, and vendor docs for prompt routing failures.
+  SKILL: architect-research
+  EXPECT: trigger
+
+- PROMPT: Before we spec this new platform, fan out researchers to compare approaches and verify claims.
+  SKILL: architect-research
+  EXPECT: trigger
+
+- PROMPT: Create a source-class tactics plan for investigating current model eval harness designs.
+  SKILL: architect-research
+  EXPECT: trigger
+
+- PROMPT: Find what practitioners and papers say about skill overtriggering in the last year.
+  SKILL: architect-research
+  EXPECT: trigger
+
+- PROMPT: In docs/checks/trigger-evals.md, what does TE4 count?
+  SKILL: architect-research
+  EXPECT: no-trigger
+
+- PROMPT: Does .gitignore currently ignore docs/evals/trigger-prompts.md? Check this repo only.
+  SKILL: architect-research
+  EXPECT: no-trigger
