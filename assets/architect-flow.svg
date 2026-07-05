@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 950" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker>
+    <marker id="arrRed" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/></marker>
+  </defs>
+  <rect width="1000" height="950" fill="#ffffff"/>
+
+  <text x="80" y="44" font-size="20" font-weight="700" fill="#0f172a">/architect</text>
+  <text x="200" y="44" font-size="12.5" fill="#64748b">spec → plan → build → judge → merge — until the plan is done</text>
+
+  <!-- spine arrows -->
+  <line x1="380" y1="126" x2="380" y2="168" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
+  <line x1="380" y1="232" x2="380" y2="274" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
+  <line x1="380" y1="338" x2="380" y2="366" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
+  <line x1="380" y1="444" x2="380" y2="486" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
+  <line x1="380" y1="550" x2="380" y2="592" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
+  <line x1="380" y1="656" x2="380" y2="698" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
+  <line x1="380" y1="762" x2="380" y2="804" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
+  <text x="392" y="682" font-size="11" font-weight="700" fill="#16a34a">PASS</text>
+
+  <!-- FAIL loop: judge back to build -->
+  <path d="M 230 616 H 150 V 404 H 222" fill="none" stroke="#dc2626" stroke-width="2.5" marker-end="url(#arrRed)"/>
+  <text x="190" y="505" font-size="11" font-weight="700" fill="#dc2626" text-anchor="middle">FAIL</text>
+  <text x="190" y="520" font-size="10" fill="#64748b" text-anchor="middle">amend the issue,</text>
+  <text x="190" y="534" font-size="10" fill="#64748b" text-anchor="middle">respawn fresh</text>
+
+  <!-- outer loop: merge back to build -->
+  <path d="M 230 734 H 60 V 428 H 222" fill="none" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
+  <text x="105" y="592" font-size="10" fill="#64748b" text-anchor="middle">loop until every</text>
+  <text x="105" y="606" font-size="10" fill="#64748b" text-anchor="middle">issue is closed</text>
+
+  <!-- 1 SPEC -->
+  <rect x="230" y="70" width="300" height="56" rx="10" fill="#1f2937"/>
+  <text x="380" y="93" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">SPEC</text>
+  <text x="380" y="111" font-size="10.5" fill="#e2e8f0" text-anchor="middle">orchestrator writes it · ≤5 questions · you approve</text>
+  <rect x="560" y="72" width="66" height="17" rx="8.5" fill="#16a34a"/>
+  <text x="593" y="84" font-size="9.5" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="0.6">QUALITY</text>
+  <text x="560" y="104" font-size="11" fill="#475569">every question must pass a materiality test — would the answer</text>
+  <text x="560" y="118" font-size="11" fill="#475569">change the build? all else is a recorded assumption you can veto</text>
+
+  <!-- 2 ADVERSARIAL REVIEW -->
+  <rect x="230" y="176" width="300" height="56" rx="10" fill="#7c3aed"/>
+  <text x="380" y="199" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">ADVERSARIAL REVIEW</text>
+  <text x="380" y="217" font-size="10.5" fill="#ede9fe" text-anchor="middle">a fresh model stress-tests spec + plan</text>
+  <rect x="560" y="178" width="66" height="17" rx="8.5" fill="#16a34a"/>
+  <text x="593" y="190" font-size="9.5" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="0.6">QUALITY</text>
+  <text x="560" y="210" font-size="11" fill="#475569">fresh context, zero sunk cost: runs draft check commands, attacks</text>
+  <text x="560" y="224" font-size="11" fill="#475569">criteria for contradictions — bad plans die before they cost a build</text>
+
+  <!-- 3 PLAN + FREEZE -->
+  <rect x="230" y="282" width="300" height="56" rx="10" fill="#1f2937"/>
+  <text x="380" y="305" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">PLAN + FREEZE</text>
+  <text x="380" y="323" font-size="10.5" fill="#e2e8f0" text-anchor="middle">parallel GitHub issues · checks frozen in git</text>
+  <rect x="560" y="284" width="66" height="17" rx="8.5" fill="#16a34a"/>
+  <text x="593" y="296" font-size="9.5" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="0.6">QUALITY</text>
+  <text x="560" y="316" font-size="11" fill="#475569">parallel issues share no files, so merges can't conflict; checks</text>
+  <text x="560" y="330" font-size="11" fill="#475569">freeze in git before any code exists, so goalposts can't move</text>
+
+  <!-- 4 BUILD (parallel stack) -->
+  <rect x="242" y="376" width="300" height="56" rx="10" fill="#ccfbf1" stroke="#0d9488" stroke-width="1"/>
+  <rect x="236" y="382" width="300" height="56" rx="10" fill="#ccfbf1" stroke="#0d9488" stroke-width="1"/>
+  <rect x="230" y="388" width="300" height="56" rx="10" fill="#0d9488"/>
+  <text x="380" y="411" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">BUILD</text>
+  <text x="380" y="429" font-size="10.5" fill="#ccfbf1" text-anchor="middle">fresh builders · one per ready issue</text>
+  <rect x="560" y="390" width="112" height="17" rx="8.5" fill="#d97706"/>
+  <text x="616" y="402" font-size="9.5" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="0.6">TOKEN SAVINGS</text>
+  <text x="560" y="422" font-size="11" fill="#475569">the cheap model does the typing — own git worktree, no commit</text>
+  <text x="560" y="436" font-size="11" fill="#475569">rights, ≤5 at once; each must argue with the spec before coding</text>
+
+  <!-- 5 RUN CHECKS -->
+  <rect x="230" y="494" width="300" height="56" rx="10" fill="#64748b"/>
+  <text x="380" y="517" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">RUN CHECKS</text>
+  <text x="380" y="535" font-size="10.5" fill="#e2e8f0" text-anchor="middle">deterministic script runs the frozen checks</text>
+  <rect x="560" y="496" width="112" height="17" rx="8.5" fill="#d97706"/>
+  <text x="616" y="508" font-size="9.5" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="0.6">TOKEN SAVINGS</text>
+  <text x="560" y="528" font-size="11" fill="#475569">a script, not a model: it can't fabricate an exit code, and</text>
+  <text x="560" y="542" font-size="11" fill="#475569">mechanical commands stop burning frontier-priced judge turns</text>
+
+  <!-- 6 JUDGE -->
+  <rect x="230" y="600" width="300" height="56" rx="10" fill="#7c3aed"/>
+  <text x="380" y="623" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">JUDGE</text>
+  <text x="380" y="641" font-size="10.5" fill="#ede9fe" text-anchor="middle">fresh judge grades evidence + diff vs intent</text>
+  <rect x="560" y="602" width="66" height="17" rx="8.5" fill="#16a34a"/>
+  <text x="593" y="614" font-size="9.5" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="0.6">QUALITY</text>
+  <text x="560" y="634" font-size="11" fill="#475569">never the author, always fresh; passing checks with wrong code</text>
+  <text x="560" y="648" font-size="11" fill="#475569">still fails, and the orchestrator cannot overrule a FAIL</text>
+
+  <!-- 7 MERGE -->
+  <rect x="230" y="706" width="300" height="56" rx="10" fill="#1f2937"/>
+  <text x="380" y="729" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">MERGE</text>
+  <text x="380" y="747" font-size="10.5" fill="#e2e8f0" text-anchor="middle">orchestrator comments · closes · commits</text>
+  <rect x="560" y="708" width="112" height="17" rx="8.5" fill="#d97706"/>
+  <text x="616" y="720" font-size="9.5" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="0.6">TOKEN SAVINGS</text>
+  <text x="560" y="740" font-size="11" fill="#475569">the orchestrator sleeps between events and reads one-line typed</text>
+  <text x="560" y="754" font-size="11" fill="#475569">results — builder output never enters its context</text>
+
+  <!-- 8 SHIP -->
+  <rect x="230" y="812" width="300" height="56" rx="10" fill="#1f2937"/>
+  <text x="380" y="835" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">SHIP</text>
+  <text x="380" y="853" font-size="10.5" fill="#e2e8f0" text-anchor="middle">one PR + digest</text>
+  <rect x="560" y="814" width="66" height="17" rx="8.5" fill="#16a34a"/>
+  <text x="593" y="826" font-size="9.5" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="0.6">QUALITY</text>
+  <text x="560" y="846" font-size="11" fill="#475569">the digest lists what shipped, what was skipped, and the evidence;</text>
+  <text x="560" y="860" font-size="11" fill="#475569">the issue trail is the durable memory of the whole run</text>
+
+  <!-- legend -->
+  <rect x="80" y="902" width="12" height="12" rx="3" fill="#1f2937"/>
+  <text x="98" y="912" font-size="11" fill="#475569">orchestrator (frontier model)</text>
+  <rect x="300" y="902" width="12" height="12" rx="3" fill="#7c3aed"/>
+  <text x="318" y="912" font-size="11" fill="#475569">fresh adversarial model</text>
+  <rect x="520" y="902" width="12" height="12" rx="3" fill="#0d9488"/>
+  <text x="538" y="912" font-size="11" fill="#475569">builders (cheap model)</text>
+  <rect x="720" y="902" width="12" height="12" rx="3" fill="#64748b"/>
+  <text x="738" y="912" font-size="11" fill="#475569">deterministic script</text>
+</svg>
