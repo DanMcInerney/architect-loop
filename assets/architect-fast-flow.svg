@@ -17,7 +17,7 @@
   <text x="380" y="93" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">SPEC</text>
   <text x="380" y="111" font-size="10.5" fill="#ede9fe" text-anchor="middle">orchestrator writes it, via to-spec · ≤3 questions</text>
   <text x="560" y="90" font-size="11" fill="#475569">same materiality test as /architect, fewer questions</text>
-  <text x="560" y="104" font-size="11" fill="#475569">expected at small scale — no scout, no adversarial review</text>
+  <text x="560" y="104" font-size="11" fill="#475569">expected at small scale — no adversarial review</text>
 
   <!-- 2 APPROVE -->
   <rect x="230" y="176" width="300" height="56" rx="10" fill="#d97706"/>

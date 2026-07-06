@@ -6,7 +6,6 @@
 - Model resolution and dispatch rules
 - Per-harness delegation
 - Check-runner dispatch
-- Scout dispatch
 - Codex backend from a Claude orchestrator
 - Preflight and postflight dispatch
 - Integration commands
@@ -129,19 +128,6 @@ Example line: ``- RUN: `git grep -F -c "needle" -- path/to/file.md` -> exit:0 ma
 Evidence contains per-item `expected:` and `verdict:` lines, then `CHECKRUN SUMMARY: run_items=<n> pass=<n> fail=<n>`.
 Typed exits: 0 = all RUN items pass; 2 = any RUN item fails; 5 = error, no partial evidence file left behind.
 Launch pattern: write the runner config JSON — fields `check_file`, `workdir`, `freeze_sha`, `evidence_out`, `executor` (`powershell`|`bash`), `max_output_lines` (default 60) — then run `skills/architect/check-runner.ps1 -Config <path>` or `check-runner.sh <path>` in the background; on exit 0 commit `docs/jobs/<run>/<issue-slug>-checkrun.md`, then merge through postflight. Exit 2 routes to the failure ladder; `loop.md` owns the full rule.
-
-## Scout dispatch
-
-Dispatch one scout during intake when the run needs a code map. The scout uses the resolved builders model and job shape `scout`, read-only except its single write: the orchestrator names the output path, the scout writes the map there, and the orchestrator commits it at `docs/runs/<run>/map.md`.
-
-Map expiry: the map is planning-time input only and expires at the run's first merge. The spec and decomposition read it; builders never receive it — issues carry change-skeletons and interface contract blocks instead, and no dispatch block cites the map.
-
-```text
-You are a read-only code scout. Output path: <docs/runs/<run>/map.md>.
-Return <= ~2,500 tokens. No recommendations.
-Include only anchored entries: key modules/files; load-bearing types/function signatures; conventions/patterns; testing seams; gotchas.
-Every entry must carry a real file:line anchor. If a requested category is absent, write `NOT FOUND: <category> - <searched paths>`. No implementation plan, no edits beyond the output path.
-```
 
 ## Codex backend from a Claude orchestrator
 
@@ -568,8 +554,8 @@ planning around them.
 PHASE 1 - The files under docs/checks/ are read-only at all times - editing
 them fails the slice regardless of results.
 
-PHASE 2 - Build YOUR JOB ONLY: exactly the files listed in BOUNDARIES. Job
-shape is ship|scout. Job identity: you are job <run>/<slice>-<NN>; if the spec
+PHASE 2 - Build YOUR JOB ONLY: exactly the files listed in BOUNDARIES. Job shape is ship.
+Job identity: you are job <run>/<slice>-<NN>; if the spec
 says you are the only builder, no other job exists. Files outside your job
 belong outside your authority - touching them fails your job. No placeholder
 implementations - search the codebase before implementing; full
