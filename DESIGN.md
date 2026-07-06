@@ -950,7 +950,9 @@ cleanup. Both namespaces are load-bearing in shipped text.)
     `cohesion-review` → `code-review` on all live surfaces (the shadowing
     of Claude Code's bundled /code-review was surfaced and accepted by
     ruling; the frozen-check supersession map lives in
-    `docs/jobs/skill-library/s15-rename-rulings.md`).
+    `docs/jobs/skill-library/s15-rename-rulings.md`). Post-run 2026-07-06
+    the skill was renamed once more to `final-review`, dissolving the
+    shadowing; this entry keeps the names of its time.
 - **Dogfood runs.** v5 was built *by* the factory as a real issue plan (tracking issue
   #12, issues #13–#18): 1 judge FAIL, 3 respawns, all jobs fresh-judged.
   The v5.1 hardening run (tracking issue #20, issues #21–#25, on `factory/v5.1`)

@@ -1,9 +1,8 @@
 ---
-name: code-review
+name: final-review
 description: >
-  Use for the closing whole-run review in the architect factory (this is
-  the factory's own stage skill, not Claude Code's bundled /code-review) —
-  the only model review in the loop: dispatched by the orchestrator, at
+  Use for the closing whole-run review in the architect factory — the only
+  model review in the loop: dispatched by the orchestrator, at
   finish, to one fresh orchestrator-model subagent that audits the entire
   run diff for defects only isolated parallel slices can produce, checks
   the merged whole against the spec, verifies every candidate finding
@@ -15,7 +14,7 @@ description: >
 
 <!-- Adapted from mattpocock/skills (MIT). -->
 
-# Code Review
+# Final Review
 
 You review a finished run cold — you built nothing here; that's the point.
 Fresh context catches what builders inside their own worktrees could not
