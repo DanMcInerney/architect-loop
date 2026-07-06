@@ -7,7 +7,9 @@ Glossary only. No implementation details, no spec content.
 - **Orchestrator** - the single interactive session the human opens (any
   harness, any surface). Grounds, runs intake, decomposes, freezes,
   dispatches, arbitrates, diagnoses, integrates. Never writes implementation
-  code, never reads large diffs, never judges checks.
+  code, never reads large diffs, never judges checks. In the fast lane
+  (`/architect-fast`) it additionally performs the closing review and its
+  fixes - the recorded Hard-Rule 3/4 relaxation.
 - **Orchestrator tier** - the model tier used for orchestration and designated
   high-judgment reviews: a capability level, not one process.
 - **Builder** - a fresh-context worker agent that implements exactly one issue
@@ -53,6 +55,8 @@ Glossary only. No implementation details, no spec content.
 - **Factory run** - everything between spec approval and the closing PR; runs
   unattended on the factory branch (`factory/<run>`), with an optional
   human-gated closing review before docs-finish.
+- **Fast lane** - the `/architect-fast` loop as a whole; `/architect` is the
+  full factory. Both are loop skills over the same stage-skill library.
 
 ## Control & Memory
 

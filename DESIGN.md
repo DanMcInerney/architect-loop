@@ -723,6 +723,61 @@ decisions, from the 2026-06 evidence review and the r2 calibration pass
   cache-alignment machinery (harness-owned; the preamble sits below
   OpenAI's 1024-token cache minimum).
 
+### The fast lane
+
+`/architect-fast` is a sibling loop, not a mode flag on `/architect`, for
+three reasons surfaced at spec review (evidence:
+`docs/spec/architect-fast.md`):
+
+- **Context weight of unused machinery.** Skill bodies ride in context for
+  the whole session ([Skills docs](https://code.claude.com/docs/en/skills));
+  a flag toggling frozen checks, the check-runner, and the final-review
+  subagent on or off would keep all three resident and readable even on
+  runs that never use them, working against the thin-skill-text mandate
+  (§4, The skill text itself). A separate skill loads only what a given
+  run needs.
+- **Trigger clarity.** A single skill with a hidden mode makes the
+  invocation ambiguous between "small edit" and "full build" phrasing; a
+  separate description routing on smallness ("small, a few files, single
+  sitting") lets the trigger-eval fixture pin both directions apart instead
+  of disambiguating inside one skill's intake questions.
+- **The judge-narrowing spec's reserved carve-out.** The judge-narrowing-and-
+  scout spec already reserved `/architect-fast` by name as the owner of
+  small-task carve-outs (tiny-tree scout skip, per-slice skeleton
+  exemptions); this run ships that reservation rather than inventing a new
+  one.
+
+What it drops, and why the drops are safe at the size ceiling (≤3 issues,
+~≤400 changed lines total):
+
+- **No frozen checks, no check-runner.** Issue-body acceptance criteria
+  plus builder-run tests plus the orchestrator's own review are the gates.
+  At ≤400 lines the orchestrator can hold the whole diff in mind for one
+  pass — the same line count already gates per-issue review effectiveness
+  in `/architect` (§4, Decomposition, "Judged diffs target ≤~400 changed
+  lines").
+- **No scout, no adversarial spec review.** At small scale the
+  orchestrator's own ≤3 materiality-tested questions plus recorded,
+  vetoable assumptions substitute; the size ceiling is the safety valve —
+  an honest decomposition needing more than 3 issues stops and recommends
+  `/architect` instead of stretching the light lane past where it's safe.
+- **No separate docs job.** The orchestrator folds product-doc updates into
+  its one review-and-fix pass — a deliberate, recorded relaxation of the
+  docs-job doctrine ("never the orchestrator", §4, Run mechanics and
+  memory) alongside Hard Rules 3 and 4: the orchestrator both reviews its
+  own run's diff (no fresh subagent) and writes the fixes directly (no
+  third-strike gate). The closing PR is the later eyes on that work — the
+  `integrate` subagent verifies mechanically but reviews no code
+  correctness.
+- **No watchdog script.** One per-wave timed background sleep is the
+  stall-fallback wake; on a fallback wake with jobs still in flight the
+  orchestrator judges liveness from report growth and process activity
+  directly. The residual risk — a stall inside the sleep window extends to
+  the window's end — is accepted at this scale.
+
+Full flow, the substitution table, and the recorded assumptions:
+`docs/spec/architect-fast.md`.
+
 ---
 
 ## 5. Failure modes → mechanical mitigations

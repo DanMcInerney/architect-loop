@@ -8,10 +8,14 @@ practices built in. Save 80% of Fable token usage, lose no quality.**
 ```
 /architect-research <topic>
 /architect <what you want>
+/architect-fast <small change>
 ```
 
 Ask for work, come back when it's done. Your one job is approving the spec —
 in-session, or by commenting `APPROVE` on the tracking issue from your phone.
+`/architect-fast` is the light lane for small, few-file changes you want done
+in one sitting — same shape as `/architect`, without the per-issue grading
+machinery; anything bigger routes itself to `/architect` instead.
 
 ## Installation
 
@@ -60,6 +64,28 @@ high) does the heavy lifting. Both are overridable — see
 - A closing cohesion review — one fresh orchestrator-tier subagent over the
   whole run diff — runs immediately before the PR.
 - The run ends in one PR plus a digest of what shipped.
+
+### /architect-fast
+
+![architect-fast flow](assets/architect-fast-flow.svg)
+
+- Each stage reuses the same small stage skills as `/architect` —
+  `codebase-design`, `to-spec`, `to-issues`, `integrate` — with named
+  substitutions for the machinery it skips.
+- Orchestrator grounds in the vocabulary, then writes a spec doc and asks
+  you no more than 3 questions.
+- Orchestrator breaks the work into at most 3 parallelizable, file-disjoint
+  vertical-slice issues, each carrying acceptance criteria in place of a
+  frozen-check path; beyond 3 issues or ~400 changed lines, the skill stops
+  and recommends `/architect` instead — the size ceiling.
+- Fresh worktree-isolated builders implement the issues in parallel,
+  running their own tests.
+- Once every issue merges, the orchestrator itself performs one complete
+  review — code, cohesion, and tests — over the whole run diff, and makes
+  the fixes directly: no check-runner, no fresh final-review subagent, no
+  separate docs job.
+- Orchestrator dispatches the existing `integrate` stage skill to ship: one
+  PR plus a digest, the same as `/architect`.
 
 ### /architect-research
 
@@ -176,6 +202,30 @@ git — not left as advice. Full evidence and citations: [DESIGN.md](DESIGN.md).
 - **`tracker = markdown` runs the same loop without GitHub.**
   Issues live in git-tracked `docs/issues/<run>/` for GitLab or fully local
   repos; every rule, check, review, and the status tree work identically.
+
+### /architect-fast
+
+- **Size ceiling: ≤3 issues, ~≤400 changed lines total.** Beyond it the
+  skill stops and recommends `/architect`; small work stays small instead
+  of stretching the light lane past where one reviewer can hold the whole
+  diff in mind.
+- **The orchestrator review replaces the check-runner and the final-review
+  subagent.** After every issue merges, the orchestrator itself reads the
+  whole run diff for code correctness, cross-slice cohesion, and test
+  stewardship, and makes the fixes directly — a recorded relaxation of Hard
+  Rules 3 and 4. The closing PR is the later eyes on that work: the
+  `integrate` subagent verifies mechanically but reviews no code
+  correctness.
+- **A per-wave timed fallback wake replaces the watchdog script.** *token
+  savings* — most waves finish before the timer fires, so no script runs at
+  all; on a fallback wake with jobs still in flight, the orchestrator
+  judges liveness from report growth and process activity directly.
+- **The dispatch-head SHA is the postflight base.** Each job's dispatch-head
+  commit is recorded on its issue at dispatch and doubles as its ffcheck
+  target and its postflight merge-guard base, in place of a freeze SHA —
+  there is no separate freeze commit in the fast lane.
+- **Spec approval is unchanged.** The same one human step, the same three
+  recorded forms, the same 5-minute auto-approve on silence as `/architect`.
 
 ### /architect-research
 
