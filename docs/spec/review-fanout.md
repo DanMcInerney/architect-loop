@@ -259,5 +259,12 @@ None. (All intake questions answered in-session 2026-07-06.)
 
 ## Approval record
 
-PENDING — awaiting one of the three forms defined in
-`skills/architect/SKILL.md` `### 2. Spec Approval`.
+`APPROVE (auto, 5m silence)` — 2026-07-06, timer form of the timed-ruling
+protocol. The spec was presented in-session with a 5-minute timer and
+mirrored on tracking issue #137 with the three approve-by-comment forms;
+at expiry there was no in-session answer and no issue comment. Reasoning
+for proceeding on the default: all four intake questions were answered
+explicitly by the human in-session ("1/1/1/1") and are recorded under
+`## Assumptions`; the adversarial review's nine findings were applied and
+the blocking one independently re-verified; the run is isolated on
+`factory/review-fanout` and remains veto-able at the closing PR.
