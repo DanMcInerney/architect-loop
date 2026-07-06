@@ -13,9 +13,9 @@
   <line x1="380" y1="338" x2="380" y2="380" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
 
   <!-- 1 SPEC -->
-  <rect x="230" y="70" width="300" height="56" rx="10" fill="#1f2937"/>
+  <rect x="230" y="70" width="300" height="56" rx="10" fill="#7c3aed"/>
   <text x="380" y="93" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">SPEC</text>
-  <text x="380" y="111" font-size="10.5" fill="#e2e8f0" text-anchor="middle">orchestrator writes it, via to-spec · ≤3 questions</text>
+  <text x="380" y="111" font-size="10.5" fill="#ede9fe" text-anchor="middle">orchestrator writes it, via to-spec · ≤3 questions</text>
   <text x="560" y="90" font-size="11" fill="#475569">same materiality test as /architect, fewer questions</text>
   <text x="560" y="104" font-size="11" fill="#475569">expected at small scale — no scout, no adversarial review</text>
 
@@ -27,9 +27,9 @@
   <text x="560" y="210" font-size="11" fill="#475569">comment; irreversible silence still defaults safe</text>
 
   <!-- 3 ISSUES (<=3) -->
-  <rect x="230" y="282" width="300" height="56" rx="10" fill="#1f2937"/>
+  <rect x="230" y="282" width="300" height="56" rx="10" fill="#7c3aed"/>
   <text x="380" y="305" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">ISSUES (≤3)</text>
-  <text x="380" y="323" font-size="10.5" fill="#e2e8f0" text-anchor="middle">file-disjoint slices · acceptance criteria, not a check path</text>
+  <text x="380" y="323" font-size="10.5" fill="#ede9fe" text-anchor="middle">file-disjoint slices · acceptance criteria, not a check path</text>
   <text x="560" y="302" font-size="11" fill="#475569">no change-skeleton required, no check-runner path —</text>
   <text x="560" y="316" font-size="11" fill="#475569">over the size ceiling, the skill stops and recommends /architect</text>
 
@@ -56,9 +56,9 @@
   <text x="392" y="494" font-size="11" font-weight="700" fill="#16a34a">ALL ISSUES MERGED</text>
 
   <!-- 5 ORCHESTRATOR REVIEW + FIXES -->
-  <rect x="230" y="518" width="300" height="56" rx="10" fill="#1f2937"/>
+  <rect x="230" y="518" width="300" height="56" rx="10" fill="#7c3aed"/>
   <text x="380" y="541" font-size="14.5" font-weight="700" fill="#ffffff" text-anchor="middle">ORCHESTRATOR REVIEW + FIXES</text>
-  <text x="380" y="559" font-size="10.5" fill="#e2e8f0" text-anchor="middle">code · cohesion · tests — same session, fixes made directly</text>
+  <text x="380" y="559" font-size="10.5" fill="#ede9fe" text-anchor="middle">code · cohesion · tests — same session, fixes made directly</text>
   <text x="560" y="538" font-size="11" fill="#475569">no fresh subagent: the fast lane's only review, a recorded</text>
   <text x="560" y="552" font-size="11" fill="#475569">relaxation of Hard Rules 3 and 4 — the PR is the later eyes on it</text>
 
@@ -83,12 +83,12 @@
   <text x="560" y="764" font-size="11" fill="#475569">diffstat before the PR — no separate docs job</text>
 
   <!-- legend -->
-  <rect x="45" y="830" width="12" height="12" rx="3" fill="#1f2937"/>
-  <text x="63" y="840" font-size="11" fill="#475569">orchestrator (same session, frontier model)</text>
-  <rect x="300" y="830" width="12" height="12" rx="3" fill="#0d9488"/>
-  <text x="318" y="840" font-size="11" fill="#475569">builders (cheap model)</text>
-  <rect x="480" y="830" width="12" height="12" rx="3" fill="#7c3aed"/>
-  <text x="498" y="840" font-size="11" fill="#475569">fresh subagent (integrate)</text>
-  <rect x="660" y="830" width="12" height="12" rx="3" fill="#d97706"/>
-  <text x="678" y="840" font-size="11" fill="#475569">human</text>
+  <rect x="45" y="830" width="12" height="12" rx="3" fill="#7c3aed"/>
+  <text x="63" y="840" font-size="11" fill="#475569">orchestrator + its fresh subagents (frontier model)</text>
+  <rect x="360" y="830" width="12" height="12" rx="3" fill="#0d9488"/>
+  <text x="378" y="840" font-size="11" fill="#475569">builders (cheap model)</text>
+  <rect x="540" y="830" width="12" height="12" rx="3" fill="#d97706"/>
+  <text x="558" y="840" font-size="11" fill="#475569">human</text>
+  <rect x="640" y="830" width="12" height="12" rx="3" fill="#16a34a"/>
+  <text x="658" y="840" font-size="11" fill="#475569">the shipped PR</text>
 </svg>
