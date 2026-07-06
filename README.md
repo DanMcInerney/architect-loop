@@ -160,9 +160,9 @@ git — not left as advice. Full evidence and citations: [DESIGN.md](DESIGN.md).
   numbers, never verdicts; auditing every status claim against tool output
   nearly eliminates fabricated reports.
 - **Stall detection is a deterministic watchdog script.**
-  A ~70-line script watches output growth, process activity, and repeated
-  commands; the LLM monitor it replaced measured 0 true positives and 2
-  false positives. It never kills — the orchestrator rules on its evidence.
+  A small script watches output growth, file mtimes, and repeated commands;
+  the LLM monitor it replaced measured 0 true positives and 2 false positives.
+  It never kills — the orchestrator rules on its evidence.
 - **Frozen checks run through a deterministic check-runner.** *token
   savings* — ~9 mechanical commands per check file were burning
   frontier-priced judge turns; a script grades expected exits and fixed
@@ -222,7 +222,7 @@ git — not left as advice. Full evidence and citations: [DESIGN.md](DESIGN.md).
 - **A per-wave timed fallback wake replaces the watchdog script.** *token
   savings* — most waves finish before the timer fires, so no script runs at
   all; on a fallback wake with jobs still in flight, the orchestrator
-  judges liveness from report growth and process activity directly.
+  judges liveness from report growth and file mtimes directly.
 - **The dispatch-head SHA is the postflight base.** Each job's dispatch-head
   commit is recorded on its issue at dispatch and doubles as its ffcheck
   target and its postflight merge-guard base, in place of a freeze SHA —

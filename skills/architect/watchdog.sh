@@ -15,29 +15,35 @@ numfield(){ printf '%s' "$1" | sed -n "s/.*\"$2\"[[:space:]]*:[[:space:]]*\([0-9
 fsize(){ stat -c %s "$1" 2>/dev/null || stat -f %z "$1" 2>/dev/null || printf 0; }
 now(){ date +%s; }
 tail_text(){ [ -f "$1" ] && tail -c 4096 "$1" | tr -d '\000\377\376'; }
-report_done(){ [ -f "$1" ] || return 1; last=$(tail_text "$1" | awk 'NF{line=$0} END{gsub(/^[[:space:]]+|[[:space:]]+$/,"",line); print line}'); case "$last" in STATUS:*) return 0;; *) return 1;; esac; }
-cpu_sum(){
-  w=$1
-  if [ -d /proc ]; then
-    total=0
-    for p in /proc/[0-9]*; do
-      [ -r "$p/cmdline" ] || continue
-      cmd=$(tr '\000' ' ' < "$p/cmdline")
-      case "$cmd" in *"$w"*) v=$(awk '{print $14+$15}' "$p/stat" 2>/dev/null); total=$((total+${v:-0}));; esac
-    done
-    printf '%s' "$total"
-  else
-    ps -eo time= -o args= | awk -v w="$w" 'index($0,w){split($1,a,":"); n=split($1,b,"-"); t=(n==2?b[2]:$1); split(t,c,":"); if(length(c)==3)s+=c[1]*3600+c[2]*60+c[3]; else s+=c[1]*60+c[2]} END{print s+0}'
+report_done(){ [ -f "$1" ] || return 1; last=$(tail_text "$1" | sed 's/^\xEF\xBB\xBF//' | awk 'NF{line=$0} END{gsub(/^[[:space:]]+|[[:space:]]+$/,"",line); print line}'); case "$last" in STATUS:*) return 0;; *) return 1;; esac; }
+mtime_one(){
+  [ -e "$1" ] || { printf 0; return; }
+  own=$(stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || printf 0)
+  max=$own
+  if [ -d "$1" ]; then
+    files=$(find "$1" -type f -exec stat -c %Y {} \; 2>/dev/null || find "$1" -type f -exec stat -f %m {} \; 2>/dev/null)
+    newest=$(printf '%s\n' "$files" | sort -nr | sed -n '1p')
+    case "$newest" in ''|*[!0-9]*) newest=0;; esac
+    [ "$newest" -gt "$max" ] && max=$newest
   fi
+  printf '%s' "$max"
+}
+activity_mtime(){
+  max=0
+  for p in "$@"; do
+    m=$(mtime_one "$p")
+    [ "$m" -gt "$max" ] && max=$m
+  done
+  printf '%s' "$max"
 }
 
-declare -a ids events reports trees hints done sizes growth cpus
+declare -a ids events reports trees hints done sizes mtimes growth
 i=0
 while IFS= read -r job; do
   ids[$i]=$(field "$job" id); events[$i]=$(field "$job" events_file)
   reports[$i]=$(field "$job" report_path); trees[$i]=$(field "$job" worktree)
   hints[$i]=$(numfield "$job" duration_hint_min); done[$i]=0
-  ev=$(fsize "${events[$i]}"); rp=$(fsize "${reports[$i]}"); sizes[$i]=$((ev+rp)); growth[$i]=$(now); cpus[$i]=$(cpu_sum "${trees[$i]}")
+  ev=$(fsize "${events[$i]}"); rp=$(fsize "${reports[$i]}"); sizes[$i]=$((ev+rp)); mtimes[$i]=$(activity_mtime "${events[$i]}" "${reports[$i]}" "${trees[$i]}"); growth[$i]=$(now)
   i=$((i+1))
 done <<EOF
 $jobs
@@ -52,13 +58,12 @@ while :; do
     if [ ! -e "${events[$i]}" ] && [ ! -e "${trees[$i]}" ]; then
       printf 'WATCHDOG: INTEGRATED %s\n' "${ids[$i]}"; exit 2
     fi
-    ev=$(fsize "${events[$i]}"); rp=$(fsize "${reports[$i]}"); sz=$((ev+rp)); cpu=$(cpu_sum "${trees[$i]}")
-    [ "$sz" -gt "${sizes[$i]}" ] && { sizes[$i]=$sz; growth[$i]=$(now); }
+    ev=$(fsize "${events[$i]}"); rp=$(fsize "${reports[$i]}"); sz=$((ev+rp)); mt=$(activity_mtime "${events[$i]}" "${reports[$i]}" "${trees[$i]}")
+    if [ "$sz" -ne "${sizes[$i]}" ] || [ "$mt" -gt "${mtimes[$i]}" ]; then sizes[$i]=$sz; mtimes[$i]=$mt; growth[$i]=$(now); fi
     mins=$(awk -v a="$(now)" -v b="${growth[$i]}" 'BEGIN{printf "%.3f",(a-b)/60}')
-    delta=$((cpu-cpus[$i])); cpus[$i]=$cpu
     grace=$(awk -v a="$stall" -v b="${hints[$i]:-0}" 'BEGIN{print a+b}')
-    if awk -v m="$mins" -v g="$grace" 'BEGIN{exit !(m>g)}' && [ "$delta" -eq 0 ]; then
-      printf 'WATCHDOG: STALL %s minutes_since_growth=%s cpu_delta=%s\n' "${ids[$i]}" "$mins" "$delta"
+    if awk -v m="$mins" -v g="$grace" 'BEGIN{exit !(m>g)}'; then
+      printf 'WATCHDOG: STALL %s minutes_since_activity=%s bytes=%s mtime=%s\n' "${ids[$i]}" "$mins" "$sz" "$mt"
       tail_text "${events[$i]}" | tail -n 5; exit 3
     fi
     last4=$(tail_text "${events[$i]}" | grep -o '"command"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/' | tail -n 4)
