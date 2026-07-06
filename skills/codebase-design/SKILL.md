@@ -5,7 +5,7 @@ description: >
   concepts consistently. Load before writing a spec, decomposing issues,
   freezing checks, or reviewing a diff - anywhere "module," "interface,"
   "issue," or "frozen check" need to mean the same thing to every skill,
-  builder, and judge. Also covers dependency categories for deepening and
+  builder, and reviewer. Also covers dependency categories for deepening and
   the parallel design-it-twice pattern for exploring interfaces before
   committing to one.
 ---
@@ -48,9 +48,9 @@ file for frozen check. Consistent language is the whole point.
 - **Intent judge** - retired (human ruling 2026-07-06): grading is the check-runner plus the closing cohesion review; no per-issue model review remains.
 - **Orchestrator** - the one session that grounds, decomposes, freezes, dispatches, and integrates; never writes implementation code.
 - **Factory branch** - the run's integration branch (`factory/<run>`) that job branches merge into.
-- **Worktree** - the isolated git checkout a builder or judge works in, verified against the freeze commit.
+- **Worktree** - the isolated git checkout a builder or reviewer works in, verified against the freeze commit.
 - **Job report** - a builder's raw-evidence artifact, ending in one STATUS line.
-- **Verdict** - the judgment posted on an issue: runner summary, checks integrity, diff-vs-intent, spot-check, merge call.
+- **Verdict** - the grading record posted on an issue at close: checkrun summary plus typed exit, postflight result, slice call, decisive reason; the closing review's run-level verdict goes on the tracking issue.
 - **Ruling** - an orchestrator decision recorded post-freeze: a PHASE-0 disagreement, boundary amendment, or respawn answer.
 - **Digest** - the shipped-issues, diffstat, rulings, and domain-language summary handed to the closing docs job.
 - **Hard stop** - an irreversible or destructive action the loop refuses without a human ruling.

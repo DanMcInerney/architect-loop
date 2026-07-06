@@ -13,15 +13,14 @@ Glossary only. No implementation details, no spec content.
 - **Builder** - a fresh-context worker agent that implements exactly one issue
   in an isolated worktree. Cannot commit. The builder tier is typically
   cheaper than the orchestrator tier and never changes because a job failed.
-- **Judge** - a fresh-context, read-only intent reviewer for one issue. The
-  deterministic check-runner grades frozen RUN items first; the judge checks
-  integrity, diff-vs-intent, and one graded RUN spot-check. Not a config key.
-  Human-directed 2026-07 ruling: per-issue judging is being retired in favor
-  of the closing cohesion review alone; a follow-up slice removes it from
-  `skills/architect/**`. Current-flow descriptions in product docs read
-  builders run own tests -> check-runner grades frozen checks -> closing
-  cohesion review before the PR; do not present the per-issue judge as a
-  current-flow step.
+- **Judge** - retired (human-directed ruling 2026-07-06; removed from
+  `skills/architect/**` by the skill-library run, issue #118). Was the
+  per-issue fresh-context, read-only intent reviewer for one issue.
+  Current-flow descriptions in product docs read builders run own tests ->
+  check-runner grades frozen checks -> closing cohesion review before the
+  PR; do not present the per-issue judge as a current-flow step. The judge
+  templates remain in `dispatch.md`, marked RETIRED, for optional read-only
+  verification dispatches. Not a config key.
 - **Watchdog** - a deterministic script that sweeps in-flight jobs and exits
   with typed evidence (`ALL_DONE`, `INTEGRATED`, `STALL`, `REPEAT`). It never
   kills, nudges, or decides; the orchestrator rules on the evidence. A job is
@@ -87,15 +86,17 @@ Glossary only. No implementation details, no spec content.
   any dispatch, and worktrees are verified against it after spawn.
 - **Rulings file** (`docs/jobs/<issue-slug>-rulings.md`) - orchestrator-owned,
   append-only post-freeze intent: PHASE-0 rulings, boundary amendments,
-  respawn answers. Part of the judge's intent context.
-- **Verdict comment** - the judgment record posted on the issue: runner
-  summary, checks integrity, diff-vs-intent, the spot-check result, and the
-  slice call.
-- **Sync judge** - a harness-native judge dispatched with
-  `run_in_background: false`, so the verdict returns as the tool result.
+  respawn answers. Read by the closing review instead of thread prose.
+- **Verdict comment** - the grading record posted on the issue at close:
+  checkrun summary plus typed exit, postflight result, and the slice call
+  with its decisive reason. The closing review's run-level verdict goes on
+  the tracking issue.
+- **Sync dispatch** - dispatching a result-bearing subagent (closing review,
+  scout, adversarial review, optional verification) with
+  `run_in_background: false`, so the result returns as the tool result.
 - **Recovery ladder** - the ordered rescue path for a missing background
   deliverable: retrieve task output, nudge once, then discard and respawn
-  fresh. The orchestrator never authors a missing verdict.
+  fresh. The orchestrator never authors a missing result.
 - **Close-out** - stopping or closing a consumed subagent or background shell
   task in the same turn its result or typed exit was consumed.
 - **Closing review** - the human-gated review-and-fix pass after build issues

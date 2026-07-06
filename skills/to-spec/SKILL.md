@@ -56,8 +56,8 @@ approval and decomposition, so keep them exact.
   step 2, described, never pathed; the one place a prototype snippet may
   appear, per step 3.
 - `## Validation strategy` — how the run's own checks and the closing
-  review confirm the seam(s) hold; name the check-runner and intent judge,
-  never new grading machinery.
+  review confirm the seam(s) hold; name the check-runner and closing
+  review, never new grading machinery.
 - `## Domain language` — new or changed vocabulary this run introduces,
   defined once.
 - `## Open human decisions` — anything unresolved once the timed-ruling
