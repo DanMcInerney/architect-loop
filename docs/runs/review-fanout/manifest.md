@@ -4,7 +4,7 @@ tracking-issue: 137
 factory-branch: factory/review-fanout
 tracker: github
 spec: docs/spec/review-fanout.md
-state: ACTIVE
+state: FINISHED
 created: 2026-07-06
 ---
 
