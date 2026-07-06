@@ -367,7 +367,7 @@ diffstat and the batched escalation digest go on the tracking issue only.
 gh issue comment <n> --body "RULING: <decision> - <one line why>"
 gh issue comment <n> --body "ANSWER: <blocker answer>"
 gh issue comment <n> --body "CHECKRUN: exit <0|2> <CHECKRUN SUMMARY line> | POSTFLIGHT: <line> - <decisive reason>"
-gh issue comment <tracking-issue-n> --body "REVIEW: <closing cohesion-review verdict + diffstat>"
+gh issue comment <tracking-issue-n> --body "REVIEW: <closing code-review verdict + diffstat>"
 gh issue comment <tracking-issue-n> --body "DIGEST: <batched escalations + run summary>"
 ```
 

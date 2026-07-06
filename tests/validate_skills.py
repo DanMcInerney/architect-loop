@@ -66,7 +66,7 @@ LIBRARY_SKILLS = {
     "frozen-checks": [],
     "tdd": ["tests.md", "mocking.md"],
     "adversarial-review": [],
-    "cohesion-review": [],
+    "code-review": [],
 }
 # s9 per-skill non-blank-line budgets, caps named in each stage skill's
 # frozen check (docs/checks/skill-library/). The architect entry (SKILL.md
@@ -83,13 +83,13 @@ LIBRARY_LINE_BUDGETS = {
     "frozen-checks": (("SKILL.md",), 100),
     "tdd": (("SKILL.md", "tests.md", "mocking.md"), 220),
     "adversarial-review": (("SKILL.md",), 110),
-    "cohesion-review": (("SKILL.md",), 110),
+    "code-review": (("SKILL.md",), 110),
     "architect": (("SKILL.md",), 220),
 }
 # License ruling (docs/spec/skill-library.md `## Open human decisions`):
 # adapted skills carry a one-line attribution naming the source repo + MIT.
 # s11 (`## Wording policy`) made Pocock's text the baseline for five skills
-# and added the attribution to to-spec, to-issues, and cohesion-review; the
+# and added the attribution to to-spec, to-issues, and code-review; the
 # guard covers all five (was two, a pre-s11 baseline - closing review fix).
 LIBRARY_ATTRIBUTION = "Adapted from mattpocock/skills (MIT)"
 LIBRARY_ATTRIBUTED_SKILLS = (
@@ -97,7 +97,7 @@ LIBRARY_ATTRIBUTED_SKILLS = (
     "tdd",
     "to-spec",
     "to-issues",
-    "cohesion-review",
+    "code-review",
 )
 # s9 glossary cohesion lint scope: the seven stage-skill SKILL.md files plus
 # skills/architect/SKILL.md. Sibling reference files (tdd/tests.md,
@@ -109,7 +109,7 @@ GLOSSARY_LINT_SKILLS = tuple(LIBRARY_SKILLS) + ("architect",)
 # ban lists) are mentions, not uses-as-terms; without this exemption the
 # lint would fail on its own definition text at codebase-design/SKILL.md:25-26,
 # to-spec/SKILL.md:22-23, to-issues/SKILL.md:29-30,
-# adversarial-review/SKILL.md:77-78, and cohesion-review/SKILL.md:72-73.
+# adversarial-review/SKILL.md:77-78, and code-review/SKILL.md:72-73.
 GLOSSARY_BAN_LIST_MENTIONS = (
     "component/service/boundary/API",
     "component, service, boundary, or API",
