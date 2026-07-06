@@ -97,6 +97,8 @@ silent fallback — every precondition, blocker, and substitution is recorded.
    with jobs still in flight, judge liveness from report growth and
    process activity directly. On DONE, merge through postflight
    (`skills/architect/dispatch.md` `## Preflight and postflight dispatch`).
+   The size ceiling, not backend capacity, is the active cap here; the shared
+   dispatch cap remains 10 CLI-launched jobs or 5 harness-native subagents.
    On BLOCKED, answer durably and respawn fresh, unchanged.
 
 6. **Orchestrator review.** After all issues merge, the orchestrator itself

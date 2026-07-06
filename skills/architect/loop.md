@@ -14,13 +14,13 @@ The loop is one orchestrator session that runs the factory to completion after
 the spec approval approves the issue plan. Tracker issues carry coordination
 state; git carries specs and frozen checks. The orchestrator dispatches the
 ready issues, sleeps, and wakes only on an event.
-Parallel rules: harness-native result-bearing subagents (Claude Agent tool) dispatch synchronously with `run_in_background: false` so the result returns as the tool result; codex-backend subagents keep the background `codex exec -o <file>` typed-exit path, whose process exit wakes the loop; a job END (DONE or BLOCKED) is a dispatch event that recomputes the full ready frontier and dispatches every ready issue into a free slot before grading (Factory block procedure step 3); merges recompute the frontier too, since a merge can unblock issues no END could; independent orchestrator bookkeeping batches into parallel calls; merges, synthesis, and the pre-freeze `adversarial-review` stress pass stay serial by design.
+Parallel rules: CLI-launched builders (`codex exec -o <file>` or equivalent) cap at 10 concurrent jobs; harness-native result-bearing subagents (Claude Agent tool, Codex `spawn_agent`) use the harness cap, currently 5, and Claude Agent-tool verification still dispatches synchronously with `run_in_background: false`; a job END (DONE or BLOCKED) is a dispatch event that recomputes the full ready frontier and dispatches every ready issue into a free slot before grading (Factory block procedure step 3); merges recompute the frontier too, since a merge can unblock issues no END could; independent orchestrator bookkeeping batches into parallel calls; merges, synthesis, and the pre-freeze `adversarial-review` stress pass stay serial by design.
 
 ## Factory block procedure
 
 1. **Dispatch the ready issues.** Compute the ready issues of the approved
-   plan: up to 5 builder jobs plus one monitor subagent (see Monitor protocol,
-   and `dispatch.md` "## Monitor dispatch"). Check `docs/STOP` and
+   plan: up to 10 CLI-launched builder jobs, or 5 harness-native builder
+   subagents (see Monitor protocol, and `dispatch.md` "## Monitor dispatch"). Check `docs/STOP` and
    `docs/runs/<run>/STOP` before every wave.
 2. **Sleep.** Zero orchestrator work between dispatch and the next event —
    no polling.

@@ -27,7 +27,7 @@ A tool call is one search OR one page fetch.
   perspectives, 10-15 tool calls each, no scout — you already know the
   terrain.
 - **Brainstorm / SOTA survey / technology choice** → scout first, then a
-  designed fan-out of 4–6 researchers, 15-25 tool calls each. Google's
+  designed fan-out of 4–10 researchers, 15-25 tool calls each. Google's
   published research envelope brackets this tier: ~80 searches ≈ $1–3/task
   standard, ~160 ≈ $3–7 max.
 
@@ -52,7 +52,7 @@ which source classes look rich vs empty, and the topic's natural fault lines.
 The scout returns a map, not findings. Skip the scout when you already know the
 terrain (comparisons, fact-finds).
 
-**Design (you, from the scout report):** decompose into 3–6 sub-questions
+**Design (you, from the scout report):** decompose into 3–10 sub-questions
 along the topic's own fault lines — distinct perspectives, never keyword
 variants of one query. For each researcher assignment pick the source-class tactics it needs
 from `tactics.md` (academic snowballing, dependents-not-stars repo evidence,
@@ -72,7 +72,7 @@ Resolve the researcher model as builders, same order as `/architect`: repo
 config-resolved default in `skills/architect/dispatch.md` — `codex/best`
 (gpt-5.5 at xhigh) via the codex CLI; the Claude-native rows
 (`builders = claude/...`) are the config-selected alternative. One fresh
-researcher per assignment, all parallel, in the background — this is the
+researcher per assignment, up to 10 in parallel for CLI launches — this is the
 default codex/best form:
 
 ```bash
@@ -89,8 +89,9 @@ never as a shell argument; quote-mangling shells make codex hang on stdin.
 Older CLIs: `--enable web_search` (0.13x) or `-c tools.web_search=true`
 (< 0.133); `--search` is TUI-only — exec rejects it. Launch ONE canary researcher
 and confirm it starts cleanly before fanning out. If resolved builders is a
-claude row, or Codex is unavailable, run researchers as read-only Claude subagents
-with web search — the researcher blocks work verbatim.)
+claude row, or Codex is unavailable, run researchers as read-only Claude
+subagents with web search, respecting the built-in harness cap (currently 5) —
+the researcher blocks work verbatim.)
 
 Every researcher block carries the full contract — objective, output format, source
 guidance, boundaries — plus:
@@ -118,8 +119,8 @@ not a coverage score kept in your head. Every NOT FOUND from prior researchers
 carries forward into a **do-not-rechase list** that every gap-researcher block must
 include, so gap researchers don't re-spend budget chasing a dead end. This is
 also where the **expert-opinion researcher** dispatches: extract the expert roster
-from the first wave (survey authors, maintainers, recurring names) and send
-the researcher 6 after them. Hard stop after two refinement rounds —
+from the first wave (survey authors, maintainers, recurring names) and send a
+targeted researcher after them. Hard stop after two refinement rounds —
 past that you're chasing nonexistent information.
 
 ### 5. Verify (your work, against raw sources)

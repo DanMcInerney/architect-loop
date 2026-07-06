@@ -11,13 +11,13 @@ Resolve the researcher model as builders, same order as `/architect`: repo
 `.architect/config`, then user `~/.architect/config`, then the `codex/best`
 default in `skills/architect/dispatch.md`.
 
-Decompose the question into 3–5 narrow, NON-OVERLAPPING research questions.
+Decompose the question into 3–10 narrow, NON-OVERLAPPING research questions.
 Cover different angles, not the same angle five times — typical split:
 official docs/reference, changelog/breaking changes, community failure reports,
 alternatives/comparisons, security/operational constraints.
 
-One fresh `codex exec` per question, all launched in parallel, in the
-background — codex/tier-down shown; the builders default is `codex/best`
+One fresh `codex exec` per question, all launched in parallel, up to 10
+CLI-launched researchers — codex/tier-down shown; the builders default is `codex/best`
 (`dispatch.md` `## Model resolution and dispatch rules`):
 
 ```bash
@@ -39,8 +39,8 @@ stdin otherwise.
   it. Launch ONE canary researcher and confirm it starts cleanly before
   fanning out — these flags have churned three times in 2026 alone.
 - If resolved builders is a claude row, or Codex is unavailable, run the
-  fan-out as read-only Claude subagents with web search — the research
-  block template below works verbatim.
+  fan-out as read-only Claude subagents with web search, respecting the
+  built-in harness cap (currently 5) — the research block works verbatim.
 - Effort `high`, not `xhigh` — research is coverage work; xhigh buys nothing
   here. Synthesis happens on the architect's side.
 - Scope each researcher to ≤5 subjects and put hard context rules in the

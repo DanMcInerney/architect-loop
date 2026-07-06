@@ -101,8 +101,8 @@ retry-at-a-different-tier job (see `loop.md` "## Failure ladder").
 |---|---|---|
 | Builder | Agent tool with `.claude/agents/architect-builder.md`; `disallowedTools` denies `Bash(git commit *)` and `Bash(git push *)`; `isolation: worktree`; `background: true`; model may be passed per invocation from the alias table. On the desktop app, the harness auto-creates the agent's isolation worktree (`.claude/worktrees/agent-<id>`) and its branch — integrate from that branch. On the CLI, spawns have been observed to run UNISOLATED in the orchestrator's checkout despite `isolation: worktree` frontmatter (D11) — pass isolation explicitly per invocation if supported, and never run two Claude-backend builder jobs concurrently unless each is verified to have its own worktree (`git worktree list` after spawn). In all cases, never pre-create a job worktree for Claude-backend jobs (a pre-made one is ignored); do not use `.architect/wt/<run>/<slice>-<NN>` (that pattern is Codex-backend only, below). | `spawn_agent` with defensive framing: "Your task is: ..."; worktree created by the orchestrator via git; use `/goal` semantics for persistent job completion. |
 | Verification (optional, read-only) | Agent tool with `.claude/agents/architect-judge.md` (read-only verification def); dispatch synchronously with `run_in_background: false` so the result is the tool result; read-only tools plus Bash for check commands; the resolved builders model passed per invocation (the def's `model: inherit` is only the fallback where per-invocation model is unsupported). | Background `codex exec -o <file>` typed-exit path with read-only instructions; the process exit wakes the loop. |
-| Monitor | Script watchdog (`watchdog.ps1` on Windows, `watchdog.sh` on POSIX) when the orchestrator can run background processes and receive exit notifications; LLM fallback template only otherwise. | Script watchdog (`watchdog.ps1` on Windows, `watchdog.sh` on POSIX) when background process exits wake the orchestrator; LLM fallback template only otherwise and it counts as one of the 6 `max_threads`. |
-| Parallelism | Background subagents; permission prompts surface to the main session. | Native subagents, `max_threads` 6, `max_depth` 1 (root session is depth 0; a spawned child may not spawn further — no nested orchestrators, the orchestrator dispatches builders directly), `wait_agent` for completion (the live collab event stream names the underlying tool call `wait`, not `wait_agent` — evidence: v4-codex CG4 architect-run canary `events.jsonl`). |
+| Monitor | Script watchdog (`watchdog.ps1` on Windows, `watchdog.sh` on POSIX) when the orchestrator can run background processes and receive exit notifications; LLM fallback template only otherwise. | Script watchdog (`watchdog.ps1` on Windows, `watchdog.sh` on POSIX) when background process exits wake the orchestrator; LLM fallback template only otherwise and it consumes one native subagent slot. |
+| Parallelism | CLI-launched builder backends, including Claude Code orchestrating Codex, run up to 10 background jobs. Claude Agent-tool builders are harness-native: use the harness cap (currently 5), verify isolated worktrees before concurrent spawns, and expect permission prompts in the main session. | CLI-launched builder backends run up to 10 background jobs. Native `spawn_agent` builders use the harness cap (currently 5), `max_depth` 1 (root session is depth 0; a spawned child may not spawn further), and `wait_agent` for completion (the live collab event stream names the underlying tool call `wait`, not `wait_agent`). |
 | Review (high-stakes) | `codex review --base` when Codex is installed; otherwise a fresh same-CLI subagent with bias caveat. | `/review` / `review_model`; Claude reviewer when installed. |
 | Skill packaging | `skills/architect/` plus Claude skill install locations. | `.agents/skills/architect/SKILL.md` (and any other `skills/*/`); same source text copied by installer. |
 
@@ -160,7 +160,7 @@ codex exec -C <repo-root> --sandbox workspace-write \
   - < .architect/dispatch-block.md
 ```
 
-For 2-4 jobs, the orchestrator owns worktree creation and parallelism:
+For 2-10 CLI-launched jobs, the orchestrator owns worktree creation and parallelism:
 
 ```bash
 git -C <repo-root> worktree add .architect/wt/<run>/<slice>-<NN> \
@@ -392,9 +392,9 @@ tail excerpt. Do not wait for other jobs to finish before reporting it.
 ```
 <!-- architect-monitor-fallback-template:end -->
 
-Codex backend note: `max_threads` is 6. Five builder jobs plus one monitor is
-exactly at that cap only when the LLM fallback is used - never add a sixth
-concurrent subagent while that fallback monitor is running.
+Native harness note: built-in subagents cap at 5 concurrent jobs. CLI-launched
+`codex exec` builders cap at 10 and do not consume native subagent slots; if
+an LLM fallback monitor is running in native-harness mode, reserve one slot.
 
 ## Duration hints and liveness
 
