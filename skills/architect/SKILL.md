@@ -189,10 +189,13 @@ orchestrator. Its dispatch block carries the change-context digest: shipped
 issues with one-liners, diffstats, rulings and solutions pointers, domain
 language changes. It consumes docs debt and updates product docs; its frozen
 checks run through the check-runner and the orchestrator grades that
-evidence directly (the final review has already run). Github mode: PR with
-`Closes #<tracking-issue>` and per-issue back-links. Markdown mode: branch
-ready with digest and merge instructions (`tracker.md` `## Finish per
-mode`). The digest names shipped, skipped, residual risks, and evidence.
+evidence directly (the final review has already run).
+
+After the final review merges, or a recorded ruling skips it, dispatch one
+ship subagent running the `ship` stage skill. It owns remaining merges,
+ship-time conflict resolution, PR prep or markdown-mode finish prep, and the
+digest draft. The orchestrator rules on the result and posts the digest,
+naming shipped, skipped, residual risks, and evidence.
 
 ## Hard Stops
 

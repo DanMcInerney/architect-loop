@@ -67,6 +67,7 @@ LIBRARY_SKILLS = {
     "tdd": ["tests.md", "mocking.md"],
     "adversarial-review": [],
     "final-review": [],
+    "ship": [],
 }
 # s9 per-skill non-blank-line budgets, caps named in each stage skill's
 # frozen check (docs/checks/skill-library/). The architect entry (SKILL.md
@@ -84,6 +85,7 @@ LIBRARY_LINE_BUDGETS = {
     "tdd": (("SKILL.md", "tests.md", "mocking.md"), 220),
     "adversarial-review": (("SKILL.md",), 110),
     "final-review": (("SKILL.md",), 110),
+    "ship": (("SKILL.md",), 90),
     "architect": (("SKILL.md",), 220),
 }
 # License ruling (docs/spec/skill-library.md `## Open human decisions`):
@@ -1151,6 +1153,124 @@ def check_ground_contract() -> None:
             errors.append(f"ground fixture {label} ok: missing 'GROUND: OK' summary\nstdout:\n{stdout}")
 
 
+def run_isolation_executor_cases() -> list[tuple[str, list[str], str]]:
+    return ground_executor_cases()
+
+
+def build_ground_run_isolation_fixture(repo_root: Path) -> str | None:
+    repo_root.mkdir(parents=True, exist_ok=True)
+    init = subprocess.run(
+        ["git", "init", str(repo_root)],
+        text=True,
+        capture_output=True,
+        timeout=30,
+    )
+    if init.returncode != 0:
+        errors.append(
+            "ground isolation fixture: git init failed "
+            f"exit {init.returncode}\nstdout:\n{init.stdout}\nstderr:\n{init.stderr}"
+        )
+        return None
+    git_fixture(repo_root, "config", "user.email", "ground-fixture@example.invalid")
+    git_fixture(repo_root, "config", "user.name", "Ground Fixture")
+    write_fixture_file(
+        repo_root / "docs" / "runs" / "isofix" / "manifest.md",
+        "---\n"
+        "run: isofix\n"
+        "tracking-issue: 1\n"
+        "factory-branch: factory/isofix\n"
+        "tracker: markdown\n"
+        "spec: docs/spec/isofix.md\n"
+        "state: ACTIVE\n"
+        "---\n",
+    )
+    write_fixture_file(
+        repo_root / "docs" / "issues" / "isofix" / "1.md",
+        "---\n"
+        "issue: 1\n"
+        "title: Tracking\n"
+        "state: OPEN\n"
+        "parent: 0\n"
+        "blocked-by: none\n"
+        "---\n"
+        "Tracking issue body.\n",
+    )
+    write_fixture_file(
+        repo_root / "docs" / "issues" / "isofix" / "2.md",
+        "---\n"
+        "issue: 2\n"
+        "title: Marked Child\n"
+        "state: OPEN\n"
+        "parent: 1\n"
+        "blocked-by: none\n"
+        "---\n"
+        "<!-- architect-run: isofix -->\n"
+        "Marked child body.\n",
+    )
+    write_fixture_file(
+        repo_root / "docs" / "issues" / "isofix" / "99.md",
+        "---\n"
+        "issue: 99\n"
+        "title: Decoy Child\n"
+        "state: OPEN\n"
+        "parent: 0\n"
+        "blocked-by: none\n"
+        "---\n"
+        "No run marker.\n",
+    )
+    write_fixture_file(repo_root / "docs" / "checks" / "isofix" / "dummy.md", "# Check\nplaceholder\n")
+    git_fixture(repo_root, "add", "-A")
+    git_fixture(repo_root, "commit", "-m", "base")
+    freeze = git_fixture(repo_root, "rev-parse", "HEAD")
+    if freeze.returncode != 0:
+        return None
+    return freeze.stdout.strip()
+
+
+def check_run_isolation() -> None:
+    cases = run_isolation_executor_cases()
+    if not cases:
+        errors.append("ground isolation fixture: no runnable executor found")
+        return
+
+    base = ROOT / ".architect" / "tmp" / "ground-run-isolation-fixture"
+    if base.exists():
+        rmtree_with_writable_retry(base)
+    base.mkdir(parents=True)
+    fixture_repo = base / "repo"
+    if build_ground_run_isolation_fixture(fixture_repo) is None:
+        return
+
+    for label, prefix, flag in cases:
+        command = [*prefix, "isofix", flag, str(fixture_repo)]
+        run_env = os.environ.copy()
+        run_env.pop("CLAUDE_CODE_SUBAGENT_MODEL", None)
+        try:
+            result = subprocess.run(command, cwd=ROOT, env=run_env, text=True, capture_output=True, timeout=20)
+        except Exception as exc:
+            errors.append(f"ground isolation fixture {label}: raised {exc!r}")
+            continue
+        stdout = result.stdout.replace("\r\n", "\n")
+        stderr = result.stderr.replace("\r\n", "\n")
+        if result.returncode != 0:
+            errors.append(
+                f"ground isolation fixture {label}: expected exit 0 got {result.returncode}\n"
+                f"stdout:\n{stdout}\nstderr:\n{stderr}"
+            )
+            continue
+        scoped_lines = "\n".join(
+            line for line in stdout.splitlines() if line.startswith(("ISSUE:", "FRONTIER:"))
+        )
+        if "ISSUE: 2 open blockedBy=none" not in scoped_lines:
+            errors.append(f"ground isolation fixture {label}: missing marked issue #2\nstdout:\n{stdout}")
+        if "FRONTIER: 2" not in scoped_lines:
+            errors.append(f"ground isolation fixture {label}: missing marked frontier #2\nstdout:\n{stdout}")
+        if re.search(r"(?m)^ISSUE: 99\b", scoped_lines):
+            errors.append(f"ground isolation fixture {label}: decoy issue #99 leaked\nstdout:\n{stdout}")
+        if re.search(r"(?m)^FRONTIER:.*\b99\b", scoped_lines):
+            errors.append(f"ground isolation fixture {label}: decoy frontier #99 leaked\nstdout:\n{stdout}")
+
+
 def ffcheck_executor_cases() -> list[tuple[str, list[str]]]:
     cases: list[tuple[str, list[str]]] = []
     powershell = shutil.which("powershell")
@@ -1482,6 +1602,7 @@ def main() -> int:
     check_postflight_lane_fixture()
     check_check_runner_fixture()
     check_ground_contract()
+    check_run_isolation()
     check_ffcheck_contract()
     check_tracker_contract()
     check_architect_handoff_free()
