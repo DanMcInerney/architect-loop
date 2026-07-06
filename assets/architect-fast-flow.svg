@@ -68,7 +68,7 @@
   <!-- 6 INTEGRATE -->
   <rect x="230" y="624" width="300" height="56" rx="10" fill="#7c3aed"/>
   <text x="380" y="647" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">INTEGRATE</text>
-  <text x="380" y="665" font-size="10.5" fill="#ede9fe" text-anchor="middle">fresh subagent runs the existing integrate stage skill</text>
+  <text x="380" y="665" font-size="10.5" fill="#ede9fe" text-anchor="middle">docs pass first · the existing integrate stage skill</text>
   <text x="560" y="644" font-size="11" fill="#475569">the review verdict stands in for final-review by recorded</text>
   <text x="560" y="658" font-size="11" fill="#475569">ruling; graded-RUN set is empty by design, validator still runs</text>
 
@@ -80,7 +80,7 @@
   <text x="380" y="753" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">PR</text>
   <text x="380" y="771" font-size="10.5" fill="#dcfce7" text-anchor="middle">one PR + digest, same as /architect</text>
   <text x="560" y="750" font-size="11" fill="#475569">the tracking issue gets the review verdict and</text>
-  <text x="560" y="764" font-size="11" fill="#475569">diffstat before the PR — no separate docs job</text>
+  <text x="560" y="764" font-size="11" fill="#475569">diffstat before the PR — docs shipped by integrate</text>
 
   <!-- legend -->
   <rect x="45" y="830" width="12" height="12" rx="3" fill="#7c3aed"/>

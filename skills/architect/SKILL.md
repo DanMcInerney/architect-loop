@@ -55,7 +55,7 @@ At every factory block boundary. Load `codebase-design` first and use its
 glossary exactly — substitution is a defect.
 
 - Read in authority order: `CLAUDE.md`/`AGENTS.md`, `README.md`, architecture
-  docs, active spec, `docs/solutions/`, open issues, reports, checks, branches.
+  docs, active spec, open issues, reports, checks, branches.
 - Run `skills/architect/ground.ps1|.sh <run>` and rule on its typed exit: 0
   `GROUND: OK` proceeds — read its `FRONTIER:` line for the ready issues; 2
   `GROUND: STOP <which>` halts before dispatch; 3 `GROUND: DRIFT <fact>` is a
@@ -87,8 +87,8 @@ Write the spec with `to-spec`. Then one fresh orchestrator-model subagent
 runs `adversarial-review` against the draft; apply surviving findings before
 approval. Create the tracking issue — spec pointer, assumptions digest,
 approve-by-comment instructions (`APPROVE`, `APPROVE with edits: <text>`,
-`REJECT <reason>`), run marker, manifest path — then write the manifest (fix
-ignore rules first if `docs/runs` is ignored).
+`REJECT <reason>`), run marker, manifest path — then write the manifest, a
+local gitignored run artifact like all of `docs/runs/` and `docs/jobs/`.
 
 ### 2. Spec Approval
 
@@ -166,15 +166,15 @@ Event loop: loop.md `## Factory block procedure`.
   builder, deeper diagnosis; (3) third strike, Hard Rule 4.
 - Post-freeze rulings are append-only in
   `docs/jobs/<run>/<issue-slug>-rulings.md` — PHASE-0 rulings, touch-set
-  amendments, respawn answers. Orchestrator-owned, committed before merge,
-  mirrored to the issue; the final review reads the file, not thread prose.
+  amendments, respawn answers. Orchestrator-owned, local, mirrored to the
+  issue; each rulings file travels verbatim in the reviewer dispatch block.
 - Merge conflict = decomposition failure: kill the job, re-spec the graph.
 - Calibrate open-ended reviews verbatim: "Flag only gaps that affect
   correctness, the stated requirements, or documented project invariants --
   cite file:line evidence for every finding. Do not report stylistic
   preferences."
-- Record docs debt as it accrues; diagnoses, blocker answers, and
-  what-did-not-work notes become `docs/solutions/<slug>.md` via the docs job.
+- Record docs debt as it accrues; nontrivial diagnoses codify into DESIGN
+  and CONTEXT through the integrate subagent's docs pass, never mid-run.
 
 ### 5. Finish
 
@@ -184,7 +184,7 @@ factory branch head) runs the `final-review` stage skill, dispatched by
 citing the installed user-level skill text by explicit path. It reports and
 decomposes, never edits, and returns one verdict. `REVIEW: GREEN` is a
 short-circuit: post the GREEN verdict on the tracking issue and go straight
-to the docs job. `REVIEW: FINDINGS n=<count>` names a review spec, fix-issue
+to integrate. `REVIEW: FINDINGS n=<count>` names a review spec, fix-issue
 drafts, and check drafts; the orchestrator harvests those three draft sets,
 discards the reviewer worktree, and runs the frozen-checks freeze gate over
 every draft RUN command, amending drafts pre-freeze where the gate demands it
@@ -199,17 +199,14 @@ machinery at the builders tier: single review cycle, no re-review; a fix
 issue closes by merge or by recorded ruling, landing ruling-closed findings
 in the digest as residual risks.
 
-Then one dedicated builder docs job before the finish boundary — never the
-orchestrator. Its dispatch block carries the change-context digest: shipped
-issues with one-liners, diffstats, rulings and solutions pointers, domain
-language changes. It consumes docs debt and updates product docs; its frozen
-checks run through the check-runner and the orchestrator grades that evidence
-directly. The docs job fires after the fix wave has merged, after a GREEN
-verdict, or after a recorded ruling skips the review.
-
-After the docs job, dispatch one integration subagent running the
-`integrate` stage skill. It owns remaining merges, ship-time conflict
-resolution, PR prep or markdown-mode finish prep, and the digest draft. The
+Then dispatch one integration subagent running the `integrate` stage skill
+— never the orchestrator — after the fix wave has merged, after a GREEN
+verdict, or after a recorded ruling skips the review. Its dispatch block
+carries the change-context digest: shipped issues with one-liners,
+diffstats, rulings pointers, docs debt, domain language changes. Its first
+step is the docs pass — consume the digest, update product docs, retire the
+docs debt — then it owns remaining merges, ship-time conflict resolution,
+PR prep or markdown-mode finish prep, and the digest draft. The
 orchestrator rules on the result and posts the digest, naming shipped,
 skipped, residual risks, and evidence.
 

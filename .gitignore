@@ -2,22 +2,17 @@
 Thumbs.db
 *.swp
 __pycache__/
-# Loop memory files are tracked; everything else under docs/ stays local.
+# Specs, frozen checks, and eval fixtures are tracked; everything else under
+# docs/ is local run scratch (job reports, checkrun evidence, manifests).
 # docs/STOP is the loop kill switch — never commit it.
 /docs/*
 !/docs/checks/
 !/docs/evals/
-!/docs/jobs/
 !/docs/issues/
-!/docs/gates/
-!/docs/lanes/
 !/docs/spec/
-!/docs/runs/
-/docs/runs/*/STOP
-!/docs/research/
-!/docs/solutions/
+!/docs/adr/
+/.claude/
 /.architect/
 /research/
 .gstack/
-!/docs/adr/
 benchmarks/

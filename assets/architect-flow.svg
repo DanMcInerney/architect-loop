@@ -7,7 +7,7 @@
   <rect width="1000" height="990" fill="#ffffff"/>
 
   <text x="45" y="44" font-size="20" font-weight="700" fill="#0f172a">/architect</text>
-  <text x="165" y="44" font-size="12" fill="#64748b">spec → adversarial review → plan + frozen checks → builders → run checks → final review → fix wave → docs + integrate → PR — run at max parallelization</text>
+  <text x="165" y="44" font-size="12" fill="#64748b">spec → adversarial review → plan + frozen checks → builders → run checks → final review → fix wave → integrate → PR — run at max parallelization</text>
 
   <!-- spine arrows (single-column section) -->
   <line x1="380" y1="126" x2="380" y2="168" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
@@ -113,12 +113,12 @@
   <line x1="380" y1="678" x2="380" y2="720" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
   <text x="392" y="702" font-size="11" font-weight="700" fill="#16a34a">GREEN — or fix wave merged</text>
 
-  <!-- 7 DOCS + INTEGRATE -->
+  <!-- 7 INTEGRATE -->
   <rect x="230" y="728" width="300" height="56" rx="10" fill="#7c3aed"/>
-  <text x="380" y="751" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">DOCS + INTEGRATE</text>
-  <text x="380" y="769" font-size="10.5" fill="#ede9fe" text-anchor="middle">docs job lands product docs · integrate subagent preps the ship</text>
-  <text x="560" y="748" font-size="11" fill="#475569">a dedicated builder consumes the run's docs debt, then a fresh</text>
-  <text x="560" y="762" font-size="11" fill="#475569">subagent merges green branches, re-verifies, drafts the digest</text>
+  <text x="380" y="751" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">INTEGRATE</text>
+  <text x="380" y="769" font-size="10.5" fill="#ede9fe" text-anchor="middle">docs pass first · merges green branches · preps the ship</text>
+  <text x="560" y="748" font-size="11" fill="#475569">one fresh subagent: updates product docs from the run digest,</text>
+  <text x="560" y="762" font-size="11" fill="#475569">then merges, re-verifies, and drafts the PR + digest</text>
 
   <!-- 8 PR -->
   <line x1="380" y1="784" x2="380" y2="826" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>

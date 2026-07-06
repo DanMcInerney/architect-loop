@@ -47,11 +47,11 @@ silent fallback — every precondition, blocker, and substitution is recorded.
   review carry the weight instead.
 - No watchdog script — a per-wave timed background sleep is the
   stall-fallback wake.
-- No separate docs job — the docs-job doctrine ("never the orchestrator")
-  is deliberately relaxed alongside Hard Rules 3 and 4: the orchestrator
-  itself reads the whole run diff, does the code, cohesion, and test
-  review, writes the fixes directly, and folds in doc updates. The closing
-  PR is the later eyes on that work.
+- The review doctrine ("nobody grades their own work") is deliberately
+  relaxed alongside Hard Rules 3 and 4: the orchestrator itself reads the
+  whole run diff, does the code, cohesion, and test review, and writes the
+  fixes directly. The closing PR is the later eyes on that work. Product
+  docs land in integrate's docs pass, same as `/architect`.
 
 ## Procedure
 
@@ -105,18 +105,19 @@ silent fallback — every precondition, blocker, and substitution is recorded.
    `/architect`: "Flag only gaps that affect correctness, the stated
    requirements, or documented project invariants -- cite file:line
    evidence for every finding. Do not report stylistic preferences." It
-   makes the fixes directly, folds in product-doc updates, runs the named
-   test suites, and commits its own work. This is the fast lane's only
-   review — fast-lane-only vocabulary, never part of `/architect`'s flow.
-   The verdict plus diffstat is posted on the tracking issue.
+   makes the fixes directly, runs the named test suites, and commits its
+   own work. This is the fast lane's only review — fast-lane-only
+   vocabulary, never part of `/architect`'s flow. The verdict plus
+   diffstat is posted on the tracking issue.
 
 7. **Integrate.** Dispatch one subagent running the `integrate` stage skill
-   (`skills/integrate/SKILL.md`). Standing fast-lane ruling: the
-   orchestrator-review verdict is the recorded final-review substitute —
-   the "skipped by a recorded ruling" arm of integrate's precondition — and
-   integrate's graded-RUN verification set is empty by design; its
-   validator-suite verification still runs. The orchestrator rules on the
-   result and posts the digest.
+   (`skills/integrate/SKILL.md`) with the change-context digest in its
+   dispatch block; its first step is the docs pass, same as `/architect`.
+   Standing fast-lane ruling: the orchestrator-review verdict is the
+   recorded final-review substitute — the "skipped by a recorded ruling"
+   arm of integrate's precondition — and integrate's graded-RUN
+   verification set is empty by design; its validator-suite verification
+   still runs. The orchestrator rules on the result and posts the digest.
 
 Stage skills invoked explicitly: `codebase-design`, `to-spec`
 (`skills/to-spec/SKILL.md`), `to-issues` (`skills/to-issues/SKILL.md`), and
@@ -135,7 +136,7 @@ this lane, to prevent description-trigger drift.
 | Postflight's `freeze_sha` diff base | The job's recorded dispatch-head SHA |
 | The ground script's frontier line | Read directly from tracker state; no ground script mid-run |
 | The watchdog's typed stall detection | One per-wave timed background sleep as the stall-fallback wake |
-| Final review plus the dedicated docs job | The orchestrator review — code, cohesion, and test axes, fixes and doc updates folded in |
+| Final review | The orchestrator review — code, cohesion, and test axes, fixes made directly |
 | Integrate's graded-RUN verification set | Empty by design; its validator-suite verification still runs |
 
 ## Maintenance

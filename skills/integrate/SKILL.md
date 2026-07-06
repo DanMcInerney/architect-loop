@@ -3,9 +3,10 @@ name: integrate
 description: >
   Factory-context integrate stage (end-of-run shipping) for one dedicated builder subagent dispatched by
   the orchestrator after the fix wave has merged, after a GREEN verdict, or
-  after a recorded ruling skips the review. Owns end-of-run integration,
-  postflight, PR or markdown finish prep, and a digest DRAFT; returns
-  evidence for the orchestrator to rule on.
+  after a recorded ruling skips the review. First step is the docs pass —
+  update product docs from the change-context digest — then end-of-run
+  integration, postflight, PR or markdown finish prep, and a digest DRAFT;
+  returns evidence for the orchestrator to rule on.
 ---
 
 # Integrate
@@ -18,9 +19,9 @@ review.
 
 ## Scope
 
-End-of-run integration only. Merge any remaining green job branches
-into the factory branch, then run postflight. Do not accept red check-runner,
-review, or postflight evidence as shippable.
+The docs pass, then end-of-run integration. Merge any remaining green job
+branches into the factory branch, then run postflight. Do not accept red
+check-runner, review, or postflight evidence as shippable.
 
 Resolve merge conflicts AT SHIP TIME ONLY. Mid-run conflicts remain
 decomposition failures: stop, report the branch and file evidence, and tell the
@@ -30,20 +31,33 @@ RUN item for the run must still be green after the resolution.
 
 Do not implement new slice behavior. Do not edit frozen checks. Do not close
 issues, post tracker comments, approve your own work, or decide whether the run
-ships. The orchestrator rules on your result.
+ships. Product docs are the one edit surface you own: the docs pass below.
+The orchestrator rules on your result.
 
 ## Grounding
 
-Before changing integration state, collect command evidence for:
+Before changing any state, collect command evidence for:
 
 - current branch, HEAD, and remotes;
-- run manifest and tracking issue identifier;
+- run and tracking-issue identifiers plus the change-context digest, from
+  your dispatch block;
 - remaining green job branches to merge;
 - shipped issues, skipped issues, rulings, and residual risks;
 - frozen check locations and the closing validator command.
 
 Every claim in your report must be backed by a command result. If a tool is
 missing or blocked, record the exact command, exit, and output.
+
+## Docs Pass (first step, before any merge)
+
+Consume the change-context digest — shipped issues with one-liners,
+diffstats, rulings pointers, docs debt, domain-language changes — and bring
+the product docs (README, design and architecture docs, glossary) up to
+what actually shipped: new features and flows documented, retired behavior
+deleted, glossary terms current, diagrams' labels still true. Retire every
+docs-debt item or record why it stays. Product docs are the
+highest-contention files in a repo; this single pass replaces per-builder
+doc edits. Commit the docs pass as its own commit on the factory branch.
 
 ## Integration
 
