@@ -39,7 +39,7 @@ high) does the heavy lifting. Both are overridable — see
 
 - Each stage is its own small skill, invoked in order: `codebase-design`
   (shared vocabulary), `to-spec`, `adversarial-review`, `to-issues`,
-  `frozen-checks`; builders preload `tdd`; `code-review` closes the run.
+  `frozen-checks`; builders preload `tdd`; `final-review` closes the run.
 - Orchestrator grounds in the vocabulary, then writes a spec doc and asks
   you no more than 5 questions.
 - A fresh orchestrator-tier subagent adversarially reviews the spec.
