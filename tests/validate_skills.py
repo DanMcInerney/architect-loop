@@ -87,8 +87,17 @@ LIBRARY_LINE_BUDGETS = {
 }
 # License ruling (docs/spec/skill-library.md `## Open human decisions`):
 # adapted skills carry a one-line attribution naming the source repo + MIT.
+# s11 (`## Wording policy`) made Pocock's text the baseline for five skills
+# and added the attribution to to-spec, to-issues, and cohesion-review; the
+# guard covers all five (was two, a pre-s11 baseline - closing review fix).
 LIBRARY_ATTRIBUTION = "Adapted from mattpocock/skills (MIT)"
-LIBRARY_ATTRIBUTED_SKILLS = ("codebase-design", "tdd")
+LIBRARY_ATTRIBUTED_SKILLS = (
+    "codebase-design",
+    "tdd",
+    "to-spec",
+    "to-issues",
+    "cohesion-review",
+)
 # s9 glossary cohesion lint scope: the seven stage-skill SKILL.md files plus
 # skills/architect/SKILL.md. Sibling reference files (tdd/tests.md,
 # tdd/mocking.md, codebase-design/DEEPENING.md, ...) are adapted Pocock
@@ -98,7 +107,7 @@ GLOSSARY_LINT_SKILLS = tuple(LIBRARY_SKILLS) + ("architect",)
 # Lines that NAME a banned substitute while banning it (the glossary's own
 # ban lists) are mentions, not uses-as-terms; without this exemption the
 # lint would fail on its own definition text at codebase-design/SKILL.md:25-26,
-# to-spec/SKILL.md:22-23, to-issues/SKILL.md:30-31,
+# to-spec/SKILL.md:22-23, to-issues/SKILL.md:29-30,
 # adversarial-review/SKILL.md:77-78, and cohesion-review/SKILL.md:72-73.
 GLOSSARY_BAN_LIST_MENTIONS = (
     "component/service/boundary/API",
@@ -1239,6 +1248,57 @@ def check_glossary_cohesion() -> None:
                 )
 
 
+# Cross-skill pointer integrity (docs/spec/skill-library.md `## Validation
+# strategy`; closing-review fix - no slice shipped it). A pointer is a
+# backticked or bare skill-file name followed by a backticked or quoted
+# `##`/`###` heading, the form the stage skills use to cite orchestrator
+# sections (e.g. `skills/architect/SKILL.md` `### 2. Spec Approval`). The
+# regex is deliberately conservative: filename-then-heading only, so prose
+# that names a heading without a file (or vice versa) is never flagged.
+CROSS_SKILL_POINTER_RE = re.compile(
+    r"(?:`(?P<path>[\w./-]+\.md)`"
+    r"|(?<![\w`/])(?P<bare>(?:SKILL|dispatch|loop|tracker|research|tactics)\.md))"
+    r"(?:'s)?\s+"
+    r"(?:`(?P<tick>#{2,3} [^`]+?)`|\"(?P<quote>#{2,3} [^\"]+?)\")"
+)
+
+
+def normalize_heading(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def check_cross_skill_pointers() -> None:
+    heading_cache: dict[Path, set[str]] = {}
+
+    def headings_of(target: Path) -> set[str]:
+        if target not in heading_cache:
+            heading_cache[target] = {
+                normalize_heading(line)
+                for line in read_text(target).splitlines()
+                if re.match(r"#{1,6}\s", line)
+            }
+        return heading_cache[target]
+
+    for path in sorted(SKILLS.rglob("*.md")):
+        rel = path.relative_to(ROOT)
+        for m in CROSS_SKILL_POINTER_RE.finditer(read_text(path)):
+            name = m.group("path") or m.group("bare")
+            target = ROOT / name if "/" in name else path.parent / name
+            heading = normalize_heading(m.group("tick") or m.group("quote"))
+            if not target.exists():
+                errors.append(
+                    f"{rel}: pointer names missing file {name} "
+                    f"(cited section: {heading})"
+                )
+                continue
+            if heading not in headings_of(target):
+                errors.append(
+                    f"{rel}: pointer `{name}` -> '{heading}' does not match "
+                    "any heading in the target (cross-skill pointer "
+                    "integrity, docs/spec/skill-library.md Validation strategy)"
+                )
+
+
 def main() -> int:
     skill_dirs = sorted(d for d in SKILLS.iterdir() if d.is_dir())
     if not skill_dirs:
@@ -1279,6 +1339,7 @@ def main() -> int:
     check_library_line_budgets()
     check_library_attribution()
     check_glossary_cohesion()
+    check_cross_skill_pointers()
     if errors:
         print(f"FAIL - {len(errors)} problem(s):")
         for e in errors:
