@@ -1,24 +1,46 @@
 # Builder Dispatch Reference
 
-Verified live against Codex CLI 0.139 (June 2026). Facts that correct common
-misinformation: the model slug is `gpt-5.5` (not `gpt-5.5-codex`); `--search`
-and `-a/--ask-for-approval` are TUI-only flags that `codex exec` rejects; Goal
-Mode's real subcommands are bare `/goal`, `/goal pause|resume|clear`.
+## Contents
 
-**Preflight:** run `codex --version`. Need >= 0.133. On the first dispatch in a
-new environment, launch one canary lane before fanning out.
+- Model alias table
+- Storage contract
+- Gate grammar and check-runner
+- Judge templates
+- Scout and stress-test templates
+- Canonical headless dispatch
+- Post-flight checks
+- Patch bundle finalization
+- Watchdog dispatch
+- Stall detection and rescue
+- Builder block template
+
+Dispatch turns a frozen local slice into fresh builder, scout, judge, or
+research work. The architect chooses the job shape, effort, worktree, and
+report paths; workers return raw evidence only.
+
+Verified Codex facts from upstream remain load-bearing: the model slug is
+`gpt-5.5`; `--search` and `-a/--ask-for-approval` are not `codex exec` flags;
+`codex exec` is non-interactive; prompt blocks should be passed through stdin
+with `-`.
+
+## Model Alias Table
+
+| Alias | Flags | Notes |
+|---|---|---|
+| `claude/best` | Opus 4.8 in the running Claude Code session | Local invariant: architect/orchestrator judgment stays on Opus 4.8. Do not substitute another Claude model. |
+| `codex/best` | `-m gpt-5.5 -c model_reasoning_effort="xhigh"` | Default builder and executor row. |
+| `codex/tier-down` | `-m gpt-5.5 -c model_reasoning_effort="high"` | Effort-down only; still GPT-5.5. Use only for routine lanes with recorded reason. |
+
+There is no default Claude builder fallback. If Codex is unavailable, stop and
+record the blocker in `.scratch/architect-loop/state/<slice>/verdict.md` or the
+active manifest. Tier is fixed at decomposition; a failed job fixes inputs, not
+the model tier.
 
 ## Storage Contract
 
 All loop artifacts live under `.scratch/architect-loop/` and are expected to be
-ignored by Git. Git is still used for implementation diffs and the local review
-branch commit.
-
-Implementation slices are selected from local planning artifacts under
-`.scratch/<feature-slug>/`: a `PRD.md` plus at least one
-`issues/<NN>-<slug>.md`. Research reports and handoffs are inputs to those
-files, not replacements for them, unless the human explicitly skips local
-PRD/issues for the run.
+ignored by Git. The skill does not create issues, branches, commits, PRs, or
+committed docs.
 
 Per slice:
 
@@ -34,48 +56,141 @@ Per slice:
   runs/<lane>.jsonl
   runs/<lane>.stderr.log
   runs/<lane>.last.md
+  checks/<lane>-checkrun.md
+  judges/<lane>.md
+  patches/<lane>.patch
+  final.patch
   verdict.md
 
 .scratch/architect-loop/worktrees/<slice>-<lane>/
+.scratch/architect-loop/watchdog/<slice>.json
+.scratch/architect-loop/research/<topic>/
 ```
 
-The authoritative slice state stays in the main checkout. Each lane worktree
-gets a copy of the slice packet under its own `.scratch/architect-loop/packet/`
-and writes its raw report, Codex JSONL event stream, stderr log, and last
-message under its own `.scratch/architect-loop/`.
-After the run, the architect ingests that report back into the main checkout's
-`.scratch/architect-loop/state/<slice>/reports/` and ingests the run artifacts
-back into `.scratch/architect-loop/state/<slice>/runs/`.
+The authoritative slice state stays in the primary checkout. Each detached
+worktree receives a copy of the slice packet under its own `.scratch` and writes
+raw report/run artifacts there. The architect ingests those artifacts into the
+authoritative state directory after completion.
 
-## Gate Freeze
+## Gate Grammar And Check-Runner
 
-Freeze before dispatch:
+Gate files are markdown. Mechanical checks use `RUN:` lines:
+
+```text
+- RUN: `git grep -F "needle" -- path/to/file.md` -> exit:0 match:"needle"
+```
+
+Contract:
+
+- The first backtick span is the command.
+- The expectation starts immediately after the closing backtick as
+  `-> exit:<n>`.
+- `match:"<fixed substring>"` is optional and case-sensitive. It is not regex.
+- Non-`RUN:` text is judge-facing prose.
+- A `RUN:` item without an expectation is a check definition error.
+
+Run the deterministic checker after a lane reports complete:
 
 ```bash
-STATE=.scratch/architect-loop/state/<slice>
-mkdir -p "$STATE/freeze"
-command cp "$STATE/gates.md" "$STATE/freeze/gates.md"
-(cd "$STATE/freeze" && shasum -a 256 gates.md > gates.sha256)
+skills/architect/check-runner.sh .scratch/architect-loop/state/<slice>/checks/<lane>.json
 ```
 
-Verify before judgment:
+Config JSON fields:
 
-```bash
-STATE=.scratch/architect-loop/state/<slice>
-(cd "$STATE/freeze" && shasum -a 256 -c gates.sha256)
-diff -u "$STATE/freeze/gates.md" "$STATE/gates.md"
+```json
+{
+  "check_file": ".scratch/architect-loop/state/<slice>/gates.md",
+  "frozen_check_file": ".scratch/architect-loop/state/<slice>/freeze/gates.md",
+  "workdir": "<lane-worktree-or-primary-checkout>",
+  "base_sha": "<slice-base-sha>",
+  "evidence_out": ".scratch/architect-loop/state/<slice>/checks/<lane>-checkrun.md",
+  "executor": "bash",
+  "max_output_lines": 60
+}
 ```
 
-The checksum proves the frozen artifact was not altered. It does not replace
-implementation diff review.
+Typed exits: `0` means all `RUN:` items passed; `2` means at least one failed;
+`5` means check definition or runner error and no partial evidence should be
+trusted.
+
+Evidence contains check-file integrity, per-item `expected:` and `verdict:`
+lines, and `CHECKRUN SUMMARY: run_items=<n> pass=<n> fail=<n>`.
+
+## Judge Templates
+
+The architect may judge directly for small diffs. For bigger or high-stakes
+lanes, send one fresh read-only judge. The template is fixed except paths.
+
+```text
+Frozen check file path: <.scratch/architect-loop/state/<slice>/freeze/gates.md>
+Live check file path: <.scratch/architect-loop/state/<slice>/gates.md>
+Base SHA: <base-sha>
+Worktree to judge: <lane worktree or primary checkout>
+Spec path: <.scratch/architect-loop/state/<slice>/spec.md>
+Lane report: <.scratch/architect-loop/state/<slice>/reports/<lane>.md>
+Checkrun evidence: <.scratch/architect-loop/state/<slice>/checks/<lane>-checkrun.md>
+Rulings file: <.scratch/architect-loop/state/<slice>/rulings.md> (absent = none)
+
+You are a fresh read-only judge. You did not build this lane. Flag only gaps
+that affect correctness, stated requirements, or documented project invariants;
+cite file:line evidence. Do not report stylistic preferences.
+
+Batch independent reads in one turn where your harness supports it: frozen
+gates, live gates, spec, lane report, rulings, and checkrun evidence. Read the
+CHECKRUN SUMMARY before intent review. Do not re-grade every RUN item from the
+evidence file. Re-run exactly ONE graded RUN item as a spot-check and compare
+verdicts; any mismatch is INVALID with both outputs quoted.
+
+Verdict format:
+Checks integrity: PASS | FAIL | INVALID
+Diff vs intent: PASS | FAIL | INVALID
+Spot-check: PASS | FAIL | INVALID
+Lane verdict: PASS | FAIL | INVALID, with one decisive reason.
+```
+
+## Scout And Stress-Test Templates
+
+### Scout
+
+Use during intake for non-trivial slices.
+
+```text
+You are a read-only code scout. Output path:
+.scratch/architect-loop/state/<slice>/scout-map.md
+
+Return <= 2,500 tokens. No recommendations. Include only anchored entries:
+key modules/files; load-bearing types/function signatures; conventions;
+testing seams; gotchas. Every entry must carry a real file:line anchor. If a
+category is absent, write `NOT FOUND: <category> - <searched paths>`. No edits
+beyond the output path.
+```
+
+### Stress-Test
+
+Run before builder dispatch, after the draft spec and gates exist.
+
+```text
+Draft spec path: <.scratch/architect-loop/state/<slice>/spec.md>
+Draft gate path: <.scratch/architect-loop/state/<slice>/gates.md>
+Source PRD/issue paths: <paths>
+
+Task: try to falsify this draft. Execute each draft RUN command against the
+current tree when safe, verify every referenced path/SHA/anchor resolves,
+attack acceptance criteria for contradictions and non-falsifiability, and flag
+assumptions not evidenced in the repo. For every file a lane deletes or renames,
+grep the repo for references and verify the owning lane covers them. For every
+new artifact path, run `git check-ignore <path>` and flag the plan if it is not
+ignored when it should be.
+
+Report format: `<clause>: FALSIFIED | HOLDS` with command output or file:line
+evidence; plan findings; assumptions not evidenced.
+```
 
 ## Canonical Headless Dispatch
 
-Write the builder block to a file first, then pass it via stdin (`-`). Do not
-put a large prompt block in a shell argument; shells mangle quotes and can make
-Codex hang waiting on stdin.
-
-Always use a worktree, including one-lane slices:
+Write the builder block to a file first, then pass it via stdin. Always use a
+detached scratch worktree, including one-lane slices. Detached worktrees avoid
+job branches while keeping builder edits isolated.
 
 ```bash
 REPO=<repo-root>
@@ -88,7 +203,7 @@ RUN_JSONL="$WT/.scratch/architect-loop/runs/$SLICE-$LANE.jsonl"
 STDERR_LOG="$WT/.scratch/architect-loop/runs/$SLICE-$LANE.stderr.log"
 LAST_MSG="$WT/.scratch/architect-loop/runs/$SLICE-$LANE.last.md"
 
-git -C "$REPO" worktree add "$WT" -b "tdiaconescu/lane/$SLICE-$LANE" "$BASE"
+git -C "$REPO" worktree add --detach "$WT" "$BASE"
 
 mkdir -p "$WT/.scratch/architect-loop/packet/$SLICE"
 command cp "$STATE/spec.md" "$WT/.scratch/architect-loop/packet/$SLICE/spec.md"
@@ -105,25 +220,11 @@ codex exec -C "$WT" --sandbox workspace-write \
 ```
 
 `--json` is the event stream and must be captured from stdout. `-o` is only the
-last assistant message; do not name it `.jsonl`. Keep stderr separate so shell
-warnings and tool errors cannot corrupt the JSONL event stream.
-
-If required local skill files are linked outside the worktree or may be blocked
-by the builder sandbox, copy task-sized excerpts into
-`$WT/.scratch/architect-loop/packet/$SLICE/skills/` and reference those packet
-paths in the dispatch prompt.
-
-Launch 2-4 lanes in parallel only after file-touch sets are checked for overlap.
-Most slices should remain one lane.
-
-A worktree's `.git` is a pointer file and the resolved git dir is sandbox
-protected. Builders cannot commit or touch shared history; the architect stages
-and commits only on the final review branch after post-flight and frozen gates
-pass.
+last assistant message; do not name it `.jsonl`.
 
 ## Post-Flight Checks
 
-Per lane, from the main checkout:
+Per lane, from the primary checkout:
 
 ```bash
 REPO=<repo-root>
@@ -133,14 +234,13 @@ BASE=<base-sha>
 STATE="$REPO/.scratch/architect-loop/state/$SLICE"
 WT="$REPO/.scratch/architect-loop/worktrees/$SLICE-$LANE"
 
-mkdir -p "$STATE/reports" "$STATE/runs"
+mkdir -p "$STATE/reports" "$STATE/runs" "$STATE/checks" "$STATE/patches"
 command cp "$WT/.scratch/architect-loop/reports/$SLICE-$LANE.md" "$STATE/reports/$LANE.md"
 command cp "$WT/.scratch/architect-loop/runs/$SLICE-$LANE.jsonl" "$STATE/runs/$LANE.jsonl"
 command cp "$WT/.scratch/architect-loop/runs/$SLICE-$LANE.stderr.log" "$STATE/runs/$LANE.stderr.log"
 command cp "$WT/.scratch/architect-loop/runs/$SLICE-$LANE.last.md" "$STATE/runs/$LANE.last.md"
 test -s "$STATE/runs/$LANE.jsonl"
-python3 -c 'import json,sys; lines=[l for l in open(sys.argv[1]) if l.strip()]; [json.loads(l) for l in lines]; assert lines' \
-  "$STATE/runs/$LANE.jsonl"
+python3 -c 'import json,sys; lines=[l for l in open(sys.argv[1]) if l.strip()]; [json.loads(l) for l in lines]; assert lines' "$STATE/runs/$LANE.jsonl"
 
 (cd "$STATE/freeze" && shasum -a 256 -c gates.sha256)
 diff -u "$STATE/freeze/gates.md" "$STATE/gates.md"
@@ -152,139 +252,86 @@ git -C "$WT" diff "$BASE" -- <allowed-files...>
 ```
 
 Fail the lane if any changed or untracked implementation file is outside the
-lane's declared allowed file set. Ignored `.scratch` files are lane artifacts
-and must not be staged.
+declared allowlist. Ignored `.scratch` files are artifacts, not implementation
+files.
 
-Fail or re-run the lane if the JSONL event stream is missing, empty, or invalid.
-The last message file is useful for summaries, but it is not a substitute for
-the JSONL run log.
+## Patch Bundle Finalization
 
-Fail or return the lane for clarification if its report does not list the
-required local skills it loaded. Terraform/OpenTofu lanes must load
-`terraform-skill`. Lanes that change AWS providers/resources must load
-`aws-stuff`; lanes that run AWS SSO/login, AWS CLI, live AWS inspection, or
-Terraform plans/refreshes against AWS-backed state/data sources must also load
-`aws-stuff` for operational context.
-
-Gate commands must match the frozen command or an explicitly frozen allowed
-variant. Record actual command, cwd/env, exit status, output path, post-run
-source diff, and PASS / FAIL / BLOCKED / DEVIATED for each gate. Do not call a
-gate PASS if a subcommand was skipped, an env var changed, `-lock=false` was
-added ad hoc, or the command rewrote lock files, generated config, or unrelated
-source files. If a Terraform/OpenTofu init or validate step wants to update
-`.terraform.lock.hcl`, rerun with readonly lock behavior when supported, such as
-`terraform init -backend=false -lockfile=readonly`. If the gate cannot run
-without changing out-of-scope files, stop and record the blocker instead of
-including the mutation in the lane.
-
-For new allowed files, inspect them explicitly and use intent-to-add only when
-needed to make the lane patch complete. Do not commit in lane worktrees:
-
-```bash
-# only if the lane created new allowed files:
-git -C "$WT" add -N -- <new-allowed-files...>
-git -C "$WT" diff --binary "$BASE" -- <allowed-files...>
-```
-
-Never run `git add -A`. Never stage `.scratch`, `.architect`, `docs/gates`,
-`docs/lanes`, generated PRDs, lane reports, run logs, or other loop artifacts.
-
-## Review Branch Finalization
+Finalization produces local patch files only.
 
 ```bash
 REPO=<repo-root>
 SLICE=<slice>
-BASE=<slice-base-sha>
-STATE="$REPO/.scratch/architect-loop/state/$SLICE"
-BASE_BRANCH=<project-base-branch>
-REVIEW_BRANCH=<project-rule-compliant-feature-branch>
-
-git -C "$REPO" fetch --prune origin "$BASE_BRANCH"
-UPDATED_BASE="$(git -C "$REPO" rev-parse "origin/$BASE_BRANCH")"
-git -C "$REPO" status --short --untracked-files=all
-git -C "$REPO" diff --quiet
-git -C "$REPO" diff --cached --quiet
-test -z "$(git -C "$REPO" ls-files --others --exclude-standard)"
-git -C "$REPO" switch -c "$REVIEW_BRANCH" "$UPDATED_BASE"
-
-mkdir -p "$STATE/patches"
-
-# per passing lane, sequentially:
 LANE=<NN>
+BASE=<base-sha>
+STATE="$REPO/.scratch/architect-loop/state/$SLICE"
 WT="$REPO/.scratch/architect-loop/worktrees/$SLICE-$LANE"
+
 # only if the lane created new allowed files:
 git -C "$WT" add -N -- <new-allowed-files...>
 git -C "$WT" diff --binary "$BASE" -- <allowed-files...> > "$STATE/patches/$LANE.patch"
 git -C "$REPO" apply --check "$STATE/patches/$LANE.patch"
-git -C "$REPO" apply --index "$STATE/patches/$LANE.patch"
-
-git -C "$REPO" diff --cached --name-only
-git -C "$REPO" diff --cached
-git -C "$REPO" diff --cached --binary > "$STATE/final-candidate.pre-gates.patch"
-<run every frozen gate command in "$REPO">
-git -C "$REPO" status --short --untracked-files=all
-git -C "$REPO" diff --quiet
-test -z "$(git -C "$REPO" ls-files --others --exclude-standard)"
-git -C "$REPO" diff --cached --binary > "$STATE/final-candidate.post-gates.patch"
-diff -u "$STATE/final-candidate.pre-gates.patch" "$STATE/final-candidate.post-gates.patch"
-test -s "$STATE/commit-message.txt"
-! grep -Ei '^(Co-Authored-By:|Generated[- ]with|Generated[- ]by)' "$STATE/commit-message.txt"
-git -C "$REPO" commit -F "$STATE/commit-message.txt"
-git -C "$REPO" rev-parse HEAD
-
-# cleanup:
-git -C "$REPO" worktree remove "$WT"
 ```
 
-Choose `REVIEW_BRANCH` from repo Git instructions; default to
-`tdiaconescu/<feature-slug>` only when the repo has no stricter rule. If that
-branch already exists, create a brand new suffixed branch or ask; never
-force-reset it without explicit human approval.
+For accepted lanes, concatenate patches in dependency order:
 
-The final review branch belongs in the primary checkout so the human is left on
-the branch to evaluate. Before `git switch -c`, inspect the status output. If
-the primary checkout contains tracked changes or untracked implementation files,
-stop and ask instead of stashing, overwriting, or creating a hidden review
-worktree. Ignored `.scratch` loop artifacts are expected.
+```bash
+: > "$STATE/final.patch"
+for p in "$STATE"/patches/*.patch; do
+  [ -s "$p" ] && cat "$p" >> "$STATE/final.patch"
+done
+git -C "$REPO" apply --check "$STATE/final.patch"
+```
 
-If patch apply, final gates, post-gate cleanliness checks, or staged-patch
-comparison fail, stop without committing and report the blocker. If the base
-update fails, stop and ask instead of using a stale base. Do not hand-resolve
-builder conflicts.
+Do not apply, stage, branch, commit, push, or open a PR by default. The human
+reviews `final.patch` and decides what to do next.
 
-Create `$STATE/commit-message.txt` from the repo's commit rules and inspect it
-before committing. Do not include AI co-author trailers, generated-by footers,
-or tool branding unless the repo explicitly requires them.
+## Watchdog Dispatch
 
-After the commit, write `$STATE/verdict.md` with review branch, updated base
-SHA, final commit SHA, checkout path, gate ledger, and changed implementation
-files. If the commit is amended or replaced after that, regenerate
-`verdict.md`; otherwise it is stale. Stop after reporting the local branch,
-commit SHA, and primary checkout path. Do not push, open a PR, squash, amend,
-or continue follow-up work unless the human asks.
+Use the script watchdog for unattended waves. It is detection-only.
+
+```json
+{
+  "sweep_sec": 120,
+  "stall_after_min": 10,
+  "jobs": [
+    {
+      "id": "<slice-lane>",
+      "events_file": "<worktree>/.scratch/architect-loop/runs/<slice-lane>.jsonl",
+      "report_path": "<worktree>/.scratch/architect-loop/reports/<slice-lane>.md",
+      "worktree": "<worktree>",
+      "duration_hint_min": 0
+    }
+  ]
+}
+```
+
+Run:
+
+```bash
+skills/architect/watchdog.sh .scratch/architect-loop/watchdog/<slice>.json
+```
+
+Typed exits: `0 WATCHDOG: ALL_DONE`, `2 WATCHDOG: INTEGRATED`, `3 WATCHDOG:
+STALL`, `4 WATCHDOG: REPEAT`.
+
+The watchdog never kills, nudges, judges, edits files, or changes Git state.
 
 ## Stall Detection And Rescue
 
-A dispatched run is STALLED when its `--json` output file has not grown for
-15+ minutes and the last event is an `in_progress` command_execution. Silent
-gaps between events are normal model thinking; a shell command that should take
-seconds sitting in flight for 15+ minutes is not.
+A dispatched run is STALLED when its JSONL output and report stop growing, the
+process tree shows no activity beyond the duration hint, or the last parsed
+commands repeat mechanically. Silent gaps are normal model thinking.
 
-Diagnose before killing: find the command's child under the Codex PID
-(codex -> shell -> child). Kill the narrowest thing: the stuck child process,
-not the whole Codex run. Kill the whole run only when the builder re-enters the
-same hang or the worktree is broken; then discard the lane and re-dispatch.
+Diagnose before killing. If a child process is stuck, kill the narrowest child,
+not the whole Codex run. Kill the whole lane only after the same hang repeats or
+the worktree is broken; then discard the worktree and respawn from updated
+inputs.
 
-Known sandbox hang sources: `asyncio.create_subprocess_exec` and anything built
-on it, including Playwright browser launch and anyio subprocess pools, can fail
-or hang under workspace-write while plain `subprocess.run` works. When a gate
-needs a runtime the sandbox cannot execute, the builder records the exact
-failure and the architect runs that gate at judgment time.
-
-## Manual Alternative
-
-Paste the builder block into an interactive `codex` session prefixed with
-`/goal ` when the human wants to watch or steer the run.
+Known sandbox hang sources: `asyncio.create_subprocess_exec`, Playwright
+browser launch, anyio subprocess pools, out-of-workspace temp paths, and
+cache/temp directories outside the workspace. Route such commands to
+in-workspace temp/cache paths or record BLOCKED.
 
 ## Builder Block Template
 
@@ -292,61 +339,45 @@ Paste the builder block into an interactive `codex` session prefixed with
 Execute the architect spec below. Operating rules:
 
 REQUIRED LOCAL SKILLS - Before PHASE 0:
-Read every skill file listed in the REQUIRED LOCAL SKILLS section below. If the
-slice is Terraform/OpenTofu and `terraform-skill` is available, you must read it
-and apply its response contract, risk categories, validation rules, and rollback
-expectations. If the lane changes AWS providers/resources or runs AWS
-SSO/login, AWS CLI, live AWS inspection, or Terraform plans/refreshes against
-AWS-backed state/data sources and `aws-stuff` is available, you must read it and
-apply its credential, profile, query filtering, preview, and
-destructive-operation rules. If a required skill path is missing or unreadable,
-state that in PHASE 0 and mark the lane
+Read every skill file listed in the REQUIRED LOCAL SKILLS section. If one is
+missing or unreadable, state that in PHASE 0 and mark the lane
 COMPLETE_WITH_CONCERNS or BLOCKED depending on risk.
 
-PHASE 0 - Before any code: reply with your plan and EVERY disagreement you have
-with this spec, with reasons, citing real files in this repo. Silent compliance
-is a failure. Silent scope additions are a failure. If you have no
+PHASE 0 - Before code:
+Reply with your plan and EVERY disagreement you have with this spec, with
+reasons citing real files. Silent compliance is a failure. If there are no
 disagreements, state what you checked before concluding the spec is sound.
-Verify the named APIs/formats/versions against the live dependencies before
-planning around them.
 
-PHASE 1 - Treat shared contracts listed in the spec as frozen. The slice packet
-and frozen gates under .scratch/architect-loop/packet/<slice>/ are read-only
-for you; editing packet artifacts or regenerating criteria fails the lane.
+PHASE 1 - Frozen packet:
+The packet and frozen gates under `.scratch/architect-loop/packet/<slice>/`
+are read-only. Editing packet artifacts or regenerating criteria fails the
+lane.
 
-PHASE 2 - Build YOUR LANE ONLY. Implementation changes may touch only the
-implementation files listed in BOUNDARIES. Required loop artifacts are outside
-that implementation boundary: write the lane report under
-.scratch/architect-loop/reports/, and the dispatch wrapper writes run logs
-under .scratch/architect-loop/runs/. Keep all .scratch artifacts ignored and
-untracked. Files outside your lane belong to other agents; touching them fails
-your lane. No placeholder implementations. Search the codebase before
+PHASE 2 - Build YOUR LANE ONLY:
+Implementation changes may touch only the files listed in BOUNDARIES. Write the
+lane report under `.scratch/architect-loop/reports/`. Keep all `.scratch`
+artifacts ignored and untracked. No placeholder implementations. Search before
 implementing. Full implementations only.
 
-Verify your work by running the lane's gate commands and record verbatim
-output plus a gate ledger: frozen command, actual command, cwd/env, exit status,
-output path, post-run source diff, and PASS / FAIL / BLOCKED / DEVIATED. Do NOT
-commit. Do NOT delete or update lock files. If Terraform/OpenTofu or another
-tool wants to rewrite a lock file outside your declared boundary, record the
-exact command and failure/blocker instead of accepting the change. Do NOT
-escalate privileges if a git command fails; record the exact error and continue.
-Give every potentially long command an explicit timeout. If a runtime will not
-start under the sandbox, record the exact failure in your lane report and route
-around it; never busy-wait or retry in a loop.
+Verification:
+Run the lane's gate commands sequentially and record raw output plus a gate
+ledger: frozen command, actual command, cwd/env, exit status, output path,
+post-run source diff, and PASS / FAIL / BLOCKED / DEVIATED. Do NOT commit. Do
+NOT delete or update lock files outside the declared boundary. Give long
+commands explicit timeouts. If a runtime cannot start under the sandbox, record
+the exact failure and stop.
 
 When done, write your lane report to:
 .scratch/architect-loop/reports/<slice>-<lane>.md
 
-Use RAW results only: tables, numbers, command output, file paths, SHAs. No
-interpretation, no "promising". Every status claim must be backed by a command
-result from this run. Include `Skills used:` and `Extra context loaded:` lines
-covering every required local skill. Keep the report compact. End it with
-exactly one status line:
+Use RAW results only: command output, file paths, SHAs, tables, numbers. Every
+status claim must be backed by a command result from this run. Include `Skills
+used:` and `Extra context loaded:` lines. End with exactly one status line:
 STATUS: COMPLETE | COMPLETE_WITH_CONCERNS (list them) | BLOCKED (exact blocker
 and what you tried).
 
-Verdicts belong to the architect and human. Persist until your lane is fully
-handled end-to-end; do not stop at analysis or partial fixes.
+Verdicts belong to the architect and human. Persist until your lane is handled
+end to end; do not stop at analysis or partial fixes.
 
 === OBJECTIVE (and why) ===
 ...
@@ -354,26 +385,18 @@ handled end-to-end; do not stop at analysis or partial fixes.
 === OUTPUT FORMAT ===
 ...
 
-=== TOOL GUIDANCE (verification commands; verify-against-reality list) ===
+=== TOOL GUIDANCE ===
 ...
 
 === REQUIRED LOCAL SKILLS ===
 ...
 
-=== BOUNDARIES (implementation allowlist / forbidden implementation files / allowed artifacts / out of scope) ===
+=== BOUNDARIES ===
 ...
 
-=== DISAGREEMENT RULINGS (from last session) ===
+=== DISAGREEMENT RULINGS ===
 ...
 
-=== ACCEPTANCE GATES (frozen in .scratch/architect-loop/packet/<slice>/frozen-gates.md) ===
+=== ACCEPTANCE GATES ===
 ...
 ```
-
-## Builder-Side Standing Setup
-
-- `~/.codex/config.toml`: `model = "gpt-5.5"`.
-- Parallelism is architect-orchestrated worktrees. It does not depend on
-  Codex's experimental `[features] multi_agent` config.
-- Repo `AGENTS.md`: exact build/test commands and repo gotchas only. The
-  loop's PHASE rules stay in the dispatch block so they version with the skill.

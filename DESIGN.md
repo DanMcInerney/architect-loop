@@ -8,7 +8,7 @@ their repository history or PRs.
 
 | Role | Who | Owns |
 |---|---|---|
-| Architect | Claude Opus 4.8 in Claude Code | grilling, arbitration, gates, verification, integration |
+| Architect | Claude Opus 4.8 in Claude Code | grilling, arbitration, gates, verification, patch-bundle handoff |
 | Builder | GPT-5.5 via `codex exec` | implementation inside one declared lane |
 | Researcher | GPT-5.5 via read-only `codex exec` | raw sourced findings |
 | Memory | `.scratch` plus Git history | local loop state and source diffs |
@@ -31,19 +31,21 @@ their repository history or PRs.
    coding, citing real files.
 7. **Every builder runs in a fresh worktree.** This applies even to one-lane
    slices, so generated state and source edits stay isolated.
-8. **Only declared implementation files can be staged.** `git add -A` is
-   forbidden in the loop.
-9. **No external issue tracker writes by default.** Local PRDs and issue slices
-   are `.scratch` files unless the human explicitly asks for publication.
+8. **No publication side effects.** The skills do not create issues, branches,
+   commits, PRs, or committed docs. They stop at local evidence and patch files.
+9. **Only local planning files exist by default.** PRDs and issue slices are
+   `.scratch` files; there is no external issue tracker path in this fork.
 10. **Grilling precedes slicing when scope is not already settled.** The
     architect asks one question at a time, inspects code when possible, updates
     glossary/ADRs only when warranted, then distills to local PRD and issues.
+11. **No builder fallback.** GPT-5.5 through Codex is required for builders and
+    researchers. Missing Codex is a blocker, not a Claude-subagent fallback.
 
 ## Artifact Layout
 
 ```text
-.scratch/<feature-slug>/PRD.md
-.scratch/<feature-slug>/issues/<NN>-<slug>.md
+.scratch/architect-loop/planning/<feature-slug>/PRD.md
+.scratch/architect-loop/planning/<feature-slug>/issues/<NN>-<slug>.md
 
 .scratch/architect-loop/state/<slice>/
   manifest.json
@@ -56,6 +58,10 @@ their repository history or PRs.
   runs/<lane>.jsonl
   runs/<lane>.stderr.log
   runs/<lane>.last.md
+  checks/<lane>-checkrun.md
+  judges/<lane>.md
+  patches/<lane>.patch
+  final.patch
   verdict.md
 
 .scratch/architect-loop/worktrees/<slice>-<lane>/
@@ -78,24 +84,21 @@ These are intentionally separate. A checksum answers whether the gate artifact
 changed. It does not show implementation changes and must never be used as a
 replacement for source diff review.
 
-## Review Branch Policy
+## Patch Bundle Policy
 
-Builders cannot commit. The architect creates one local review branch commit,
-but only after:
+Builders cannot commit. The architect produces a patch bundle only, after:
 
 - the frozen gate snapshot still matches,
 - changed and untracked files are inside the lane's declared file set,
 - the implementation diff has been read,
-- all frozen gate commands have been run by the architect on the review branch,
-- only declared implementation files are staged.
+- deterministic `RUN:` gates have been graded by `check-runner.sh`,
+- one graded item has been spot-checked during intent review,
+- the lane patch passes `git apply --check`.
 
-The review branch is created in the primary checkout from an updated project
-base and follows repo Git instructions for branch names and commit messages. If
-the primary checkout has user work, the loop stops and asks instead of hiding
-the result in another worktree. The verdict is written after the final commit
-SHA exists; amending or replacing that commit makes the verdict stale and
-requires regeneration.
+The architect writes one patch per accepted lane and a combined `final.patch`
+under `.scratch/architect-loop/state/<slice>/`. `verdict.md` records the base
+SHA, accepted/rejected lanes, gate ledger, changed files, and patch paths.
 
-The loop stops after reporting the local review branch and commit. Pushing,
-opening a PR, squashing, amending, or continuing follow-up work requires an
-explicit human request. `.scratch` artifacts remain ignored either way.
+The loop stops after reporting the patch bundle and evidence paths. Applying,
+staging, committing, pushing, opening issues, opening a PR, or publishing docs
+requires a separate explicit human instruction after the patch is reviewed.

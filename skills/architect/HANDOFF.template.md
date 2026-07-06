@@ -10,8 +10,8 @@
 ## TL;DR
 
 - Goal: [one sentence]
-- Source PRD: [.scratch/<feature-slug>/PRD.md]
-- Current issue slice: [.scratch/<feature-slug>/issues/<NN>-<slug>.md]
+- Source PRD: [.scratch/architect-loop/planning/<feature-slug>/PRD.md]
+- Current issue slice: [.scratch/architect-loop/planning/<feature-slug>/issues/<NN>-<slug>.md]
 - Last slice: [name] - [PASS/FAIL/pending judgment]
 - Next action: [exact command or decision needed]
 
