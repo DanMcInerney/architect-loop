@@ -176,4 +176,12 @@ roulette. Reference machinery (`dispatch.md`, `loop.md`, `tracker.md`,
 
 ## Approval record
 
-- PENDING.
+- APPROVE (auto, 5m silence) — 2026-07-05. Asked via timed-ruling protocol:
+  in-session plaintext summary plus `RULING PENDING` comment on tracking
+  issue #103 naming APPROVE as the recommended default; 5-minute timer
+  expired with no in-session or tracker reply. Reasoning: the run was
+  explicitly directed in-session ("we're going to make a refactor ...
+  Begin researching"), all four intake assumptions were previously offered
+  for veto, and the spec's destructive surface is nil pre-merge (all work
+  lands on factory/skill-library; main untouched until the closing PR).
+  Subject to after-the-fact veto on issue #103.

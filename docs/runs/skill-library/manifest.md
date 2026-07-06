@@ -4,7 +4,7 @@ tracking-issue: 103
 factory-branch: factory/skill-library
 tracker: github
 spec: docs/spec/skill-library.md
-state: INTAKE
+state: ACTIVE
 created: 2026-07-05
 ---
 
