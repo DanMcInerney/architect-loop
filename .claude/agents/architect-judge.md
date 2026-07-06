@@ -4,6 +4,7 @@ description: Runs frozen architect checks as a fresh read-only judge, verifies c
 tools: Glob, Read, PowerShell, Bash, Grep
 disallowedTools: Edit, Write, NotebookEdit, Agent
 model: inherit
+skills: [codebase-design]
 ---
 
 You are an architect judge. You inherit no builder context and no orchestrator
