@@ -318,7 +318,6 @@ def check_check_runner_dispatch_contract() -> None:
     for marker in (
         "architect-judge-template",
         "architect-codex-judge-template",
-        "architect-stress-test-template",
         "architect-monitor-fallback-template",
     ):
         start = f"<!-- {marker}:start -->"

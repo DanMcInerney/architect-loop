@@ -17,7 +17,9 @@ official docs/reference, changelog/breaking changes, community failure reports,
 alternatives/comparisons, security/operational constraints.
 
 One fresh `codex exec` per question, all launched in parallel, in the
-background — this is the default-builders example (codex/tier-down):
+background — this is the codex-backend example (codex/tier-down; the
+builders default is Claude-native, see `dispatch.md` `## Model resolution
+and dispatch rules`):
 
 ```bash
 codex exec -C <repo-root> --sandbox read-only -c web_search="live" \
