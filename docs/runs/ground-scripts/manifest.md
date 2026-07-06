@@ -4,7 +4,7 @@ tracking-issue: 129
 factory-branch: factory/ground-scripts
 tracker: github
 spec: docs/spec/ground-scripts.md
-state: ACTIVE
+state: FINISHED
 created: 2026-07-06
 ---
 
