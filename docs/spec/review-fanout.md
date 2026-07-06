@@ -39,19 +39,32 @@ grading stays with the check-runner end to end.
    frozen-checks discipline. All drafts are files in its worktree; the
    reviewer commits nothing and never touches the frozen-checks tree.
 5. The reviewer returns control with a FINDINGS verdict naming the draft
-   paths. The orchestrator rules on the drafts (adjusting only for freeze
-   preconditions and boundary collisions), copies the checks into the
-   frozen-checks tree, commits the review spec and freeze on the factory
-   branch, files the fix issues as sub-issues under the tracking issue, and
-   posts the review verdict plus issue list as a digest on the tracking
-   issue. No human gate; after-the-fact veto via the digest.
+   paths. The orchestrator harvests the three draft sets out of the
+   reviewer worktree, then discards that worktree (close-out). It rules on
+   the drafts and runs the frozen-checks freeze gate deterministically —
+   every draft RUN command executed against the current tree, the
+   attack-list applied — amending drafts pre-freeze where the gate demands
+   it (intent-bearing amendments recorded as rulings). It then commits the
+   review spec and issue bodies under the run directory and the checks into
+   the run's frozen-checks directory as the fix-wave freeze commit, updates
+   the tracking-issue body's freeze record to the fix-wave freeze SHA (the
+   record always names the latest freeze; prior SHAs stay in comments),
+   files the fix issues as sub-issues under the tracking issue, and posts
+   the review verdict plus issue list as a digest on the tracking issue.
+   No human gate; after-the-fact veto via the digest.
 6. The orchestrator dispatches fix builders through the existing wave
    machinery: fresh builder per issue at the builders tier, preflight,
    check-runner grading, postflight merge, failure ladder, watchdog.
 7. Single review cycle: no second model review after the fix wave. The
    frozen checks the reviewer drafted are the verification that its findings
-   are fixed; green checkruns plus postflight close the fix issues. When all
-   fix issues close, the run proceeds to the docs job and then integrate.
+   are fixed; green checkruns plus postflight close the fix issues. A fix
+   issue that will not merge can also close by recorded ruling (won't-fix
+   or kill, with reason); ruling-closed findings land in the digest as
+   residual risks. When every fix issue is closed by merge or by ruling,
+   the run proceeds to the docs job and then integrate. A third strike
+   inside the fix wave is a hard stop — the closing review is already
+   spent, so orchestrator-written fix code would otherwise merge without
+   any model review.
 
 ## Non-goals
 
@@ -85,9 +98,16 @@ grading stays with the check-runner end to end.
 - 2026-07-06, orchestrator default: fix issues dispatch at the builders
   tier per the existing model-resolution chain; a review finding never
   raises tier (Hard Rule 6 applies to fix issues too).
-- 2026-07-06, orchestrator default: this run's own closing review executes
-  the flow as installed at dispatch time (the current direct-edit flow);
-  the new flow's maiden run is the next factory run after ship.
+- 2026-07-06, orchestrator default: the closing-review dispatch block
+  always cites the installed user-level skill text by explicit path; the
+  repo or worktree copy is never the dispatch source. This run's own
+  closing review therefore executes the pre-run direct-edit flow
+  (installers re-run only at ship); the new flow's maiden run is the next
+  factory run.
+- 2026-07-06, orchestrator default: the fix wave gets no adversarial-review
+  stress pass — its drafts come from the run's only fresh model review,
+  and the deterministic freeze gate covers check mechanics; a per-fix-wave
+  model stress pass would contradict the single-cycle ruling.
 
 ## Implementation decisions
 
@@ -115,15 +135,24 @@ grading stays with the check-runner end to end.
   its worktree (review spec plus one file per fix issue and per check
   draft). The freeze commit copies check drafts into the frozen-checks tree
   under the run's existing checks directory with a review-issue slug
-  prefix; a second freeze commit for the fix wave is the existing freeze
-  protocol applied again, with its own recorded freeze SHA.
+  prefix. The fix-wave freeze reconciles with the ground script's
+  single-freeze reconcile — verified 2026-07-06 against the freeze
+  resolution in both ground scripts (tracking-issue body first-match, then
+  diff freeze-SHA..HEAD over the run's checks directory) — by updating the
+  tracking-issue body's freeze record to the fix-wave freeze SHA at freeze
+  time; the ground scripts themselves stay untouched (non-goal holds).
+  Draft-check validation runs against the harvested, committed copies,
+  never against untracked worktree files (git-grep untracked blindness).
 - The three finish-boundary statements (orchestrator skill Finish section,
   loop event-loop finish step, integrate stage dispatch gate) change in
-  lockstep to the same sentence shape: integrate fires after the fix wave
-  has merged, after a GREEN verdict, or after a recorded ruling skips the
-  review. Hard Rule 3 gains "it reports and decomposes, never edits" and
-  keeps "never merge over a red checkrun; never skip the final review
-  without a recorded ruling."
+  lockstep to the same sentence shape: the docs job fires after the fix
+  wave has merged, after a GREEN verdict, or after a recorded ruling skips
+  the review; integrate fires after the docs job, as today. Hard Rule 3
+  gains "it reports and decomposes, never edits" and keeps "never merge
+  over a red checkrun; never skip the final review without a recorded
+  ruling." The loop's failure-ladder text changes in the same lockstep:
+  third-strike grading names the closing review, which is spent during the
+  fix wave, so the fix-wave third strike becomes a hard stop there too.
 - The green-or-discard rule dissolves; its replacement is per-issue
   isolation under the existing failure ladder. The digest records the
   dissolution so no stage skill still cites it.
@@ -141,10 +170,22 @@ grading stays with the check-runner end to end.
   110 non-blank cap on the final-review skill text, frontmatter, glossary
   lint, attribution) must pass as a graded RUN item in every slice that
   touches skill text. A slice that must grow a capped file amends the
-  budget table in the same slice, inside its declared touch set.
-- Cross-file lockstep is checked by greps in frozen checks: no remaining
-  "edits directly" language at the finish boundary, no live green-or-discard
-  citation outside run history, integrate's gate names the fix wave.
+  budget table in the same slice, inside its declared touch set. The
+  five-file architect-core combined cap measured 959 of 989 non-blank
+  lines on 2026-07-06 — 30 lines of headroom; a slice that must exceed it
+  raises the validator constant and its paired design-doc guard sentence
+  in the same slice, both files in the declared touch set (that guard
+  sentence is a surgical touch, distinct from docs-job product-doc
+  ownership).
+- Cross-file lockstep is checked by greps in frozen checks, always
+  file-enumerated against the named live files in the slice's touch set —
+  never repo-wide (prior-run frozen checks are immutable and keep the old
+  language forever; repo-wide negative greps are the known-unsatisfiable
+  failure class): no remaining "edits directly" language in the
+  finish-boundary trio, no green-or-discard citation in those same named
+  files, integrate's gate names the fix wave. Docs-job-owned files
+  (readme, design doc, context glossary, flow diagram) get their greps in
+  the docs job's own frozen check, never in build-slice checks.
 - This run's own closing review runs the currently installed direct-edit
   flow (assumption above); the rewritten flow is validated structurally by
   the frozen checks and the validator, and behaviorally on its maiden run in
@@ -183,6 +224,19 @@ None. (All intake questions answered in-session 2026-07-06.)
   the old shape at `assets/architect-flow.svg:9,100-103`; trigger-eval
   fixtures reference the skill by name only
   (`docs/evals/trigger-prompts.md:138-144`), unaffected by this change.
+- Read directly 2026-07-06 (orchestrator): ground freeze resolution at
+  `skills/architect/ground.ps1:209-232` — freeze SHA from tracking-issue
+  body first regex match, fallback latest commit touching the run's checks
+  directory, DRIFT on any diff freeze-SHA..HEAD in that directory; this is
+  what the latest-freeze body-record doctrine reconciles against.
+- Measured 2026-07-06 (orchestrator): architect-core non-blank totals
+  181+503+132+66+77 = 959 vs `ARCHITECT_SKILL_TEXT_MAX_NON_BLANK = 989`
+  (`tests/validate_skills.py:36`, guard applied at `:502`).
+- Adversarial spec review 2026-07-06 (fresh orchestrator-model subagent):
+  9 findings — 1 blocking, 5 major, 3 minor — all applied above; the
+  blocking finding (fix-wave freeze vs ground single-freeze reconcile) and
+  both budget claims were independently re-verified by the orchestrator
+  before application.
 - `docs/solutions/served-model-verification.md` (repo, read 2026-07-06):
   subagent model pins verified genuine on this harness; no extra machinery
   needed for the reviewer or fix-builder dispatches.
@@ -196,8 +250,10 @@ None. (All intake questions answered in-session 2026-07-06.)
   `factory/review-fanout` cut from main.
 - Models resolved: orchestrator = running session (Fable 5); builders =
   `claude/tier-down` (Sonnet at high effort) per the dispatch alias table.
-- Builder-backend canary: PENDING at spec-writing time; result recorded
-  below before decomposition.
+- Builder-backend canary 2026-07-06: Claude-native Agent job at the
+  builders model replied `CANARY: SHELLS_OK` with shell tools present
+  (PowerShell + Bash) and correct `git log -1` output from the primary
+  checkout.
 - Installed skill trees at the user level exist for `final-review` and
   `architect` (stale copies by design); installers re-run at ship.
 
