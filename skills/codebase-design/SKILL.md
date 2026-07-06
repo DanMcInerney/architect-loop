@@ -45,7 +45,6 @@ file for frozen check. Consistent language is the whole point.
 - **Frozen check** - the committed, read-only acceptance check a builder's work is graded against.
 - **Check-runner** - the deterministic script that grades a frozen check's RUN items and exits typed (0/2/5).
 - **Builder** - the fresh, worktree-isolated agent that implements one issue and never commits.
-- **Intent judge** - retired (human ruling 2026-07-06): grading is the check-runner plus the closing cohesion review; no per-issue model review remains.
 - **Orchestrator** - the one session that grounds, decomposes, freezes, dispatches, and integrates; never writes implementation code.
 - **Factory branch** - the run's integration branch (`factory/<run>`) that job branches merge into.
 - **Worktree** - the isolated git checkout a builder or reviewer works in, verified against the freeze commit.

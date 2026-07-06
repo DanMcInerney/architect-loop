@@ -5,8 +5,6 @@
 - Model alias table
 - Model resolution and dispatch rules
 - Per-harness delegation
-- C5 judge delegation template (RETIRED)
-- Codex judge delegation template (RETIRED)
 - Check-runner dispatch
 - Scout dispatch
 - Codex backend from a Claude orchestrator
@@ -101,7 +99,7 @@ retry-at-a-different-tier job (see `loop.md` "## Failure ladder").
 | | Claude Code (CLI + Desktop) | Codex (CLI + app) |
 |---|---|---|
 | Builder | Agent tool with `.claude/agents/architect-builder.md`; `disallowedTools` denies `Bash(git commit *)` and `Bash(git push *)`; `isolation: worktree`; `background: true`; model may be passed per invocation from the alias table. On the desktop app, the harness auto-creates the agent's isolation worktree (`.claude/worktrees/agent-<id>`) and its branch — integrate from that branch. On the CLI, spawns have been observed to run UNISOLATED in the orchestrator's checkout despite `isolation: worktree` frontmatter (D11) — pass isolation explicitly per invocation if supported, and never run two Claude-backend builder jobs concurrently unless each is verified to have its own worktree (`git worktree list` after spawn). In all cases, never pre-create a job worktree for Claude-backend jobs (a pre-made one is ignored); do not use `.architect/wt/<run>/<slice>-<NN>` (that pattern is Codex-backend only, below). | `spawn_agent` with defensive framing: "Your task is: ..."; worktree created by the orchestrator via git; use `/goal` semantics for persistent job completion. |
-| Verification (optional, read-only) | Agent tool with `.claude/agents/architect-judge.md` (read-only verification def); dispatch synchronously with `run_in_background: false` so the result is the tool result; read-only tools plus Bash for check commands; the resolved builders model passed per invocation (the def's `model: inherit` is only the fallback where per-invocation model is unsupported). | Background `codex exec -o <file>` typed-exit path with read-only instructions and a RETIRED verification template below when applicable; the process exit wakes the loop. |
+| Verification (optional, read-only) | Agent tool with `.claude/agents/architect-judge.md` (read-only verification def); dispatch synchronously with `run_in_background: false` so the result is the tool result; read-only tools plus Bash for check commands; the resolved builders model passed per invocation (the def's `model: inherit` is only the fallback where per-invocation model is unsupported). | Background `codex exec -o <file>` typed-exit path with read-only instructions; the process exit wakes the loop. |
 | Monitor | Script watchdog (`watchdog.ps1` on Windows, `watchdog.sh` on POSIX) when the orchestrator can run background processes and receive exit notifications; LLM fallback template only otherwise. | Script watchdog (`watchdog.ps1` on Windows, `watchdog.sh` on POSIX) when background process exits wake the orchestrator; LLM fallback template only otherwise and it counts as one of the 6 `max_threads`. |
 | Parallelism | Background subagents; permission prompts surface to the main session. | Native subagents, `max_threads` 6, `max_depth` 1 (root session is depth 0; a spawned child may not spawn further — no nested orchestrators, the orchestrator dispatches builders directly), `wait_agent` for completion (the live collab event stream names the underlying tool call `wait`, not `wait_agent` — evidence: v4-codex CG4 architect-run canary `events.jsonl`). |
 | Review (high-stakes) | `codex review --base` when Codex is installed; otherwise a fresh same-CLI subagent with bias caveat. | `/review` / `review_model`; Claude reviewer when installed. |
@@ -120,56 +118,6 @@ cross-family codex judge for shell-dependent checks, plus a fresh headless
 `claude -p` session for any check the codex sandbox cannot run at all. A
 builder in this position records the exact missing tools and its substitute,
 or reports the check BLOCKED — never silently skips a check or invents output.
-
-## C5 judge delegation template (RETIRED)
-
-RETIRED (human ruling 2026-07-06, spec `## Review architecture`): the per-issue intent judge is out of the loop — the check-runner and the closing cohesion review are the only graders; this template is kept for OPTIONAL read-only verification dispatches (cross-model or human-requested), never the normal DONE path. When used, the orchestrator must send this template as-is except for replacing placeholders. It must not add slice-specific prose, encouragement, summaries, or interpretation. Verification intent context is pointer-only: frozen check file, spec pointer, job report, and `docs/jobs/<run>/<issue-slug>-rulings.md` (orchestrator-owned, append-only; absent = no post-freeze rulings).
-
-<!-- architect-judge-template:start -->
-```text
-Frozen check file path: <docs/checks/<run>/<slice>.md>
-Freeze commit SHA: <freeze-sha>
-Branch to judge: <branch>
-Spec pointer: <spec path named by the frozen check>
-Job report: <docs/jobs/<run>/<issue-slug>-01.md>
-checkrun evidence file path: <docs/jobs/<run>/<issue-slug>-checkrun.md>
-Rulings file: docs/jobs/<run>/<issue-slug>-rulings.md (absent = no post-freeze rulings)
-
-Batch independent reads (frozen check file, spec, job report, rulings file, checkrun evidence file) into parallel tool calls in one turn; serialize only dependent steps and command re-runs.
-
-Evidence rules: read the checkrun evidence SUMMARY before intent review. Do not grade RUN items from the evidence file. Re-run exactly ONE graded RUN item and compare the verdicts; any mismatch is automatic INVALID with both outputs quoted. Missing or stale evidence (integrity false or freeze SHA mismatch) is INVALID, never FAIL.
-
-Verdict format: Checks integrity: PASS | FAIL | INVALID with raw `git diff <freeze-sha>..HEAD -- docs/checks/`; Diff vs intent: PASS | FAIL | INVALID with file:line evidence; Spot-check: PASS | FAIL | INVALID with item and both quoted outputs; Slice verdict: PASS | FAIL | INVALID with one decisive reason.
-
-When the verdict is complete, deliver it via SendMessage to main; do not end the session without sending it.
-```
-<!-- architect-judge-template:end -->
-
-## Codex judge delegation template (RETIRED)
-
-RETIRED with the C5 template above (same ruling): kept for OPTIONAL read-only verification dispatches on the codex backend, never the normal DONE path. When used, the orchestrator must send this template as-is except for replacing the check file path, freeze SHA, branch, worktree note, and checkrun evidence file path. It must not add slice-specific prose, encouragement, summaries, or interpretation.
-
-<!-- architect-codex-judge-template:start -->
-```text
-Frozen check file path: <docs/checks/<run>/<slice>.md>
-Freeze commit SHA: <freeze-sha>
-Branch to judge: <branch>
-Worktree note: <worktree note>
-checkrun evidence file path: <docs/jobs/<run>/<issue-slug>-checkrun.md>
-
-You are a fresh read-only judge. You did not build this job. Flag only gaps that affect correctness, the stated requirements, or documented project invariants; cite file:line evidence. Do not report stylistic preferences.
-Tree audit: workspace-write exists only so validators can run. Any tracked-file modification during judgment means the verdict is discarded INVALID.
-Sanctioned substitutions, recorded per check: Git Bash CreateFileMapping Win32 error 5 -> PowerShell same-pattern; uv AppData cache denial -> run with `UV_CACHE_DIR=.architect/tmp/uv-cache`; tracker posting unavailable -> report `MIRROR: ORCHESTRATOR`.
-
-Intent context pointers: frozen check file above; spec pointer named by the frozen check; job report named by the issue/check; rulings file `docs/jobs/<run>/<issue-slug>-rulings.md` (absent = no post-freeze rulings).
-
-Batch independent reads (frozen check file, spec, job report, rulings file, checkrun evidence file) into parallel tool calls in one turn; serialize only dependent steps and command re-runs.
-
-Evidence rules: read the checkrun evidence SUMMARY before intent review. Do not grade RUN items from the evidence file. Re-run exactly ONE graded RUN item and compare the verdicts; any mismatch is automatic INVALID with both outputs quoted. Missing or stale evidence (integrity false or freeze SHA mismatch) is INVALID, never FAIL.
-
-Verdict format: Checks integrity: PASS | FAIL | INVALID with raw `git diff <freeze-sha>..HEAD -- docs/checks/`; Diff vs intent: PASS | FAIL | INVALID with file:line evidence; Spot-check: PASS | FAIL | INVALID with item, executor, and both quoted outputs; Slice verdict: PASS | FAIL | INVALID with one decisive reason.
-```
-<!-- architect-codex-judge-template:end -->
 
 ## Check-runner dispatch
 

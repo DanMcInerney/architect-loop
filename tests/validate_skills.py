@@ -371,37 +371,6 @@ def check_config_example() -> None:
         errors.append("skills/architect: C2' config example missing a dispatch-rules line")
 
 
-def check_judge_template() -> None:
-    dispatch = SKILLS / "architect" / "dispatch.md"
-    text = read_text(dispatch)
-    m = re.search(
-        r"<!-- architect-judge-template:start -->\n```text\n(.*?)\n```\n<!-- architect-judge-template:end -->",
-        text,
-        re.DOTALL,
-    )
-    if not m:
-        errors.append("skills/architect/dispatch.md: missing C5 fixed judge template block")
-        return
-    block = m.group(1)
-    for required in (
-        "Frozen check file path:",
-        "Freeze commit SHA:",
-        "Branch to judge:",
-        "Verdict format:",
-        "Checks integrity:",
-        "Diff vs intent:",
-        "Spot-check:",
-        "read the checkrun evidence SUMMARY",
-        "Do not grade RUN items from the evidence file",
-        "Re-run exactly ONE graded RUN item",
-        "mismatch is automatic INVALID",
-    ):
-        if required not in block:
-            errors.append(f"skills/architect/dispatch.md: C5 judge template missing {required}")
-    if "must not add slice-specific prose" not in text:
-        errors.append("skills/architect/dispatch.md: C5 template does not forbid slice-specific prose")
-
-
 def check_loop_hygiene_contract() -> None:
     loop = SKILLS / "architect" / "loop.md"
     if not loop.exists():
@@ -425,8 +394,6 @@ def check_check_runner_dispatch_contract() -> None:
         errors.append("skills/architect/dispatch.md: missing ## Preflight and postflight dispatch")
     marker_blocks: dict[str, str] = {}
     for marker in (
-        "architect-judge-template",
-        "architect-codex-judge-template",
         "architect-monitor-fallback-template",
     ):
         start = f"<!-- {marker}:start -->"
@@ -437,31 +404,6 @@ def check_check_runner_dispatch_contract() -> None:
             errors.append(f"skills/architect/dispatch.md: missing {marker} marker block")
             continue
         marker_blocks[marker] = text[start_at + len(start) : end_at]
-    for marker in ("architect-judge-template", "architect-codex-judge-template"):
-        block = marker_blocks.get(marker)
-        if block is None:
-            continue
-        for required in (
-            "read the checkrun evidence SUMMARY",
-            "Do not grade RUN items from the evidence file",
-            "Re-run exactly ONE graded RUN item",
-            "mismatch is automatic INVALID",
-        ):
-            if required not in block:
-                errors.append(
-                    "skills/architect/dispatch.md: "
-                    f"{marker} missing {required}"
-                )
-        if "before grading; grade RUN items from the evidence file" in block:
-            errors.append(
-                "skills/architect/dispatch.md: "
-                f"{marker} still tells judges to grade RUN items from the evidence file"
-            )
-        if block.count("independent reads") != 1:
-            errors.append(
-                "skills/architect/dispatch.md: "
-                f"{marker} must contain independent reads exactly once"
-            )
 
 
 PADDED_TOOLS = ("Bash", "Read", "PowerShell")
@@ -1318,7 +1260,6 @@ def main() -> int:
             errors.append(f"{doc} missing")
     check_model_alias_table()
     check_config_example()
-    check_judge_template()
     check_loop_hygiene_contract()
     check_check_runner_dispatch_contract()
     check_agent_definitions()
