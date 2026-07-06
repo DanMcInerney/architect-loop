@@ -21,18 +21,19 @@ Parallel rules: CLI-launched builders (`codex exec -o <file>` or equivalent) cap
 1. **Dispatch the ready issues.** Compute the ready issues of the approved
    plan: up to 10 CLI-launched builder jobs, or 5 harness-native builder
    subagents (see Monitor protocol, and `dispatch.md` "## Monitor dispatch"). Check `docs/STOP` and
-   `docs/runs/<run>/STOP` before every wave.
+   `docs/runs/<run>/STOP` before every wave. Re-arm one watchdog over all
+   in-flight CLI-launched jobs at every dispatch event.
 2. **Sleep.** Zero orchestrator work between dispatch and the next event —
    no polling.
 3. **Wake on one event**, exactly one of:
-   - **Job DONE.** A job END (DONE or BLOCKED) is a dispatch event: before grading the finished job, recompute the full ready frontier — run `skills/architect/ground.ps1|.sh <run>` and read its `FRONTIER:` line as the source, covering newly unblocked issues AND previously-ready issues queued beyond the concurrency cap — and dispatch every ready issue into a free slot; one completion may launch multiple builders. Merges still recompute the frontier too, since a merge can unblock issues no END could. Ordering: after that recompute-and-dispatch, write the runner config; launch `check-runner.ps1` or `check-runner.sh` as a background process whose typed exit is the next wake. Exit 0: post the checkrun result on the issue (the evidence file `docs/jobs/<run>/<issue-slug>-checkrun.md` is a local run artifact; the tracker comment is the durable record), then run `postflight.ps1` or `postflight.sh` — no per-issue model review exists on this path: exit 0 `POSTFLIGHT: OK` means merge completed with clean touch-set evidence; exit 2 `POSTFLIGHT: VIOLATION` is automatic FAIL evidence; exit 3 `POSTFLIGHT: CONFLICT` is the decomposition-failure rail; exit 5 `POSTFLIGHT: ERROR` falls back to the recorded manual integration sequence in `dispatch.md`. Exit 2: post failure evidence and enter the Failure ladder. Exit 5: stay on the recorded error rail.
+   - **Job DONE.** A job END (DONE or BLOCKED) is a dispatch event: before grading the finished job, recompute the full ready frontier — run `skills/architect/ground.ps1|.sh <run>` and read its `FRONTIER:` line as the source, covering newly unblocked issues AND previously-ready issues queued beyond the concurrency cap — dispatch every ready issue into a free slot, and re-arm the watchdog over all in-flight CLI-launched jobs; one completion may launch multiple builders. Merges still recompute the frontier too, since a merge can unblock issues no END could. Ordering: after that recompute-and-dispatch, write the runner config; launch `check-runner.ps1` or `check-runner.sh` as a foreground child of a long-lived Bash task whose exit is the next wake. Exit 0: post the checkrun result on the issue (the evidence file `docs/jobs/<run>/<issue-slug>-checkrun.md` is a local run artifact; the tracker comment is the durable record), then run `postflight.ps1` or `postflight.sh` — no per-issue model review exists on this path: exit 0 `POSTFLIGHT: OK` means merge completed with clean touch-set evidence; exit 2 `POSTFLIGHT: VIOLATION` is automatic FAIL evidence; exit 3 `POSTFLIGHT: CONFLICT` is the decomposition-failure rail; exit 5 `POSTFLIGHT: ERROR` falls back to the recorded manual integration sequence in `dispatch.md`. Exit 2: post failure evidence and enter the Failure ladder. Exit 5: stay on the recorded error rail.
    - **Job BLOCKED.** A blocker comment on the issue is a completion event.
      Read it, rule an answer, and respawn a fresh builder job on the same
      issue with the answer in its spawn context (see `dispatch.md`
      "## Respawn-with-answer template"). A running job never re-reads its
      own comments — the spawn context is the only delivery channel.
    - **Monitor ANOMALY.** Read the evidence report and rule one of:
-     healthy-long-run (redispatch the monitor, sleep again), needs a nudge
+     healthy-long-run (re-arm the watchdog, sleep again), needs a nudge
      or answer, or wedged (kill the job, discard its worktree, respawn
      from the frozen check with a route-around).
    - **Ruling timer expiry.** A pending timed ruling's timer exit is a wake:
@@ -47,10 +48,11 @@ Parallel rules: CLI-launched builders (`codex exec -o <file>` or equivalent) cap
 
 ## Monitor protocol
 
-Launch the script watchdog at wave dispatch from `dispatch.md` "## Monitor
-dispatch". The watchdog runs as a background process and its typed exit wakes
-the orchestrator. It detects mechanically and never kills, nudges, or judges;
-the orchestrator rules on the evidence.
+Launch the script watchdog at every dispatch event from `dispatch.md` "## Monitor dispatch",
+with every currently in-flight CLI-launched job in the config. The watchdog
+runs as a foreground child of a long-lived Bash task and its exit wakes the orchestrator.
+It detects mechanically and never kills, nudges, or judges; the orchestrator
+rules on the evidence.
 
 Ruling options:
 

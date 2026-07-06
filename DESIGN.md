@@ -538,14 +538,14 @@ runner's first live use finished 7/7.
   superseded the earlier tier-up-over-retry heuristic, P6.)
 - **No per-command kill ceilings (human ruling, 2026-07-02).** Long test
   suites are legitimate work. Liveness is output-file growth plus
-  process-tree activity, never wall-clock alone; issues may carry duration
+  output/report growth and worktree file mtimes, never wall-clock alone; issues may carry duration
   *hints* that suppress false flags but are never enforced ceilings.
 - **A repeated identical action is a stall signal (P4).** Even while output
   still grows. Evidence: the worst scaffold in
   [SWE-Marathon](https://arxiv.org/abs/2606.07682) repeated 32% of its tool
   calls and produced 63/83 timeouts; OpenHands ships the same detector.
 - **The watchdog detects; the orchestrator rules (D6).** Detection is a
-  deterministic script that reads file growth, process activity, and repeated
+  deterministic script that reads file growth, file mtimes, and repeated
   command tails, then exits with typed evidence. Reasoning stays with the
   orchestrator. Gas Town draws the same boundary between "is session alive?"
   and "requires reasoning"; GitLab's one-hour no-output rule is the CI
@@ -784,7 +784,7 @@ What it drops, and why the drops are safe at the size ceiling (≤3 issues,
   memory).
 - **No watchdog script.** One per-wave timed background sleep is the
   stall-fallback wake; on a fallback wake with jobs still in flight the
-  orchestrator judges liveness from report growth and process activity
+  orchestrator judges liveness from report growth and file mtimes
   directly. The residual risk — a stall inside the sleep window extends to
   the window's end — is accepted at this scale.
 
@@ -808,7 +808,7 @@ Full flow, the substitution table, and the recorded assumptions:
 | Fabricated status reports | Every status claim audited against a tool result, both sides |
 | Check-passing but unmergeable work | Closing review reads diff vs intent, not check output alone (METR) |
 | Builder gaming visible checks | Frozen read-only checks; no iterate-against-judge loop (ImpossibleBench 33%→38%) |
-| Stalled jobs | Watchdog script: growth + process + repeated-action checks; orchestrator rules on typed evidence; no kill ceilings |
+| Stalled jobs | Watchdog script: growth + mtime + repeated-action checks; orchestrator rules on typed evidence; no kill ceilings |
 | Wrong run selected by tracker scan | `docs/runs/<run>/manifest.md` pins the tracking issue; status commands take the run slug and never compute a tracker-wide max |
 | Foreign sub-issue under a run parent | Authenticated-author filter in status plus dispatch-time run marker check; wrong-author or missing-marker issues go to the digest |
 | Runaway factory | `docs/STOP` kill-all switch; `docs/runs/<run>/STOP` per-run stop; two-consecutive-KILL hard stop; assumption-collision hard stop; tracking issue digest as the human channel |
@@ -921,8 +921,9 @@ cleanup. Both namespaces are load-bearing in shipped text.)
   `uv run --no-project python tests/validate_skills.py`.
 - **Loop-hygiene cross-platform audit (2026-07-04).** Twelve scripts were
   audited across Windows PowerShell 5.1+, macOS bash 3.2+, and Linux bash.
-  Fixes: `status.ps1` and `watchdog.ps1` prefer `Get-CimInstance` over
-  `Get-WmiObject`; `watchdog.sh` uses split `ps -eo time= -o args=`; and
+  Earlier fixes made `status.ps1` prefer `Get-CimInstance` over `Get-WmiObject`
+  and made `watchdog.sh` parse `ps -eo`; the current watchdog avoids process
+  listings entirely because tool-call sessions cannot see each other's children.
   `check-runner.sh` plus `postflight.sh` keep temp files under `.architect/tmp`.
   A live check-runner defect was also found: on Windows, bare `bash` resolved
   to WSL System32 bash, producing `powershell`/`uv` exit 127 and git worktree

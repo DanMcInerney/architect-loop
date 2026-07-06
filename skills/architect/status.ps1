@@ -229,16 +229,6 @@ function TrackerLines($Manifest, $ManifestMissing) {
     if ($Manifest.Tracker -eq "github") { return (GithubLines $Manifest) }
     return @{ Reachable = $false; Lines = @(); Error = "unknown tracker mode in manifest: $($Manifest.Tracker)" }
 }
-function Win32Processes() {
-    $cim = Get-Command Get-CimInstance -ErrorAction SilentlyContinue
-    if ($cim) {
-        try { return @(Get-CimInstance Win32_Process -ErrorAction Stop) } catch {}
-    }
-    $wmi = Get-Command Get-WmiObject -ErrorAction SilentlyContinue
-    if ($wmi) { return @(Get-WmiObject Win32_Process -ErrorAction SilentlyContinue) }
-    return @()
-}
-
 $root = [System.IO.Path]::GetFullPath($RepoRoot)
 if (-not (Test-Path -LiteralPath $root -PathType Container)) { Write-Output "unreadable repo: $RepoRoot"; exit 1 }
 if (-not (IsValidRunSlug $RunSlug)) { Write-Output "invalid run slug: $RunSlug"; exit 1 }
@@ -311,8 +301,7 @@ Write-Output "ORCHESTRATOR: local view"
 $wdDir = J $root ".architect/tmp"
 $wdCfg = @()
 if (Test-Path -LiteralPath $wdDir -PathType Container) { $wdCfg = @(Get-ChildItem -LiteralPath $wdDir -Filter "wd-*.json") }
-$wdProc = @(Win32Processes | Where-Object { $_.CommandLine -match 'watchdog\.(ps1|sh)' })
-Write-Output "WATCHDOG: process=$($wdProc.Count -gt 0) config=$($wdCfg.Count)"
+Write-Output "WATCHDOG: config=$($wdCfg.Count)"
 if ($trackerReachable -and $tracking) {
     foreach ($issue in $subIssues) {
         $slug = Slugify $issue.Title

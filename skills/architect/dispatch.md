@@ -6,7 +6,7 @@
 - Model resolution and dispatch rules
 - Per-harness delegation
 - Check-runner dispatch
-- Codex backend from a Claude orchestrator
+- CLI-launched subagent dispatch
 - Preflight and postflight dispatch
 - Integration commands
 - Issue conventions
@@ -101,7 +101,7 @@ retry-at-a-different-tier job (see `loop.md` "## Failure ladder").
 |---|---|---|
 | Builder | Agent tool with `.claude/agents/architect-builder.md`; `disallowedTools` denies `Bash(git commit *)` and `Bash(git push *)`; `isolation: worktree`; `background: true`; model may be passed per invocation from the alias table. On the desktop app, the harness auto-creates the agent's isolation worktree (`.claude/worktrees/agent-<id>`) and its branch — integrate from that branch. On the CLI, spawns have been observed to run UNISOLATED in the orchestrator's checkout despite `isolation: worktree` frontmatter (D11) — pass isolation explicitly per invocation if supported, and never run two Claude-backend builder jobs concurrently unless each is verified to have its own worktree (`git worktree list` after spawn). In all cases, never pre-create a job worktree for Claude-backend jobs (a pre-made one is ignored); do not use `.architect/wt/<run>/<slice>-<NN>` (that pattern is Codex-backend only, below). | `spawn_agent` with defensive framing: "Your task is: ..."; worktree created by the orchestrator via git; use `/goal` semantics for persistent job completion. |
 | Verification (optional, read-only) | Agent tool with `.claude/agents/architect-judge.md` (read-only verification def); dispatch synchronously with `run_in_background: false` so the result is the tool result; read-only tools plus Bash for check commands; the resolved builders model passed per invocation (the def's `model: inherit` is only the fallback where per-invocation model is unsupported). | Background `codex exec -o <file>` typed-exit path with read-only instructions; the process exit wakes the loop. |
-| Monitor | Script watchdog (`watchdog.ps1` on Windows, `watchdog.sh` on POSIX) when the orchestrator can run background processes and receive exit notifications; LLM fallback template only otherwise. | Script watchdog (`watchdog.ps1` on Windows, `watchdog.sh` on POSIX) when background process exits wake the orchestrator; LLM fallback template only otherwise and it consumes one native subagent slot. |
+| Monitor | Script watchdog (`watchdog.ps1` on Windows, `watchdog.sh` on POSIX) under a long-lived Bash task when the orchestrator can wait on task exit; LLM fallback template only otherwise. | Script watchdog (`watchdog.ps1` on Windows, `watchdog.sh` on POSIX) under a long-lived Bash task when task exits wake the orchestrator; LLM fallback template only otherwise and it consumes one native subagent slot. |
 | Parallelism | CLI-launched builder backends, including Claude Code orchestrating Codex, run up to 10 background jobs. Claude Agent-tool builders are harness-native: use the harness cap (currently 5), verify isolated worktrees before concurrent spawns, and expect permission prompts in the main session. | CLI-launched builder backends run up to 10 background jobs. Native `spawn_agent` builders use the harness cap (currently 5), `max_depth` 1 (root session is depth 0; a spawned child may not spawn further), and `wait_agent` for completion (the live collab event stream names the underlying tool call `wait`, not `wait_agent`). |
 | Review (high-stakes) | `codex review --base` when Codex is installed; otherwise a fresh same-CLI subagent with bias caveat. | `/review` / `review_model`; Claude reviewer when installed. |
 | Skill packaging | `skills/architect/` plus Claude skill install locations. | `.agents/skills/architect/SKILL.md` (and any other `skills/*/`); same source text copied by installer. |
@@ -127,18 +127,19 @@ Example line: ``- RUN: `git grep -F -c "needle" -- path/to/file.md` -> exit:0 ma
 
 Evidence contains per-item `expected:` and `verdict:` lines, then `CHECKRUN SUMMARY: run_items=<n> pass=<n> fail=<n>`.
 Typed exits: 0 = all RUN items pass; 2 = any RUN item fails; 5 = error, no partial evidence file left behind.
-Launch pattern: write the runner config JSON — fields `check_file`, `workdir`, `freeze_sha`, `evidence_out`, `executor` (`powershell`|`bash`), `max_output_lines` (default 60) — then run `skills/architect/check-runner.ps1 -Config <path>` or `check-runner.sh <path>` in the background; on exit 0 commit `docs/jobs/<run>/<issue-slug>-checkrun.md`, then merge through postflight. Exit 2 routes to the failure ladder; `loop.md` owns the full rule.
+Launch pattern: write the runner config JSON — fields `check_file`, `workdir`, `freeze_sha`, `evidence_out`, `executor` (`powershell`|`bash`), `max_output_lines` (default 60) — then run `skills/architect/check-runner.ps1 -Config <path>` or `check-runner.sh <path>` as a foreground child of a long-lived Bash task; on exit 0 commit `docs/jobs/<run>/<issue-slug>-checkrun.md`, then merge through postflight. Exit 2 routes to the failure ladder; `loop.md` owns the full rule.
 
-## Codex backend from a Claude orchestrator
+## CLI-launched subagent dispatch
 
-The worktree pre-creation and dispatch commands in this section are
-Codex-backend only. Claude-backend jobs never pre-create a worktree — see
+The worktree pre-creation and `codex exec` commands in this section are
+Codex-backend builder jobs, regardless of whether the orchestrator is Claude
+Code or Codex. Claude-backend harness jobs never pre-create a worktree — see
 the Per-harness delegation table above.
 
-When the orchestrator is Claude Code and the resolved builders backend is
-Codex (the default), write the
-builder block to a file first, then pass it via stdin (`-`). Big prompt blocks
-contain quotes that shells, especially Windows PowerShell, can mangle.
+For any CLI-launched subagent (`codex exec`, `claude -p`, or equivalent), write
+the prompt block to a file/stdin, redirect the machine event stream directly to
+the watchdog events file; never pipe the stream through `tail` or another
+live-display filter.
 
 Single-job slice in the current checkout, resolved builders `codex/best`:
 
@@ -147,7 +148,7 @@ codex exec -C <repo-root> --sandbox workspace-write \
   -m gpt-5.5 -c model_reasoning_effort="xhigh" \
   -c service_tier="fast" -c features.fast_mode=true \
   --json -o .architect/last-run.md \
-  - < .architect/dispatch-block.md
+  - < .architect/dispatch-block.md > .architect/last-run.events.jsonl
 ```
 
 If the effort call resolves to `codex/tier-down`, change only the effort pin:
@@ -157,7 +158,7 @@ codex exec -C <repo-root> --sandbox workspace-write \
   -m gpt-5.5 -c model_reasoning_effort="high" \
   -c service_tier="fast" -c features.fast_mode=true \
   --json -o .architect/last-run.md \
-  - < .architect/dispatch-block.md
+  - < .architect/dispatch-block.md > .architect/last-run.events.jsonl
 ```
 
 For 2-10 CLI-launched jobs, the orchestrator owns worktree creation and parallelism:
@@ -170,7 +171,7 @@ codex exec -C <repo-root>/.architect/wt/<run>/<slice>-<NN> --sandbox workspace-w
   -m gpt-5.5 -c model_reasoning_effort="xhigh" \
   -c service_tier="fast" -c features.fast_mode=true \
   --json -o .architect/wt/<run>/<slice>-<NN>.last-run.md \
-  - < .architect/wt/<run>/<slice>-<NN>.block.md
+  - < .architect/wt/<run>/<slice>-<NN>.block.md > .architect/wt/<run>/<slice>-<NN>.events.jsonl
 ```
 
 A worktree's `.git` is a pointer file and the resolved git dir is
@@ -326,10 +327,13 @@ answer reaches the builder only through a fresh respawn's spawn context (see
 
 ## Monitor dispatch
 
-The orchestrator writes one watchdog config JSON per dispatch wave, then
-launches the platform script as a background process: `watchdog.ps1` on
-Windows, `watchdog.sh` on POSIX. The config uses the spec's Interface
-contract:
+Every dispatch event re-arms the watchdog: initial wave, job END
+recompute-and-dispatch, blocker respawn, and fix-wave dispatch. The
+orchestrator writes a fresh config covering every in-flight CLI-launched
+builder/subagent from either a Claude Code or Codex orchestrator, then launches
+the platform script as a foreground child of a long-lived Bash task:
+`watchdog.ps1` on Windows, `watchdog.sh` on POSIX. The config uses the spec's
+Interface contract:
 
 ```json
 {
@@ -349,11 +353,11 @@ The watchdog never kills, nudges, or judges. It exits with typed evidence:
 |---|---|---|
 | 0 | `WATCHDOG: ALL_DONE` | every job report exists, with path and byte size evidence |
 | 2 | `WATCHDOG: INTEGRATED` | a job worktree or events file vanished because the orchestrator integrated it mid-sweep |
-| 3 | `WATCHDOG: STALL` | file growth and process activity both stopped beyond `stall_after_min` plus any duration hint |
+| 3 | `WATCHDOG: STALL` | events/report bytes and file mtimes stopped advancing beyond `stall_after_min` plus any duration hint |
 | 4 | `WATCHDOG: REPEAT` | the last four parsed command events were identical and need an intentional-vs-stuck ruling |
 
-Use the LLM fallback only for backends where the orchestrator cannot launch a
-background process whose exit wakes the loop.
+Use the LLM fallback only for backends where the orchestrator cannot launch or
+wait on a long-lived Bash task whose exit wakes the loop.
 
 ## Status display
 
@@ -376,9 +380,8 @@ In-flight jobs:
   (one line per job)
 
 Sweep every ~10 minutes. For each job, check events/report byte growth,
-process activity by command-line/worktree match, and repeated identical
-commands in the tail. A quiet events file on a single sweep is normal model
-thinking, not a stall.
+worktree file mtimes, and repeated identical commands in the tail. A quiet
+events file on a single sweep is normal model thinking, not a stall.
 
 Quiet exit is allowed ONLY when, for every job, you list the report path and
 byte size as evidence. If a worktree or events file vanished because the
@@ -387,14 +390,15 @@ and list the vanished path. If you cannot verify something from this sandbox,
 state what you cannot verify instead of assuming the job is done.
 
 Any stall or repeat concern exits immediately with the job id, minutes since
-last growth, CPU/process activity evidence, repeated command if present, and
-tail excerpt. Do not wait for other jobs to finish before reporting it.
+last file activity, byte/mtime evidence, repeated command if present, and tail
+excerpt. Do not wait for other jobs to finish before reporting it.
 ```
 <!-- architect-monitor-fallback-template:end -->
 
 Native harness note: built-in subagents cap at 5 concurrent jobs. CLI-launched
-`codex exec` builders cap at 10 and do not consume native subagent slots; if
-an LLM fallback monitor is running in native-harness mode, reserve one slot.
+`codex exec`/`claude -p` style jobs cap at 10 and do not consume native
+subagent slots; if an LLM fallback monitor is running in native-harness mode,
+reserve one slot.
 
 ## Duration hints and liveness
 
@@ -429,17 +433,17 @@ verification, and config blocks with file tools, never heredocs. Never rely on a
 persisted cwd across commands; run #30 lost three commands to current-directory
 drift before this rule was written down.
 
-Liveness is judged from report/output file growth plus process-tree
-activity — never from wall-clock alone:
+Liveness is judged from report/output file growth, worktree file mtimes, and
+the harness task lifecycle — never from process listings:
 
 - Silent gaps between events are normal model thinking. A low context
   reading is not wedging; harnesses auto-compact and keep going.
 - A job repeatedly issuing the same command or query with identical
   arguments is stalled even while its event/report file is still growing
   (the monitor's tail-of-output repeat-command check).
-- A job is a genuine liveness concern only once its report/output file has
-  stopped growing AND the process tree shows no activity, weighed against
-  any duration hint the issue or check file carries.
+- A job is a genuine liveness concern only once its report/output files and
+  worktree file mtimes have stopped advancing, weighed against any duration
+  hint the issue or check file carries.
 
 On Windows PowerShell 5.1, `>`, `*>`, and `Tee-Object` write UTF-16. Liveness
 and rescue checks over event files must read encoding-aware (`Get-Content`,
@@ -573,9 +577,9 @@ SANDBOX EXECUTION POLICY - All temp, basetemp, and cache paths MUST be inside
 the workspace (`.architect/tmp/<purpose>`); never the system temp. Run test/check
 commands SEQUENTIALLY - never two invocations in flight at once. The spec or issue may declare duration hints for known-long commands (e.g. "full suite ~ 20m");
 they are context, not kill ceilings. If a command appears stalled - no output
-growth and no process activity well past its duration hint - record the exact
-command and observed state in the job report and stop the job; the monitor
-and orchestrator own stall handling. A filesystem/sandbox error on a path is
+growth and no file mtime movement well past its duration hint - record the
+exact command and observed state in the job report and stop the job; the
+monitor and orchestrator own stall handling. A filesystem/sandbox error on a path is
 environmental: record the exact failure and route around it - never retry the same path.
 
 When a known-bad pattern exists, the spec must name it as forbidden with

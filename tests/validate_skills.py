@@ -606,6 +606,8 @@ def check_codex_install_step() -> None:
 def check_watchdog_contract() -> None:
     ps1 = SKILLS / "architect" / "watchdog.ps1"
     sh = SKILLS / "architect" / "watchdog.sh"
+    dispatch = read_text(SKILLS / "architect" / "dispatch.md")
+    loop = read_text(SKILLS / "architect" / "loop.md")
     for path in (ps1, sh):
         if not path.exists():
             errors.append(f"{path.relative_to(ROOT)}: missing watchdog file")
@@ -623,6 +625,50 @@ def check_watchdog_contract() -> None:
         errors.append("skills/architect/watchdog.sh: missing shebang")
     if ps1.exists() and "ConvertFrom-Json" not in read_text(ps1):
         errors.append("skills/architect/watchdog.ps1: missing ConvertFrom-Json")
+    if ps1.exists() and "TrimStart([char]0xFEFF)" not in read_text(ps1):
+        errors.append("skills/architect/watchdog.ps1: terminal STATUS check must tolerate BOM")
+    if sh.exists() and r"\xEF\xBB\xBF" not in read_text(sh):
+        errors.append("skills/architect/watchdog.sh: terminal STATUS check must tolerate UTF-8 BOM")
+    if "Every dispatch event re-arms the watchdog" not in dispatch:
+        errors.append("skills/architect/dispatch.md: watchdog must re-arm on every dispatch event")
+    if "Codex backend from a Claude orchestrator" in dispatch:
+        errors.append("skills/architect/dispatch.md: CLI dispatch must not be Claude-orchestrator-specific")
+    for marker in ("`codex exec`, `claude -p`, or equivalent", "Claude Code or Codex orchestrator", "long-lived Bash task", "worktree file mtimes"):
+        if marker not in dispatch:
+            errors.append(f"skills/architect/dispatch.md: missing CLI watchdog contract marker {marker!r}")
+    if not re.search(r"all\s+in-flight CLI-launched jobs at every dispatch event", loop):
+        errors.append("skills/architect/loop.md: dispatch events must cover all in-flight CLI-launched jobs")
+    banned_watchdog_terms = ("process_match", "Win32_Process", "Get-CimInstance", "Get-WmiObject", "CpuTotal", "cpu_sum", "/proc", "ps -eo")
+    for path in (ps1, sh):
+        if not path.exists():
+            continue
+        text = read_text(path)
+        for term in banned_watchdog_terms:
+            if term in text:
+                errors.append(f"{path.relative_to(ROOT)}: process-list liveness term must stay out of watchdog: {term}")
+    if "process activity" in dispatch or "process tree" in dispatch:
+        errors.append("skills/architect/dispatch.md: watchdog liveness must not use process activity")
+    codex_json_blocks = [
+        block
+        for block in re.findall(r"```bash\n(.*?)```", dispatch, re.DOTALL)
+        if "codex exec" in block and "--json" in block
+    ]
+    if not codex_json_blocks:
+        errors.append("skills/architect/dispatch.md: missing Codex --json dispatch examples")
+    for i, block in enumerate(codex_json_blocks, start=1):
+        if not re.search(r"(?m)^\s+- < .+ > .+\.events\.jsonl$", block):
+            errors.append(
+                "skills/architect/dispatch.md: Codex --json dispatch example "
+                f"{i} must redirect stdout to an .events.jsonl file"
+            )
+        for pin in ('-c service_tier="fast"', "-c features.fast_mode=true"):
+            if pin not in block:
+                errors.append(
+                    "skills/architect/dispatch.md: Codex dispatch example "
+                    f"{i} missing Fast-mode pin {pin}"
+                )
+    if re.search(r"codex exec[\s\S]*?\|\s*tail", dispatch):
+        errors.append("skills/architect/dispatch.md: Codex dispatch examples must not pipe through tail")
 
 
 def check_status_contract() -> None:
@@ -655,6 +701,8 @@ def check_status_contract() -> None:
         ):
             if marker not in text:
                 errors.append(f"skills/architect/{name}: missing {marker}")
+        if "WATCHDOG: process=" in text or "watchdog.ps1" in text and "ps -eo" in text:
+            errors.append(f"skills/architect/{name}: status must not report watchdog process visibility")
         if name == "status.sh" and not text.startswith("#!"):
             errors.append("skills/architect/status.sh: missing shebang")
         if name == "status.sh":

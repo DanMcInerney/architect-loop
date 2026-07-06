@@ -310,9 +310,7 @@ fi
 printf 'ORCHESTRATOR: local view\n'
 cfg=0
 [ -d "$root/.architect/tmp" ] && cfg=$(find "$root/.architect/tmp" -maxdepth 1 -type f -name 'wd-*.json' 2>/dev/null | wc -l | tr -d ' ')
-proc=False
-case "$(ps -eo args= 2>/dev/null)" in *watchdog.ps1*|*watchdog.sh*) proc=True;; esac
-printf 'WATCHDOG: process=%s config=%s\n' "$proc" "$cfg"
+printf 'WATCHDOG: config=%s\n' "$cfg"
 if [ "$tracker" -eq 1 ] && [ -n "$tracking" ]; then
   printf '%s\n' "$tracker_tsv" | while IFS= read -r line; do
     kind=$(printf '%s\n' "$line" | awk -F '	' '{print $1}')

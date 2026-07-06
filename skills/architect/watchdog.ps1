@@ -26,7 +26,7 @@ function ReadText($Path) {
 function HasTerminalStatus($Path) {
     $lines = (ReadText $Path) -split "`r?`n"
     for ($i = $lines.Count - 1; $i -ge 0; $i--) {
-        $t = $lines[$i].Trim()
+        $t = $lines[$i].Trim().TrimStart([char]0xFEFF)
         if ($t.Length -gt 0) { return $t.StartsWith("STATUS:", [StringComparison]::Ordinal) }
     }
     return $false
@@ -34,24 +34,26 @@ function HasTerminalStatus($Path) {
 
 function FileSize($Path) { if (Test-Path -LiteralPath $Path) { return (Get-Item -LiteralPath $Path).Length }; return 0 }
 
-function Win32Processes {
-    $cim = Get-Command Get-CimInstance -ErrorAction SilentlyContinue
-    if ($cim) {
-        try { return @(Get-CimInstance Win32_Process -ErrorAction Stop) } catch {}
-    }
-    $wmi = Get-Command Get-WmiObject -ErrorAction SilentlyContinue
-    if ($wmi) { return @(Get-WmiObject Win32_Process -ErrorAction SilentlyContinue) }
-    return @()
-}
-
-function CpuTotal($Needle) {
-    $sum = [int64]0
-    foreach ($p in (Win32Processes)) {
-        if ($p.CommandLine -and $p.CommandLine.IndexOf($Needle, [StringComparison]::OrdinalIgnoreCase) -ge 0) {
-            $sum += [int64]$p.KernelModeTime + [int64]$p.UserModeTime
+function NewestMTime($Path) {
+    if (-not (Test-Path -LiteralPath $Path)) { return [int64]0 }
+    $item = Get-Item -LiteralPath $Path -Force
+    $max = [int64]$item.LastWriteTimeUtc.Ticks
+    if ($item.PSIsContainer) {
+        foreach ($child in (Get-ChildItem -LiteralPath $Path -Recurse -Force -File -ErrorAction SilentlyContinue)) {
+            $ticks = [int64]$child.LastWriteTimeUtc.Ticks
+            if ($ticks -gt $max) { $max = $ticks }
         }
     }
-    return $sum
+    return $max
+}
+
+function ActivityMTime($Job) {
+    $max = [int64]0
+    foreach ($path in @($Job.events_file, $Job.report_path, $Job.worktree)) {
+        $ticks = NewestMTime $path
+        if ($ticks -gt $max) { $max = $ticks }
+    }
+    return $max
 }
 
 $cfg = Get-Content -LiteralPath $Config -Raw | ConvertFrom-Json
@@ -59,7 +61,7 @@ $sweep = [int]$cfg.sweep_sec
 $stall = [double]$cfg.stall_after_min
 $state = @{}
 foreach ($j in $cfg.jobs) {
-    $state[$j.id] = @{ Done = $false; Size = ((FileSize $j.events_file) + (FileSize $j.report_path)); Growth = (Get-Date); Cpu = (CpuTotal $j.worktree) }
+    $state[$j.id] = @{ Done = $false; Size = ((FileSize $j.events_file) + (FileSize $j.report_path)); MTime = (ActivityMTime $j); Growth = (Get-Date) }
 }
 
 while ($true) {
@@ -73,14 +75,12 @@ while ($true) {
             exit 2
         }
         $size = (FileSize $j.events_file) + (FileSize $j.report_path)
-        $cpu = CpuTotal $j.worktree
-        if ($size -gt $s.Size) { $s.Size = $size; $s.Growth = Get-Date }
+        $mtime = ActivityMTime $j
+        if ($size -ne $s.Size -or $mtime -gt $s.MTime) { $s.Size = $size; $s.MTime = $mtime; $s.Growth = Get-Date }
         $mins = ((Get-Date) - $s.Growth).TotalMinutes
-        $cpuDelta = $cpu - $s.Cpu
-        $s.Cpu = $cpu
         $grace = $stall + [double]$j.duration_hint_min
-        if ($mins -gt $grace -and $cpuDelta -eq 0) {
-            Write-Output "WATCHDOG: STALL $id minutes_since_growth=$([Math]::Round($mins, 3)) cpu_delta=$cpuDelta"
+        if ($mins -gt $grace) {
+            Write-Output "WATCHDOG: STALL $id minutes_since_activity=$([Math]::Round($mins, 3)) bytes=$size mtime_ticks=$mtime"
             foreach ($line in ((TailText $j.events_file) -split "`r?`n" | Select-Object -Last 5)) { Write-Output $line }
             exit 3
         }
