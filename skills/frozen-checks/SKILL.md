@@ -16,8 +16,8 @@ issue. Write for a reader with no other memory of this run.
 ## RUN grammar
 
 Normative from the shipped runner, `skills/architect/check-runner.ps1`; cite
-it, do not restate it divergently from `dispatch.md`'s `## Check-runner
-dispatch`. A graded item is exactly:
+it, do not restate it divergently from `skills/architect/dispatch.md`'s
+`## Check-runner dispatch`. A graded item is exactly:
 
 ``- RUN: `command` -> exit:<n>`` with optional trailing `match:"<substring>"`.
 

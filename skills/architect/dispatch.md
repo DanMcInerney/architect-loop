@@ -9,7 +9,6 @@
 - Codex judge delegation template
 - Check-runner dispatch
 - Scout dispatch
-- Stress-test delegation template
 - Codex backend from a Claude orchestrator
 - Preflight and postflight dispatch
 - Integration commands
@@ -52,12 +51,14 @@ flags in every command; this table is the source of those pins.
 
 Role strings are `<cli>/<model-spec>[:<effort>]`, with `<cli>` in `{claude,
 codex}`. Resolution order per role is repo `.architect/config`, then user
-`~/.architect/config`, then defaults: orchestrator = the running session; builders is
-codex-first — `codex/best` (gpt-5.5, xhigh) whenever the Codex CLI is on
-PATH, from either harness (a Codex orchestrator trivially satisfies this);
-if the orchestrator is Claude Code and Codex is absent, builders =
-`claude/tier-down` (Sonnet at high). Flat `key = value` lines are the
-supported format for role keys. Unknown keys warn and never fail.
+`~/.architect/config`, then defaults: orchestrator = the running session;
+builders = `claude/tier-down` (Sonnet at high) as Claude-native Agent-tool
+jobs — the `architect-builder` def preloads the `tdd` and `codebase-design`
+stage skills via its `skills:` field, and the model is passed per invocation
+from the alias table (config-raisable, e.g. `builders = claude/best`). The
+codex backend (`builders = codex/best`) is the config-selected alternative;
+its dispatch path in the sections below is unchanged. Flat `key = value`
+lines are the supported format for role keys. Unknown keys warn and never fail.
 
 Optional dispatch-rules lines route task classes to a builder tier:
 
@@ -71,10 +72,10 @@ when broad ambiguous refactor -> codex/best:xhigh # deeper search and edit budge
 ```
 
 Format: `when <task-class description> -> <cli>/<model-spec>[:<effort>] # why`.
-The trailing reason is optional but preferred. Absent file = the codex-first
-default above. Absent dispatch rules = the codex-first default. A matching
-rule is still a judgment aid; the orchestrator records which rule was used
-and may override it with a reason recorded on the issue.
+The trailing reason is optional but preferred. Absent file = the Claude-native
+default above. Absent dispatch rules = the same default. A matching rule is
+still a judgment aid; the orchestrator records which rule was used and may
+override it with a reason recorded on the issue.
 
 Builder speed default: when the resolved builders backend is Codex under
 ChatGPT auth, every builder `codex exec` appends the Fast-mode pins
@@ -84,9 +85,9 @@ intake canary; API-key auth cannot use Fast mode — drop the two pins and
 record the substitution on the tracking issue (no silent fallback). The
 default is builder-only; judges and the monitor never carry the Fast pins.
 
-Configured builders CLI absent at preflight -> fall back per the codex-first
-default (on Claude Code without Codex: `claude/tier-down`) and write one
-tracking-issue comment naming requested vs substituted. Cross-family
+Configured builders CLI absent at preflight -> fall back to the Claude-native
+default (`claude/tier-down`) and write one tracking-issue comment naming
+requested vs substituted. Cross-family
 review backend absent -> run review in a fresh same-CLI context and log the
 same-family bias caveat. Never hard-fail on model availability alone. Tier is
 fixed at decomposition by config plus dispatch rules and never moves because a
@@ -179,33 +180,14 @@ Launch pattern: write the runner config JSON — fields `check_file`, `workdir`,
 
 Dispatch one scout during intake when the run needs a code map. The scout uses the resolved builders model and job shape `scout`, read-only except its single write: the orchestrator names the output path, the scout writes the map there, and the orchestrator commits it at `docs/runs/<run>/map.md`.
 
+Map expiry: the map is planning-time input only and expires at the run's first merge. The spec and decomposition read it; builders never receive it — issues carry change-skeletons and interface contract blocks instead, and no dispatch block cites the map.
+
 ```text
 You are a read-only code scout. Output path: <docs/runs/<run>/map.md>.
 Return <= ~2,500 tokens. No recommendations.
 Include only anchored entries: key modules/files; load-bearing types/function signatures; conventions/patterns; testing seams; gotchas.
 Every entry must carry a real file:line anchor. If a requested category is absent, write `NOT FOUND: <category> - <searched paths>`. No implementation plan, no edits beyond the output path.
 ```
-
-## Stress-test delegation template
-
-The orchestrator must send this template as-is except for replacing placeholders. It must not add slice-specific prose, encouragement, summaries, or interpretation.
-
-<!-- architect-stress-test-template:start -->
-```text
-Draft check file path: <docs/checks/<run>/<slice>.md>
-Branch: <branch>
-Issue bodies: <pasted issue bodies for this plan>
-
-Grill clause: every mechanical check MUST use `- RUN:` form with a `->` expectation; a RUN item without an expectation is a check defect.
-
-Task: try to falsify this draft. Execute each check command against the current tree, verify every referenced path/SHA/pointer resolves, attack each acceptance criterion and pasted issue bodies against the spec for contradictions and non-falsifiability, including patterns that collide with repo realities (e.g. a grep pattern matching the repo's own name), and flag any assumption not evidenced in the repo.
-For every file a job deletes or renames, grep the whole repo for references and verify the owning job's boundary covers them or a dependency edge orders the fix.
-For every NEW artifact path a job will create, run `git check-ignore <path>` and flag the plan if ignored.
-If a run map exists, sample map entries and verify each file:line anchor resolves; a dangling anchor is a check defect.
-
-Defect report format: `<check id or clause>: FALSIFIED | HOLDS` with command output or file:line evidence; plan findings; assumptions not evidenced.
-```
-<!-- architect-stress-test-template:end -->
 
 ## Codex backend from a Claude orchestrator
 

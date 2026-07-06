@@ -14,7 +14,7 @@ The loop is one orchestrator session that runs the factory to completion after
 the spec approval approves the issue plan. Tracker issues carry coordination
 state; git carries specs and frozen checks. The orchestrator dispatches the
 ready issues, sleeps, and wakes only on an event.
-Parallel rules: harness-native judge subagents (Claude Agent tool) dispatch synchronously with `run_in_background: false` so the verdict returns as the tool result; codex-backend judges keep the background `codex exec -o <file>` typed-exit path, whose process exit wakes the loop; the ready-issue frontier recomputes on EVERY merge, not at wave boundaries; independent orchestrator bookkeeping batches into parallel calls; merges, synthesis, and the stress-test stay serial by design.
+Parallel rules: harness-native judge subagents (Claude Agent tool) dispatch synchronously with `run_in_background: false` so the verdict returns as the tool result; codex-backend judges keep the background `codex exec -o <file>` typed-exit path, whose process exit wakes the loop; the ready-issue frontier recomputes on EVERY merge, not at wave boundaries; independent orchestrator bookkeeping batches into parallel calls; merges, synthesis, and the pre-freeze `adversarial-review` stress pass stay serial by design.
 
 ## Factory block procedure
 
@@ -41,7 +41,7 @@ Parallel rules: harness-native judge subagents (Claude Agent tool) dispatch sync
      protocol, SKILL.md "### 2. Spec Approval"); already resolved is a no-op.
 4. **Recompute the ready issues.** Closing an issue may unblock others;
    recompute and dispatch the next wave.
-5. **Finish boundary.** When build issues close, run the SKILL.md `### 5. Finish` timed-ruling closing review before the docs job: default YES, 5-minute silence applies; YES uses one fresh resolved-orchestrator-model MEDIUM subagent from the factory branch head, reading spec -> `docs/runs/<run>/map.md` -> run diff, editing directly with `docs/checks/` read-only, keeping every graded RUN green, rerunning the full closing checkrun plus named suites, and merging only green review work through postflight. Red review changes are discarded whole and recorded on the digest; verdict plus diffstat is posted on the tracking issue.
+5. **Finish boundary.** When build issues close, run the SKILL.md `### 5. Finish` timed-ruling closing review before the docs job: default YES, 5-minute silence applies; YES uses one fresh resolved-orchestrator-model MEDIUM subagent from the factory branch head running the `cohesion-review` stage skill — review basis spec -> run diff -> published interface contract blocks (the scout map expired at first merge) — editing directly with `docs/checks/` read-only, keeping every graded RUN green, rerunning the full closing checkrun plus named suites, and merging only green review work through postflight. Red review changes are discarded whole and recorded on the digest; verdict plus diffstat is posted on the tracking issue.
 6. **Repeat** until no issues remain open, the closing review/docs finish boundary is handled, then post the escalation digest's end-of-run summary on the tracking issue.
 
 ## Monitor protocol
@@ -89,19 +89,28 @@ exec; kill any lingering job processes when a job is discarded.
 
 ## Failure ladder
 
-First FAIL on an issue: on a judge FAIL, the orchestrator diagnoses from the
-judge's evidence; on check-runner exit 2, where no judge exists on that path, it
-diagnoses from the checkrun evidence file's failing items (not the full diff),
-may fan out researcher agents to inform the diagnosis, fixes
-the input — issue text, missing context, or a forbidden-pattern note — and
-respawns a fresh builder job at the same tier.
-The tier is set once, at decomposition (config plus dispatch rules), and
-never changes because a job failed; a failure is a spec or context problem
-the orchestrator fixes, never a signal to move the tier. Second FAIL on the same
-issue after an orchestrator intervention: re-decompose the issue or escalate it to
-the digest. A merge conflict, including postflight exit 3, is a decomposition
-failure, not a build failure: kill the conflicting job and re-spec; never
-hand-resolve builder conflicts.
+Three rungs on the same issue, ending at a third strike; the tier is set once
+at decomposition (config plus dispatch rules) and never changes because a job
+failed — a failure is a spec, context, or architecture problem the
+orchestrator diagnoses, never a signal to move the tier.
+
+1. First failure: on a judge FAIL, diagnose from the judge's evidence; on
+   check-runner exit 2, where no judge exists on that path, diagnose from the
+   checkrun evidence file's failing items (never the full diff). The
+   orchestrator may fan out researcher agents to inform the diagnosis, fixes
+   the input — issue text, missing context, or a forbidden-pattern note — and
+   respawns one fresh fix builder at the same tier with the answer in its
+   spawn context.
+2. Second failure: a fresh builder with a deeper orchestrator diagnosis —
+   re-read the spec and change-skeleton, question the decomposition assumption
+   that failed, and rewrite the issue input before respawning.
+3. Third strike: the orchestrator implements the remainder itself — Hard Rule
+   4's only license. Its work is graded like any builder's: the frozen-check
+   runner and the closing review still pass it; no self-grading in artifacts.
+
+A merge conflict, including postflight exit 3, is a decomposition failure, not
+a build failure: kill the conflicting job and re-spec; never hand-resolve
+builder conflicts.
 
 ## Escalation digest
 
@@ -124,7 +133,7 @@ immediate stop.
 | Builder touched `docs/checks/` | Automatic FAIL for that job. |
 | Foreign sub-issue under the run parent | Never dispatch it; escalate on the tracking-issue digest. |
 | Merge conflict or postflight exit 3 | Decomposition failure: kill the job, re-spec. |
-| Second FAIL on the same issue | Re-decompose or escalate to the digest. |
+| Third strike on the same issue | The orchestrator implements the remainder itself (Hard Rule 4); the frozen-check runner and closing review still grade that work. |
 | Two consecutive KILLs | Stop the factory and ask the human. |
 | Monitor reports an anomaly | Orchestrator rules before any further dispatch on that job. |
 | Blocker collides with a recorded assumption | Ask the human; it is a spec approval decision surfacing late. |
