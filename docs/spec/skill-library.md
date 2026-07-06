@@ -109,7 +109,29 @@ roulette. Reference machinery (`dispatch.md`, `loop.md`, `tracker.md`,
   parallelism halved pass rates in the one controlled study; merge conflict
   remains a decomposition failure, never hand-resolved.
 
-## Assumptions (timer rulings, 2026-07-05, auto after 5m silence)
+## Wording policy (human ruling, in-session, 2026-07-05 — supersedes the
+original-wording contract used through s7)
+
+Verbatim directive: "The library of skills I'm adding to architect are based
+on matt pocock's skills. They can say the same thing, im giving him credit.
+Your job was just to improve the skills based on the workflow we're using
+with fable and a buncha parallel or semiparallel subagents in codex working
+in worktrees. The goal is can you improve the wording so it works better in
+fable and codex 5.5 and the coming 5.6? Can you keep it as concise as
+possible? You don't have to completely rewrite them, start with his skills
+and see if there's any improvements that are evidence based like through
+skill benchmarks, model provider guidance, or expert opinion. If there's no
+evidenced improvements or expert guidance specifically for fable and codex
+5.5/5.6, then you don't need to make changes to his skills wording."
+
+Operationalization: Pocock's MIT text (credited) is the baseline for every
+skill with a Pocock source. Permitted deviations, each traceable to one of:
+(a) functional necessity of the factory workflow (issue-body seams, frozen
+checks, worktree isolation, orchestrator-driven invocation); (b) documented
+model-provider guidance for Fable or Codex/GPT-5.5–5.6; (c) published skill
+benchmarks or named expert guidance. Conciseness is a standing tiebreak.
+Divergence without such evidence is reverted to his wording. A dedicated
+reconciliation slice applies this to the merged stage skills.
 
 1. Refactor in place; no parallel old flow, no backcompat shims.
 2. Claude-native builders default; codex-first default retired to config.
