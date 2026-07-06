@@ -2,7 +2,7 @@
 name: frozen-checks
 description: >
   Use when the orchestrator writes per-issue graded checks after decomposition
-  and before builder or intent-judge dispatch. Produces one check file per
+  and before builder dispatch. Produces one check file per
   issue at `docs/checks/<run>/<slice>.md`, frozen in git, read-only after.
 ---
 
@@ -10,8 +10,8 @@ description: >
 
 One check file per issue, at `docs/checks/<run>/<slice>.md`. Open it with
 purpose, a spec pointer, and a fix contract stating what a failure means and
-which file to fix — that header is the intent judge's entire context for the
-issue. Write for a reader with no other memory of this run.
+which file to fix — that header is the closing review's entire intent context
+for the issue. Write for a reader with no other memory of this run.
 
 ## RUN grammar
 
@@ -24,8 +24,8 @@ it, do not restate it divergently from `skills/architect/dispatch.md`'s
 `match:` is a fixed, case-sensitive stdout substring — never a regex. A RUN
 item without an `-> exit:<n>` expectation makes the runner exit 5 with no
 partial evidence kept; that is a check defect, not a builder defect. Every
-other line — rationale, judge-only intent items — is read by the intent
-judge, never graded by the runner.
+other line — rationale, judge-only intent items — is read by the closing
+review and the orchestrator, never graded by the runner.
 
 ## Falsifiable and atomic
 
@@ -45,10 +45,10 @@ Attack-list, run before freeze:
 
 ## Freeze protocol
 
-All check files for a run commit to the factory branch before any builder or
-intent judge is dispatched; record the freeze SHA on the tracking issue.
+All check files for a run commit to the factory branch before any builder is
+dispatched; record the freeze SHA on the tracking issue.
 After that commit, everything under `docs/checks/` is read-only to every
-builder and judge — an edit there is an automatic FAIL regardless of the
+builder and reviewer — an edit there is an automatic FAIL regardless of the
 rest of the job report. An intent change discovered after freeze is a
 ruling: it goes in the run's rulings file, never a rewrite of the frozen
 check.

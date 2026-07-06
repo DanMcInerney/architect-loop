@@ -70,20 +70,22 @@ wiring them into two installable skills with the failure modes closed.
 |---|---|---|
 | **Orchestrator** | the session the human opened | intake, spec, decomposition, check freeze, dispatch, blocker answers, merge decisions, digest |
 | **Builder** | fresh worker agent, one per issue, own worktree | implementation and raw-evidence reporting only |
-| **Judge** *(retiring — see note)* | fresh builders-model agent, read-only | checks-integrity review, diff-vs-intent, one graded-check spot-check |
+| **Judge** *(retired — see note)* | fresh builders-model agent, read-only | checks-integrity review, diff-vs-intent, one graded-check spot-check |
 | **Watchdog** | deterministic script per wave; "monitor" informally | mechanical stall evidence only — never kills, never decides |
 | **Adversarial reviewer** | fresh reviewer, pre-freeze | the stress-test pass (called the *grill* in earlier runs) falsifies the decomposition before it's authorized |
 | **Cohesion reviewer** | fresh orchestrator-model subagent, once per run | closing review over the whole run diff, immediately before the PR |
 | **Human** | you | spec approval, hard stops, taste |
 
-Note (human-directed, 2026-07): the per-issue Judge role is being retired in
-favor of the closing cohesion review alone; a follow-up slice removes it
-from `skills/architect/**`. Current-flow prose in this document and in
-README/CONTEXT describes verification as builders run own tests →
-deterministic check-runner grades frozen checks per issue → one closing
-cohesion review before the PR. §4's "Judging and integration" evidence below
-is retained as run history: the per-issue judge is what this run (and prior
-runs) actually used, and what it caught.
+Note (human-directed, 2026-07): the per-issue Judge role was retired in
+favor of the closing cohesion review alone; the skill-library run removed it
+from `skills/architect/**` (issue #118, 2026-07-06). Current-flow prose in
+this document and in README/CONTEXT describes verification as builders run
+own tests → deterministic check-runner grades frozen checks per issue → one
+closing cohesion review before the PR. Judge mentions elsewhere in this
+document — §4's "Judging and integration" evidence and the model-routing
+history below — are retained as run history: the per-issue judge is what
+those runs actually used, and what it caught. The judge templates stay in
+`dispatch.md`, marked RETIRED, for optional read-only verification.
 
 Why the orchestrator does the design work and the builders only build:
 [PEAR](https://arxiv.org/abs/2510.07505) measured that weak planners hurt
@@ -563,14 +565,19 @@ runner's first live use finished 7/7.
   to current CLI flags, so model churn is reviewed in one place. The
   inherit-by-default shape follows the `opusplan` precedent and matching
   requests across aider/goose issue trackers.
-- **Routine issue judges resolve to the builders model.** The runner now owns
-  deterministic grading, so the ordinary judge is a fresh builders-model intent
-  reviewer with one spot-check. The closing review uses the orchestrator model,
-  and cross-family judgment remains an explicit high-stakes route.
-- **Default builders are codex-first.** `codex/best` (gpt-5.5, xhigh) whenever
-  the Codex CLI is on PATH; `claude/tier-down` (Sonnet, high) otherwise.
-  Typing hours land on the flat-rate subscription with verified `.git`
-  sandbox protection (§2 economics; PR #28).
+- **Routine issue judges resolved to the builders model** *(role retired —
+  see §2 note)*. The runner owns deterministic grading; while the per-issue
+  judge existed it was a fresh builders-model intent reviewer with one
+  spot-check, and optional read-only verification dispatches keep that tier.
+  The closing review uses the orchestrator model, and cross-family judgment
+  remains an explicit high-stakes route.
+- **Default builders are Claude-native** since the skill-library run (spec
+  assumption 2, 2026-07-05): `claude/tier-down` (Sonnet, high) as Agent-tool
+  jobs with preloaded stage skills; `codex/best` (gpt-5.5, xhigh) is the
+  config-selected alternative whenever the Codex CLI is on PATH — its
+  economics case (typing hours on the flat-rate subscription with verified
+  `.git` sandbox protection; §2 economics, PR #28) is why the option stays
+  first-class.
 - **xhigh for unattended builders.** Effort-curve data shows xhigh winning
   the metrics that matter unattended — semantic equivalence to the human PR
   (88% vs 69%) and review-pass rate (69% vs 38%) at ~2.2× the cost of high
@@ -723,7 +730,7 @@ decisions, from the 2026-06 evidence review and the r2 calibration pass
 | Failure mode | Mitigation |
 |---|---|
 | Reward hacking / check tampering | Checks frozen in git pre-dispatch; `git diff` integrity check at judgment; tampering = automatic FAIL |
-| Builder grades own work | Raw-evidence-only reports; deterministic runner grades frozen RUN items; fresh intent judge checks integrity, diff-vs-intent, and one spot-check; cross-family review for high-stakes |
+| Builder grades own work | Raw-evidence-only reports; deterministic runner grades frozen RUN items; one fresh closing review reads the whole run diff; cross-family review for high-stakes |
 | Goalpost moving | Verbatim frozen check text; checks read-only after freeze; missing check = spec defect for the *next* issue |
 | Scope creep | Explicit boundaries and out-of-scope per issue; silent additions = job failure; scope growth beyond spec = hard stop |
 | Context rot | Orchestrator holds judgment only, never reads large diffs; fresh job per issue; tracker + git carry state |
@@ -731,7 +738,7 @@ decisions, from the 2026-06 evidence review and the r2 calibration pass
 | Placeholder implementations | End-to-end executable check commands; "search before implementing; full implementations only" in the builder block |
 | Silent fallbacks masking breakage | P1 ban; fail loudly; explicitly-specced resilience only |
 | Fabricated status reports | Every status claim audited against a tool result, both sides |
-| Check-passing but unmergeable work | Intent judge reads diff vs intent, not check output alone (METR) |
+| Check-passing but unmergeable work | Closing review reads diff vs intent, not check output alone (METR) |
 | Builder gaming visible checks | Frozen read-only checks; no iterate-against-judge loop (ImpossibleBench 33%→38%) |
 | Stalled jobs | Watchdog script: growth + process + repeated-action checks; orchestrator rules on typed evidence; no kill ceilings |
 | Wrong run selected by tracker scan | `docs/runs/<run>/manifest.md` pins the tracking issue; status commands take the run slug and never compute a tracker-wide max |
@@ -926,13 +933,24 @@ cleanup. Both namespaces are load-bearing in shipped text.)
     this run went idle holding a finished verdict the harness never
     delivered as the tool result; see
     `docs/solutions/judge-verdict-delivery.md`.
-  - Per-issue judges were still the live design during this run and
+  - Per-issue judges were still the live design through most of this run and
     validated the intent-judge thesis again: real diff-vs-intent catches on
     fully green mechanical checks (s2 copied-source wording, s7 restated
     orchestrator mechanics), plus the s8 boundary-amendment catch above.
-    This evidence is retained as run history; per §2's note, the per-issue
-    judge itself is being retired to the closing-review-only design in a
-    follow-up slice.
+    This evidence is retained as run history; per §2's note, the run's
+    amended tail then retired the per-issue judge itself.
+  - The run's amended tail (spec `## Review architecture`, human ruling
+    2026-07-06, vetoing intake assumption 3) shipped three more slices:
+    #118 removed the per-issue judge from the loop — the check-runner and
+    the closing review are the only graders; both judge templates stay in
+    `dispatch.md` marked RETIRED for optional read-only verification —
+    #117 upgraded the closing-review skill with researched official-review
+    patterns (verify-then-fix, confidence/scope gates, P0–P2 severity, and
+    test stewardship via `TEST-STEWARDSHIP.md`), and #119 renamed it
+    `cohesion-review` → `code-review` on all live surfaces (the shadowing
+    of Claude Code's bundled /code-review was surfaced and accepted by
+    ruling; the frozen-check supersession map lives in
+    `docs/jobs/skill-library/s15-rename-rulings.md`).
 - **Dogfood runs.** v5 was built *by* the factory as a real issue plan (tracking issue
   #12, issues #13–#18): 1 judge FAIL, 3 respawns, all jobs fresh-judged.
   The v5.1 hardening run (tracking issue #20, issues #21–#25, on `factory/v5.1`)

@@ -107,9 +107,9 @@ LIBRARY_ATTRIBUTED_SKILLS = (
 GLOSSARY_LINT_SKILLS = tuple(LIBRARY_SKILLS) + ("architect",)
 # Lines that NAME a banned substitute while banning it (the glossary's own
 # ban lists) are mentions, not uses-as-terms; without this exemption the
-# lint would fail on its own definition text at codebase-design/SKILL.md:25-26,
-# to-spec/SKILL.md:22-23, to-issues/SKILL.md:29-30,
-# adversarial-review/SKILL.md:77-78, and code-review/SKILL.md:72-73.
+# lint would fail on its own definition text at codebase-design/SKILL.md:24-25,
+# to-spec/SKILL.md:22-23, to-issues/SKILL.md:28-29,
+# adversarial-review/SKILL.md:77-78, and code-review/SKILL.md:105-106.
 GLOSSARY_BAN_LIST_MENTIONS = (
     "component/service/boundary/API",
     "component, service, boundary, or API",
