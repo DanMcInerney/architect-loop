@@ -38,7 +38,7 @@ function Parse-Fixture($Path) {
             if ($i + 2 -ge $lines.Length) {
                 throw "incomplete prompt block at line $($i + 1)"
             }
-            if ($lines[$i + 1] -match '^\s+SKILL: (architect|architect-research|codebase-design|to-spec|to-issues|frozen-checks|tdd|adversarial-review|final-review)$') {
+            if ($lines[$i + 1] -match '^\s+SKILL: (architect|architect-fast|architect-research|codebase-design|to-spec|to-issues|frozen-checks|tdd|adversarial-review|final-review)$') {
                 $skill = $matches[1]
             } else {
                 throw "invalid SKILL line after prompt at line $($i + 1): $($lines[$i + 1])"

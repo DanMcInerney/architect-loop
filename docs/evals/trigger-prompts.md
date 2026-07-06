@@ -1,8 +1,9 @@
 # Trigger Eval Prompts
 
 Purpose: lightweight fixture for checking whether Claude Code routes prompts to
-the architect, architect-research, and seven stage skills (codebase-design,
-to-spec, to-issues, frozen-checks, tdd, adversarial-review, final-review).
+the architect, architect-fast, architect-research, and seven stage skills
+(codebase-design, to-spec, to-issues, frozen-checks, tdd, adversarial-review,
+final-review).
 Run: `skills/architect/trigger-eval.ps1 -Limit 4` or
 `skills/architect/trigger-eval.sh --limit 4`; add `-Bare` or `--bare` if
 local hooks fail in a sandbox.
@@ -45,6 +46,30 @@ local hooks fail in a sandbox.
 
 - PROMPT: Explain what this Python helper returns; no factory, tracker, or issue planning is needed.
   SKILL: architect
+  EXPECT: no-trigger
+
+- PROMPT: /architect-fast add a --json flag to the status script
+  SKILL: architect-fast
+  EXPECT: trigger
+
+- PROMPT: run the light factory lane on this two-file fix
+  SKILL: architect-fast
+  EXPECT: trigger
+
+- PROMPT: architect-fast this: rename the config key and update its docs
+  SKILL: architect-fast
+  EXPECT: trigger
+
+- PROMPT: use the fast lane to add a retry flag to the fetcher and test it
+  SKILL: architect-fast
+  EXPECT: trigger
+
+- PROMPT: architect a new multi-service ingestion pipeline end to end
+  SKILL: architect-fast
+  EXPECT: no-trigger
+
+- PROMPT: read docs/spec/architect-fast.md and summarize it
+  SKILL: architect-fast
   EXPECT: no-trigger
 
 - PROMPT: /architect-research research the state of the art for browser automation agents in 2026.
