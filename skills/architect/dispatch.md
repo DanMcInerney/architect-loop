@@ -310,14 +310,21 @@ gh issue comment <n> --body "STATUS: <the report's exact status line>"
 ```
 
 Orchestrator comments on the sub-issue: rulings, blocker answers, and the
-checkrun result + decisive reason at close. The closing review's verdict +
-diffstat and the batched escalation digest go on the tracking issue only.
+checkrun result + decisive reason at close. The final review's verdict plus
+fix-issue list and the batched escalation digest go on the tracking issue
+only. The reviewer's dispatch block cites the installed user-level
+`final-review` skill text by explicit path, never the repo or worktree copy.
+On findings, the orchestrator harvests the review spec, fix-issue drafts, and
+check drafts out of the reviewer worktree before discarding it, commits them
+as the fix-wave freeze, and updates the tracking-issue body's freeze record
+to the latest freeze SHA (prior SHAs stay in comments). Fix-issue dispatch
+reuses the builder block template below — no new machinery.
 
 ```bash
 gh issue comment <n> --body "RULING: <decision> - <one line why>"
 gh issue comment <n> --body "ANSWER: <blocker answer>"
 gh issue comment <n> --body "CHECKRUN: exit <0|2> <CHECKRUN SUMMARY line> | POSTFLIGHT: <line> - <decisive reason>"
-gh issue comment <tracking-issue-n> --body "REVIEW: <closing final-review verdict + diffstat>"
+gh issue comment <tracking-issue-n> --body "REVIEW: GREEN" # or "REVIEW: FINDINGS n=<count> - <fix-issue list>"
 gh issue comment <tracking-issue-n> --body "DIGEST: <batched escalations + run summary>"
 ```
 

@@ -42,7 +42,7 @@ Parallel rules: harness-native result-bearing subagents (Claude Agent tool) disp
 4. **Recompute the ready issues.** Closing an issue may unblock others; rerun
    `ground.ps1|.sh <run>`, read its `FRONTIER:` line, and dispatch the next
    wave from it.
-5. **Finish boundary.** When build issues close, run the SKILL.md `### 5. Finish` timed-ruling closing review before the docs job: default YES, 5-minute silence applies; YES uses one fresh resolved-orchestrator-model MEDIUM subagent from the factory branch head running the `final-review` stage skill — review basis spec -> run diff -> published interface contract blocks (the scout map expired at first merge) — editing directly with `docs/checks/` read-only, keeping every graded RUN green, rerunning the full closing checkrun plus named suites, and merging only green review work through postflight. Red review changes are discarded whole and recorded on the digest; verdict plus diffstat is posted on the tracking issue.
+5. **Finish boundary.** When build issues close, run the SKILL.md `### 5. Finish` timed-ruling closing review before the docs job: default YES, 5-minute silence applies; YES dispatches one fresh resolved-orchestrator-model MEDIUM subagent from the factory branch head running the `final-review` stage skill, cited by its installed user-level skill path — review basis spec -> run diff -> published interface contract blocks (the scout map expired at first merge) — read-only over product code, reporting and decomposing rather than editing. A GREEN verdict short-circuits straight to the docs job. A `REVIEW: FINDINGS n=<count>` verdict names a review spec, fix-issue drafts, and check drafts; the orchestrator harvests the three draft sets, discards the reviewer worktree, runs the frozen-checks freeze gate over every draft RUN command, commits the fix-wave freeze with the tracking-issue body's freeze record updated to the latest freeze SHA, files the fix issues, posts the verdict plus fix-issue list as the digest, and dispatches the fix wave through the existing wave machinery at the builders tier. The docs job fires after the fix wave has merged, after a GREEN verdict, or after a recorded ruling skips the review.
 6. **Repeat** until no issues remain open, the closing review/docs finish boundary is handled, then post the escalation digest's end-of-run summary on the tracking issue.
 
 ## Monitor protocol
@@ -70,7 +70,7 @@ detection-only boundary and per-job evidence requirements.
 
 ## Verdict comments
 
-Grading is recorded on the issue, not in a file. At each job close, one comment is posted on the job's issue with: the check-runner typed summary (`CHECKRUN SUMMARY` line plus typed exit), the postflight result, the slice call KILL/CONTINUE, and the decisive reason tied to raw evidence; exact tracker comment format lives in `dispatch.md` "## Issue conventions". The closing cohesion review posts the run-level verdict — findings with file:line evidence, diffstat, and the green-or-discard call — on the tracking issue.
+Grading is recorded on the issue, not in a file. At each job close, one comment is posted on the job's issue with: the check-runner typed summary (`CHECKRUN SUMMARY` line plus typed exit), the postflight result, the slice call KILL/CONTINUE, and the decisive reason tied to raw evidence; exact tracker comment format lives in `dispatch.md` "## Issue conventions". The final review posts its verdict — `REVIEW: GREEN` or `REVIEW: FINDINGS n=<count>` plus the fix-issue list — as the run-level digest on the tracking issue; per-fix-issue verdicts follow the normal issue-conventions comment.
 The checkrun artifact `docs/jobs/<run>/<issue-slug>-checkrun.md` is committed before the merge. The rulings file `docs/jobs/<run>/<issue-slug>-rulings.md` is orchestrator-owned, append-only, and committed before the merge; if it is absent, there are no post-freeze rulings; the closing review reads rulings files rather than thread prose.
 The issue is closed on merge. No checkrun-result comment on an issue means the
 next factory block must not build on it as accepted; the orchestrator may re-run
@@ -113,7 +113,10 @@ orchestrator diagnoses, never a signal to move the tier.
    that failed, and rewrite the issue input before respawning.
 3. Third strike: the orchestrator implements the remainder itself — Hard Rule
    4's only license. Its work is graded like any builder's: the frozen-check
-   runner and the closing review still pass it; no self-grading in artifacts.
+   runner still passes it; no self-grading in artifacts. A third strike
+   inside the fix wave is a hard stop — the closing review is already spent,
+   so orchestrator-written fix code would otherwise merge without any model
+   review.
 
 A merge conflict, including postflight exit 3, is a decomposition failure, not
 a build failure: kill the conflicting job and re-spec; never hand-resolve
@@ -140,7 +143,8 @@ immediate stop.
 | Builder touched `docs/checks/` | Automatic FAIL for that job. |
 | Foreign sub-issue under the run parent | Never dispatch it; escalate on the tracking-issue digest. |
 | Merge conflict or postflight exit 3 | Decomposition failure: kill the job, re-spec. |
-| Third strike on the same issue | The orchestrator implements the remainder itself (Hard Rule 4); the frozen-check runner and closing review still grade that work. |
+| Third strike on the same issue | The orchestrator implements the remainder itself (Hard Rule 4); the frozen-check runner still grades that work. |
+| Third strike inside the fix wave | A third strike inside the fix wave is a hard stop — the closing review is already spent. |
 | Two consecutive KILLs | Stop the factory and ask the human. |
 | Monitor reports an anomaly | Orchestrator rules before any further dispatch on that job. |
 | Blocker collides with a recorded assumption | Ask the human; it is a spec approval decision surfacing late. |
