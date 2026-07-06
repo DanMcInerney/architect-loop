@@ -17,7 +17,7 @@ through step 4.
 
 ## Process
 
-1. Read the run's `docs/runs/<run>/map.md` and the codebase-design
+1. Read the codebase-design
    vocabulary (`skills/codebase-design/SKILL.md`) before writing a line. Reuse its module, interface, seam,
    adapter, depth, and locality terms exactly; never substitute component,
    service, boundary, or API for module or interface.
