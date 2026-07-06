@@ -212,6 +212,9 @@ if [ -z "$freeze_sha" ]; then
 fi
 if [ -z "$freeze_sha" ]; then
   [ -n "$drift_reason" ] || drift_reason="no freeze commit recorded for docs/checks/$run_slug/"
+elif ! git -C "$root" cat-file -e "$freeze_sha^{commit}" >/dev/null 2>&1; then
+  [ -n "$drift_reason" ] || drift_reason="recorded freeze $freeze_sha not resolvable to a commit"
+  freeze_sha=
 else
   freeze_diff=$(git -C "$root" diff --stat "$freeze_sha"..HEAD -- "docs/checks/$run_slug/" 2>&1)
   if [ -n "$freeze_diff" ]; then
