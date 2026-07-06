@@ -138,6 +138,8 @@ Batch independent reads (frozen check file, spec, job report, rulings file, chec
 Evidence rules: read the checkrun evidence SUMMARY before intent review. Do not grade RUN items from the evidence file. Re-run exactly ONE graded RUN item and compare the verdicts; any mismatch is automatic INVALID with both outputs quoted. Missing or stale evidence (integrity false or freeze SHA mismatch) is INVALID, never FAIL.
 
 Verdict format: Checks integrity: PASS | FAIL | INVALID with raw `git diff <freeze-sha>..HEAD -- docs/checks/`; Diff vs intent: PASS | FAIL | INVALID with file:line evidence; Spot-check: PASS | FAIL | INVALID with item and both quoted outputs; Slice verdict: PASS | FAIL | INVALID with one decisive reason.
+
+When the verdict is complete, deliver it via SendMessage to main; do not end the session without sending it.
 ```
 <!-- architect-judge-template:end -->
 
