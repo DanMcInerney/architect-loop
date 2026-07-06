@@ -73,11 +73,6 @@ changes implementation or validation. Ask via the timed-ruling protocol;
 timer-expired questions become recorded `## Assumptions` on the recommended
 option.
 
-In parallel, dispatch one read-only scout at the builders model
-(`dispatch.md` `## Scout dispatch`); commit its map at
-`docs/runs/<run>/map.md`. The map is planning-time input and expires at first
-merge — builders get change-skeletons and interface contracts, never the map.
-
 Preflight per tracker mode (`tracker.md` `## Preflight per mode`). Canary
 each candidate backend once — list tools, `git log -1 --oneline`, reply
 `CANARY: SHELLS_OK|DEGRADED`; on DEGRADED select the fallback backend and
