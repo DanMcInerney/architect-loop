@@ -40,7 +40,7 @@ silent fallback — every precondition, blocker, and substitution is recorded.
 
 ## Relaxed by design
 
-- No scout, no adversarial spec or decomposition review — intake is at most
+- No adversarial spec or decomposition review — intake is at most
   ~3 questions and `to-issues` runs straight off the approved spec.
 - The fast lane's gates: no frozen check files, no check-runner —
   issue-body acceptance criteria, builder-run tests, and the orchestrator
@@ -65,8 +65,8 @@ silent fallback — every precondition, blocker, and substitution is recorded.
    `skills/architect/status.ps1|.sh` works unchanged for status requests.
 
 2. **Intake.** At most ~3 materiality-tested questions via the timed-ruling
-   protocol (`skills/architect/SKILL.md` `### 2. Spec Approval`). No scout,
-   no adversarial spec review. Write the spec with `to-spec` on its exact
+   protocol (`skills/architect/SKILL.md` `### 2. Spec Approval`). No
+   adversarial spec review. Write the spec with `to-spec` on its exact
    template, one named substitution: the `## Validation strategy` section
    names the fast lane's actual gates — builder-run tests plus the
    orchestrator review — instead of the check-runner and closing review.

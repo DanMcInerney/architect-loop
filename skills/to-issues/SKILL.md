@@ -20,7 +20,7 @@ question here.
 
 ## 1. Read before you cut
 
-Load the spec and the map pointer, then hold the codebase-design vocabulary
+Load the spec, then hold the codebase-design vocabulary
 (`skills/codebase-design/SKILL.md`) exactly: module, interface, implementation, seam, adapter, depth, leverage,
 locality for design; run, tracking issue, issue, slice, frozen check,
 check-runner, builder, intent judge, orchestrator, factory branch, worktree,
