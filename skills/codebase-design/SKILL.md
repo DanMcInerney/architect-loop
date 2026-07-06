@@ -14,16 +14,16 @@ description: >
 
 # Codebase Design
 
-Design **deep modules**: a lot of behavior behind a small interface, at a
-clean seam, testable through that interface. Use this language everywhere
-code or a factory issue is being designed - the payoff is leverage for
-callers, locality for maintainers, and testability for everyone.
+Design **deep modules**: a lot of behavior behind a small interface, placed
+at a clean seam, testable through that interface. Use this language wherever
+code or a factory issue is being designed. The aim is leverage for callers,
+locality for maintainers, and testability for everyone.
 
 ## Glossary
 
-Use these terms exactly; substitution is a defect. Don't reach for
-component, service, boundary, or API when you mean module or interface;
-don't say task or ticket for issue; don't say test file for frozen check.
+Use these terms exactly — don't substitute component, service, boundary, or API
+when you mean module or interface; don't say task or ticket for issue, or test
+file for frozen check. Consistent language is the whole point.
 
 **Design (Pocock, adapted):**
 
@@ -68,29 +68,28 @@ method count and params can shrink, and whether more logic can move inside.
 - Depth is a property of the interface, not the implementation - a deep
   module can be built from small internal seams its own tests use, without
   exposing them at the external interface.
-- The deletion test: imagine removing the module. If complexity vanishes,
-  it was a passthrough; if it reappears at every caller, it earned its keep.
+- The deletion test: imagine deleting the module. If complexity vanishes,
+  it was a pass-through; if it reappears across N callers, it was earning
+  its keep.
 - The interface is the test surface - callers and tests cross the same
-  seam. Wanting to test past the interface means the module is the wrong
-  shape.
-- One adapter is a hypothetical seam; two make it real. Don't add a seam
-  until something actually varies across it.
+  seam. If you want to test past the interface, the module is probably the
+  wrong shape.
+- One adapter means a hypothetical seam; two adapters means a real one.
+  Don't introduce a seam unless something actually varies across it.
 
 ## Designing for testability
 
-- Accept dependencies as parameters instead of constructing them inside -
-  a function that takes its gateway is testable; one that builds a
-  `StripeGateway()` internally is not.
-- Return results instead of producing side effects - a function that
-  returns a computed discount is testable; one that mutates a cart in
-  place is not.
-- Keep the surface small: fewer methods and simpler params mean fewer and
-  simpler tests.
+- Accept dependencies, don't create them - a function that takes its
+  gateway is testable; one that builds a `StripeGateway()` internally is not.
+- Return results, don't produce side effects - a function that returns a
+  computed discount is testable; one that mutates a cart in place is not.
+- Small surface area: fewer methods = fewer tests needed; fewer params =
+  simpler test setup.
 
 ## Going deeper
 
-- Deepening a cluster given its dependencies - see `DEEPENING.md`: the
-  four dependency categories and how each is tested across the seam.
+- Deepening a cluster given its dependencies - see `DEEPENING.md`:
+  dependency categories, seam discipline, and replace-don't-layer testing.
 - Exploring alternative interfaces - see `DESIGN-IT-TWICE.md`: dispatch
-  parallel subagents to sketch a module's interface several radically
-  different ways, then compare.
+  parallel subagents to design the interface several radically different
+  ways, then compare on depth, locality, and seam placement.

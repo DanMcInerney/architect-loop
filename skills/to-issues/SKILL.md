@@ -10,8 +10,7 @@ description: >
 disable-model-invocation: true
 ---
 
-<!-- Shape adapted from mattpocock/skills (MIT License),
-     skills/engineering/to-issues/SKILL.md. Wording below is original. -->
+<!-- Adapted from mattpocock/skills (MIT). -->
 
 # To Issues
 
@@ -47,14 +46,14 @@ means stop and escalate the design question instead of cutting a fourth fix.
 
 ## 3. Cut tracer-bullet vertical slices
 
-Each issue is a vertical slice: a thin cut through every layer the change
-touches, demoable end to end on its own. A horizontal issue that stops at
-one layer is a decomposition defect — fold it into the slice it serves or
-re-cut it.
+Each issue is a tracer-bullet vertical slice: a narrow but complete path
+through every layer the change touches, demoable or verifiable on its own —
+never a horizontal slice of one layer.
 
-Keep file paths and code snippets out of issue prose. Exception: a prototype
-snippet that encodes a decision (a state machine, schema, or type shape)
-more precisely than prose can.
+Avoid specific file paths or code snippets in issue prose — they go stale
+fast. Exception: a prototype snippet that encodes a decision more precisely
+than prose can (state machine, schema, type shape); trim to the
+decision-rich parts.
 
 ## 4. Maximize the disjoint parallel frontier
 

@@ -1,9 +1,9 @@
 # Design It Twice
 
 Use this when a deepening candidate has more than one plausible interface
-shape. Based on "Design It Twice" (Ousterhout) - the first idea is rarely
-the best. Assumes the vocabulary in `SKILL.md` - module, interface, seam,
-adapter, leverage - and the dependency categories in `DEEPENING.md`.
+shape. Based on "Design It Twice" (Ousterhout) - your first idea is unlikely
+to be the best. Assumes the vocabulary in `SKILL.md` - module, interface,
+seam, adapter, leverage - and the dependency categories in `DEEPENING.md`.
 
 ## Frame the problem, then fan out
 
@@ -27,7 +27,7 @@ and where its leverage is thin.
 
 ## Compare and decide
 
-Read the sketches side by side and compare on depth (leverage at the
-interface), locality (where change concentrates), and seam placement -
-never on line count or style. Then commit to one shape, or a hybrid if two
-sketches combine well; a menu of options is not a decision.
+Read the sketches side by side and contrast by depth (leverage at the
+interface), locality (where change concentrates), and seam placement. Then
+commit to one shape, or a hybrid if elements from different sketches combine
+well; a menu of options is not a decision.

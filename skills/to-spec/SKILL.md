@@ -7,9 +7,9 @@ description: >
   intake, before decomposition into issues.
 ---
 
-# To Spec
+<!-- Adapted from mattpocock/skills (MIT). -->
 
-<!-- Shape adapted from mattpocock/skills (MIT), skills/engineering/to-prd/SKILL.md -->
+# To Spec
 
 Synthesize the spec from what grounding, intake, and research evidence
 already surfaced; do not interview. Anything genuinely unanswered goes
@@ -22,14 +22,14 @@ through step 4.
    adapter, depth, and locality terms exactly; never substitute component,
    service, boundary, or API for module or interface.
 2. Name the seam(s) this run will exercise before drafting any section.
-   Prefer an existing seam, as high as the codebase offers; one new seam is
-   the most a run should need. Record the seam(s) under
-   `## Implementation decisions`.
-3. Keep file paths and code snippets out of the spec body — file layout
-   moves, decisions should not. One carve-out: when prototyping settled
-   something prose would leave ambiguous (a config grammar, a frontmatter
-   key set, a typed-exit table), inline just the lines that pin the choice
-   down and mark their prototype origin.
+   Existing seams are preferred to new ones, at the highest point possible;
+   the ideal number is one. Record them under `## Implementation decisions`.
+3. Do not include specific file paths or code snippets in the spec body —
+   they may end up being outdated very quickly. Exception: if a prototype
+   produced a snippet that encodes a decision more precisely than prose can
+   (state machine, schema, type shape), inline it within the relevant
+   decision and note briefly that it came from a prototype. Trim to the
+   decision-rich parts.
 4. Send every open question through the timed-ruling protocol
    (`skills/architect/SKILL.md` `### 2. Spec Approval`) instead of asking
    directly, and record the outcome as an `## Assumptions` entry — do not
