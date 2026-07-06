@@ -30,8 +30,9 @@ preload) — a stage skill returns here and never invokes a peer. Mechanics:
    there is an automatic FAIL.
 3. **Nobody grades their own work.** Builders report raw evidence. The
    check-runner grades every frozen RUN item; one fresh orchestrator-model
-   subagent runs the final review — the loop's only model review. Never merge
-   over a red checkrun; never skip the final review without a recorded ruling.
+   subagent runs the final review — the loop's only model review. It
+   reports and decomposes, never edits. Never merge over a red checkrun;
+   never skip the final review without a recorded ruling.
 4. **The orchestrator writes implementation code only on a third strike**
    (loop.md `## Failure ladder`), graded like any builder's work. It never
    reads large diffs; read-only verification subagents do.
@@ -178,24 +179,37 @@ Event loop: loop.md `## Factory block procedure`.
 
 Open with a timed-ruling question: run the final review? Default YES. On
 YES, one fresh orchestrator-model subagent (MEDIUM effort, worktree from the
-factory head) runs the `final-review` stage skill over the whole run diff:
-edits directly, treats `docs/checks/` as read-only, keeps every graded RUN
-item green, re-runs the full closing checkrun plus named suites, and is
-green-or-discard — red review work never merges; discard whole and record
-it. Merge green work through postflight; post verdict plus diffstat.
+factory branch head) runs the `final-review` stage skill, dispatched by
+citing the installed user-level skill text by explicit path. It reports and
+decomposes, never edits, and returns one verdict. `REVIEW: GREEN` is a
+short-circuit: post the GREEN verdict on the tracking issue and go straight
+to the docs job. `REVIEW: FINDINGS n=<count>` names a review spec, fix-issue
+drafts, and check drafts; the orchestrator harvests those three draft sets,
+discards the reviewer worktree, and runs the frozen-checks freeze gate over
+every draft RUN command, amending drafts pre-freeze where the gate demands it
+(rulings record intent-bearing amendments). It commits the review spec, issue
+bodies, and checks as the fix-wave freeze into the run's checks directory,
+updates the tracking-issue body's freeze record to the latest freeze SHA
+(prior SHAs stay in comments), files the fix issues as sub-issues, and posts
+the verdict plus fix-issue list as the digest — no human gate; the digest is
+the veto surface. It then dispatches the fix wave through the existing wave
+machinery at the builders tier: single review cycle, no re-review; a fix
+issue closes by merge or by recorded ruling, landing ruling-closed findings
+in the digest as residual risks.
 
 Then one dedicated builder docs job before the finish boundary — never the
 orchestrator. Its dispatch block carries the change-context digest: shipped
 issues with one-liners, diffstats, rulings and solutions pointers, domain
 language changes. It consumes docs debt and updates product docs; its frozen
-checks run through the check-runner and the orchestrator grades that
-evidence directly (the final review has already run).
+checks run through the check-runner and the orchestrator grades that evidence
+directly. The docs job fires after the fix wave has merged, after a GREEN
+verdict, or after a recorded ruling skips the review.
 
-After the final review merges, or a recorded ruling skips it, dispatch one
-integration subagent running the `integrate` stage skill. It owns remaining merges,
-ship-time conflict resolution, PR prep or markdown-mode finish prep, and the
-digest draft. The orchestrator rules on the result and posts the digest,
-naming shipped, skipped, residual risks, and evidence.
+After the docs job, dispatch one integration subagent running the
+`integrate` stage skill. It owns remaining merges, ship-time conflict
+resolution, PR prep or markdown-mode finish prep, and the digest draft. The
+orchestrator rules on the result and posts the digest, naming shipped,
+skipped, residual risks, and evidence.
 
 ## Hard Stops
 
