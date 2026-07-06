@@ -2,7 +2,7 @@
 
 Purpose: lightweight fixture for checking whether Claude Code routes prompts to
 the architect, architect-research, and seven stage skills (codebase-design,
-to-spec, to-issues, frozen-checks, tdd, adversarial-review, cohesion-review).
+to-spec, to-issues, frozen-checks, tdd, adversarial-review, code-review).
 Run: `skills/architect/trigger-eval.ps1 -Limit 4` or
 `skills/architect/trigger-eval.sh --limit 4`; add `-Bare` or `--bare` if
 local hooks fail in a sandbox.
@@ -135,10 +135,10 @@ local hooks fail in a sandbox.
   SKILL: adversarial-review
   EXPECT: no-trigger
 
-- PROMPT: Every issue in the run is closed; run the cohesion-review skill over the whole run diff from the factory branch head.
-  SKILL: cohesion-review
+- PROMPT: Every issue in the run is closed; run the code-review skill over the whole run diff from the factory branch head.
+  SKILL: code-review
   EXPECT: trigger
 
 - PROMPT: Summarize what changed in the last commit.
-  SKILL: cohesion-review
+  SKILL: code-review
   EXPECT: no-trigger

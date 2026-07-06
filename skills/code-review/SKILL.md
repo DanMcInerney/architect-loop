@@ -1,19 +1,21 @@
 ---
-name: cohesion-review
+name: code-review
 description: >
-  Use for the closing whole-run review in the architect factory — the only
-  model review in the loop: dispatched by the orchestrator, at finish, to
-  one fresh orchestrator-model subagent that audits the entire run diff for
-  defects only isolated parallel slices can produce, checks the merged whole
-  against the spec, verifies every candidate finding before fixing it, and
-  stewards the mutable test suite so coverage of spec behaviors is real.
-  Never description-triggered or self-invoked mid-run; the orchestrator
-  calls it explicitly once every issue has closed.
+  Use for the closing whole-run review in the architect factory (this is
+  the factory's own stage skill, not Claude Code's bundled /code-review) —
+  the only model review in the loop: dispatched by the orchestrator, at
+  finish, to one fresh orchestrator-model subagent that audits the entire
+  run diff for defects only isolated parallel slices can produce, checks
+  the merged whole against the spec, verifies every candidate finding
+  before fixing it, and stewards the mutable test suite so coverage of
+  spec behaviors is real. Never description-triggered or self-invoked
+  mid-run; the orchestrator calls it explicitly once every issue has
+  closed.
 ---
 
 <!-- Adapted from mattpocock/skills (MIT). -->
 
-# Cohesion Review
+# Code Review
 
 You review a finished run cold — you built nothing here; that's the point.
 Fresh context catches what builders inside their own worktrees could not
