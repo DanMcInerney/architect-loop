@@ -60,17 +60,7 @@ codex backend (`builders = codex/best`) is the config-selected alternative;
 its dispatch path in the sections below is unchanged. Flat `key = value`
 lines are the supported format for role keys. Unknown keys warn and never fail.
 
-Served-model verification (evidence 2026-07-06): a model pin is a request,
-not proof. Verify what actually served a Claude Agent-tool spawn by grepping
-its saved transcript for `"model":` fields — each assistant event names the
-serving model (e.g. `claude-fable-5`); the harness UI surfaces nothing.
-Caveats, both verified live: (a) post-RESUME turns run at the parent
-session's model, not the spawn pin — repin on resume or accept the drift;
-(b) the `CLAUDE_CODE_SUBAGENT_MODEL` env var outranks every per-invocation
-pin (official resolution order) — preflight confirms it is unset. Headless
-`claude -p --model fable` is the verified same-model fallback (~$0.5 fixed
-bootstrap cost per invocation; stream-json events carry the same `"model":`
-proof).
+A pin is a request, not proof — served-model verification and its resume/env-var caveats: `docs/solutions/served-model-verification.md`.
 
 Optional dispatch-rules lines route task classes to a builder tier:
 
