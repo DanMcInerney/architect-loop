@@ -55,15 +55,15 @@ glossary exactly — substitution is a defect.
 
 - Read in authority order: `CLAUDE.md`/`AGENTS.md`, `README.md`, architecture
   docs, active spec, `docs/solutions/`, open issues, reports, checks, branches.
-- Load `docs/runs/<run>/manifest.md`; tracker reads stay scoped to the pinned
-  tracking issue and children carrying `<!-- architect-run: <run> -->`.
-  Reconcile tracker against git: issue states, blocked-by edges, ungraded
-  jobs, freeze SHAs, branch heads.
+- Run `skills/architect/ground.ps1|.sh <run>` and rule on its typed exit: 0
+  `GROUND: OK` proceeds — read its `FRONTIER:` line for the ready issues; 2
+  `GROUND: STOP <which>` halts before dispatch; 3 `GROUND: DRIFT <fact>` is a
+  tracker/git disagreement to rule on before continuing; 5 `GROUND: ERROR
+  <why>` is a script/input error to fix. Detection only — it never posts,
+  edits, or decides.
 - Resolve models: `.architect/config`, then `~/.architect/config`, then
   dispatch.md `## Model alias table`. Verification subagents run at the
   builders model; the monitor is a script.
-- Check `docs/STOP` in run and primary checkouts (`git rev-parse
-  --git-common-dir`) plus uncommitted `docs/runs/<run>/STOP` before dispatch.
 
 ### 1. Intake
 
@@ -189,10 +189,13 @@ orchestrator. Its dispatch block carries the change-context digest: shipped
 issues with one-liners, diffstats, rulings and solutions pointers, domain
 language changes. It consumes docs debt and updates product docs; its frozen
 checks run through the check-runner and the orchestrator grades that
-evidence directly (the final review has already run). Github mode: PR with
-`Closes #<tracking-issue>` and per-issue back-links. Markdown mode: branch
-ready with digest and merge instructions (`tracker.md` `## Finish per
-mode`). The digest names shipped, skipped, residual risks, and evidence.
+evidence directly (the final review has already run).
+
+After the final review merges, or a recorded ruling skips it, dispatch one
+ship subagent running the `ship` stage skill. It owns remaining merges,
+ship-time conflict resolution, PR prep or markdown-mode finish prep, and the
+digest draft. The orchestrator rules on the result and posts the digest,
+naming shipped, skipped, residual risks, and evidence.
 
 ## Hard Stops
 

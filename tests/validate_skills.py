@@ -67,6 +67,7 @@ LIBRARY_SKILLS = {
     "tdd": ["tests.md", "mocking.md"],
     "adversarial-review": [],
     "final-review": [],
+    "ship": [],
 }
 # s9 per-skill non-blank-line budgets, caps named in each stage skill's
 # frozen check (docs/checks/skill-library/). The architect entry (SKILL.md
@@ -84,6 +85,7 @@ LIBRARY_LINE_BUDGETS = {
     "tdd": (("SKILL.md", "tests.md", "mocking.md"), 220),
     "adversarial-review": (("SKILL.md",), 110),
     "final-review": (("SKILL.md",), 110),
+    "ship": (("SKILL.md",), 90),
     "architect": (("SKILL.md",), 220),
 }
 # License ruling (docs/spec/skill-library.md `## Open human decisions`):
@@ -1003,6 +1005,444 @@ def check_check_runner_fixture() -> None:
                 )
 
 
+def ground_executor_cases() -> list[tuple[str, list[str], str]]:
+    """(label, base command prefix, repo-root flag) per runnable executor -
+    mirrors check_runner_cases' bash-only-off-Windows gate (Executor truth,
+    dispatch.md `## Duration hints and liveness`)."""
+    cases: list[tuple[str, list[str], str]] = []
+    powershell = shutil.which("powershell")
+    if powershell:
+        cases.append(
+            (
+                "powershell",
+                [
+                    powershell,
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    str(SKILLS / "architect" / "ground.ps1"),
+                ],
+                "-RepoRoot",
+            )
+        )
+    bash = shutil.which("bash")
+    if bash and os.name != "nt":
+        cases.append(("bash", [bash, str(SKILLS / "architect" / "ground.sh")], "--repo-root"))
+    return cases
+
+
+def build_ground_ok_fixture(repo_root: Path) -> str | None:
+    """Markdown-tracker fixture: tracking issue #1 (OPEN) with one open,
+    unblocked child #2, and docs/checks/fixrun/ committed with no further
+    edits - a clean-state GROUND: OK, per the s1-ground ruling's clean-state
+    demonstration pattern (docs/jobs/ground-scripts/s1-ground-rulings.md).
+    docs/jobs/fixrun/ carries a PAIRED report (slice-a-01.md +
+    slice-a-checkrun.md, the repo naming convention) so the OK case pins the
+    ruling's matcher fix: a matcher that pairs <slug>-01.md with
+    <slug>-01-checkrun.md instead of <slug>-checkrun.md regresses to DRIFT
+    here (final-review falsifiability proof, ground-scripts run)."""
+    repo_root.mkdir(parents=True, exist_ok=True)
+    init = subprocess.run(
+        ["git", "init", str(repo_root)],
+        text=True,
+        capture_output=True,
+        timeout=30,
+    )
+    if init.returncode != 0:
+        errors.append(
+            "ground fixture: git init failed "
+            f"exit {init.returncode}\nstdout:\n{init.stdout}\nstderr:\n{init.stderr}"
+        )
+        return None
+    git_fixture(repo_root, "config", "user.email", "ground-fixture@example.invalid")
+    git_fixture(repo_root, "config", "user.name", "Ground Fixture")
+    write_fixture_file(
+        repo_root / "docs" / "runs" / "fixrun" / "manifest.md",
+        "---\n"
+        "run: fixrun\n"
+        "tracking-issue: 1\n"
+        "factory-branch: factory/fixrun\n"
+        "tracker: markdown\n"
+        "spec: docs/spec/fixrun.md\n"
+        "state: ACTIVE\n"
+        "---\n",
+    )
+    write_fixture_file(
+        repo_root / "docs" / "issues" / "fixrun" / "1.md",
+        "---\n"
+        "issue: 1\n"
+        "title: Tracking\n"
+        "state: OPEN\n"
+        "parent: 0\n"
+        "blocked-by: none\n"
+        "---\n"
+        "Tracking issue body.\n",
+    )
+    write_fixture_file(
+        repo_root / "docs" / "issues" / "fixrun" / "2.md",
+        "---\n"
+        "issue: 2\n"
+        "title: Child A\n"
+        "state: OPEN\n"
+        "parent: 1\n"
+        "blocked-by: none\n"
+        "---\n"
+        "Child body.\n",
+    )
+    write_fixture_file(repo_root / "docs" / "checks" / "fixrun" / "dummy.md", "# Check\nplaceholder\n")
+    write_fixture_file(
+        repo_root / "docs" / "jobs" / "fixrun" / "slice-a-01.md",
+        "# report\nSTATUS: COMPLETE\n",
+    )
+    write_fixture_file(
+        repo_root / "docs" / "jobs" / "fixrun" / "slice-a-checkrun.md",
+        "# checkrun\nverdict: PASS\n",
+    )
+    git_fixture(repo_root, "add", "-A")
+    git_fixture(repo_root, "commit", "-m", "base")
+    freeze = git_fixture(repo_root, "rev-parse", "HEAD")
+    if freeze.returncode != 0:
+        return None
+    return freeze.stdout.strip()
+
+
+def check_ground_contract() -> None:
+    ps1 = SKILLS / "architect" / "ground.ps1"
+    sh = SKILLS / "architect" / "ground.sh"
+    for path in (ps1, sh):
+        if not path.exists():
+            errors.append(f"{path.relative_to(ROOT)}: missing ground script")
+    if not ps1.exists() or not sh.exists():
+        return
+
+    cases = ground_executor_cases()
+    if not cases:
+        errors.append("ground fixture: no runnable executor found")
+        return
+
+    for label, prefix, _flag in cases:
+        try:
+            result = subprocess.run(prefix, cwd=ROOT, text=True, capture_output=True, timeout=20)
+        except Exception as exc:
+            errors.append(f"ground fixture {label} no-args: raised {exc!r}")
+            continue
+        stdout = result.stdout.replace("\r\n", "\n")
+        if result.returncode != 5:
+            errors.append(
+                f"ground fixture {label} no-args: expected exit 5 got {result.returncode}\nstdout:\n{stdout}"
+            )
+        if "GROUND: ERROR" not in stdout:
+            errors.append(f"ground fixture {label} no-args: missing 'GROUND: ERROR'\nstdout:\n{stdout}")
+
+    base = ROOT / ".architect" / "tmp" / "ground-contract-fixture"
+    if base.exists():
+        rmtree_with_writable_retry(base)
+    base.mkdir(parents=True)
+    fixture_repo = base / "repo"
+    freeze = build_ground_ok_fixture(fixture_repo)
+    if freeze is None:
+        return
+
+    for label, prefix, flag in cases:
+        command = [*prefix, "fixrun", flag, str(fixture_repo)]
+        run_env = os.environ.copy()
+        run_env.pop("CLAUDE_CODE_SUBAGENT_MODEL", None)
+        try:
+            result = subprocess.run(command, cwd=ROOT, env=run_env, text=True, capture_output=True, timeout=20)
+        except Exception as exc:
+            errors.append(f"ground fixture {label} ok: raised {exc!r}")
+            continue
+        stdout = result.stdout.replace("\r\n", "\n")
+        stderr = result.stderr.replace("\r\n", "\n")
+        if result.returncode != 0:
+            errors.append(
+                f"ground fixture {label} ok: expected exit 0 got {result.returncode}\n"
+                f"stdout:\n{stdout}\nstderr:\n{stderr}"
+            )
+        if "FRONTIER:" not in stdout:
+            errors.append(f"ground fixture {label} ok: missing 'FRONTIER:' line\nstdout:\n{stdout}")
+        if "GROUND: OK" not in stdout:
+            errors.append(f"ground fixture {label} ok: missing 'GROUND: OK' summary\nstdout:\n{stdout}")
+
+        # Typed exit 2: the subagent-model env gate (spec: GROUND: STOP).
+        stop_env = os.environ.copy()
+        stop_env["CLAUDE_CODE_SUBAGENT_MODEL"] = "fixture-model"
+        try:
+            stop = subprocess.run(command, cwd=ROOT, env=stop_env, text=True, capture_output=True, timeout=20)
+        except Exception as exc:
+            errors.append(f"ground fixture {label} stop: raised {exc!r}")
+            continue
+        stop_stdout = stop.stdout.replace("\r\n", "\n")
+        if stop.returncode != 2:
+            errors.append(
+                f"ground fixture {label} stop: expected exit 2 got {stop.returncode}\nstdout:\n{stop_stdout}"
+            )
+        if "GROUND: STOP subagent-model-env" not in stop_stdout:
+            errors.append(
+                f"ground fixture {label} stop: missing 'GROUND: STOP subagent-model-env'\nstdout:\n{stop_stdout}"
+            )
+
+        # Typed exit 3: an UNPAIRED report (no slice-b-checkrun.md) drifts.
+        unpaired = fixture_repo / "docs" / "jobs" / "fixrun" / "slice-b-01.md"
+        write_fixture_file(unpaired, "# report\nSTATUS: COMPLETE\n")
+        try:
+            drift = subprocess.run(command, cwd=ROOT, env=run_env, text=True, capture_output=True, timeout=20)
+        except Exception as exc:
+            errors.append(f"ground fixture {label} drift: raised {exc!r}")
+            continue
+        finally:
+            unpaired.unlink(missing_ok=True)
+        drift_stdout = drift.stdout.replace("\r\n", "\n")
+        if drift.returncode != 3:
+            errors.append(
+                f"ground fixture {label} drift: expected exit 3 got {drift.returncode}\nstdout:\n{drift_stdout}"
+            )
+        if "UNGRADED: slice-b" not in drift_stdout:
+            errors.append(f"ground fixture {label} drift: missing 'UNGRADED: slice-b'\nstdout:\n{drift_stdout}")
+        if "GROUND: DRIFT" not in drift_stdout:
+            errors.append(f"ground fixture {label} drift: missing 'GROUND: DRIFT'\nstdout:\n{drift_stdout}")
+
+        # Typed exit 3, freeze rail: a recorded freeze SHA that resolves to no
+        # commit must DRIFT with a typed line on BOTH executors - the
+        # final-review of the ground-scripts run caught ground.ps1 dying with
+        # an untyped exit 1 (unwrapped native git call, PS 5.1
+        # NativeCommandError) while ground.sh exited 3 on the same state.
+        tracking_md = fixture_repo / "docs" / "issues" / "fixrun" / "1.md"
+        original_body = read_text(tracking_md)
+        write_fixture_file(
+            tracking_md,
+            "---\n"
+            "issue: 1\n"
+            "title: Tracking\n"
+            "state: OPEN\n"
+            "parent: 0\n"
+            "blocked-by: none\n"
+            "---\n"
+            "freeze: 1234567890abcdef1234 recorded.\n",
+        )
+        try:
+            badfreeze = subprocess.run(command, cwd=ROOT, env=run_env, text=True, capture_output=True, timeout=20)
+        except Exception as exc:
+            errors.append(f"ground fixture {label} bad-freeze: raised {exc!r}")
+            continue
+        finally:
+            write_fixture_file(tracking_md, original_body)
+        bad_stdout = badfreeze.stdout.replace("\r\n", "\n")
+        if badfreeze.returncode != 3:
+            errors.append(
+                f"ground fixture {label} bad-freeze: expected exit 3 got {badfreeze.returncode}\n"
+                f"stdout:\n{bad_stdout}"
+            )
+        if "GROUND: DRIFT recorded freeze 1234567890abcdef1234 not resolvable" not in bad_stdout:
+            errors.append(
+                f"ground fixture {label} bad-freeze: missing resolvability DRIFT line\nstdout:\n{bad_stdout}"
+            )
+
+
+def run_isolation_executor_cases() -> list[tuple[str, list[str], str]]:
+    return ground_executor_cases()
+
+
+def build_ground_run_isolation_fixture(repo_root: Path) -> str | None:
+    repo_root.mkdir(parents=True, exist_ok=True)
+    init = subprocess.run(
+        ["git", "init", str(repo_root)],
+        text=True,
+        capture_output=True,
+        timeout=30,
+    )
+    if init.returncode != 0:
+        errors.append(
+            "ground isolation fixture: git init failed "
+            f"exit {init.returncode}\nstdout:\n{init.stdout}\nstderr:\n{init.stderr}"
+        )
+        return None
+    git_fixture(repo_root, "config", "user.email", "ground-fixture@example.invalid")
+    git_fixture(repo_root, "config", "user.name", "Ground Fixture")
+    write_fixture_file(
+        repo_root / "docs" / "runs" / "isofix" / "manifest.md",
+        "---\n"
+        "run: isofix\n"
+        "tracking-issue: 1\n"
+        "factory-branch: factory/isofix\n"
+        "tracker: markdown\n"
+        "spec: docs/spec/isofix.md\n"
+        "state: ACTIVE\n"
+        "---\n",
+    )
+    write_fixture_file(
+        repo_root / "docs" / "issues" / "isofix" / "1.md",
+        "---\n"
+        "issue: 1\n"
+        "title: Tracking\n"
+        "state: OPEN\n"
+        "parent: 0\n"
+        "blocked-by: none\n"
+        "---\n"
+        "Tracking issue body.\n",
+    )
+    write_fixture_file(
+        repo_root / "docs" / "issues" / "isofix" / "2.md",
+        "---\n"
+        "issue: 2\n"
+        "title: Marked Child\n"
+        "state: OPEN\n"
+        "parent: 1\n"
+        "blocked-by: none\n"
+        "---\n"
+        "<!-- architect-run: isofix -->\n"
+        "Marked child body.\n",
+    )
+    write_fixture_file(
+        repo_root / "docs" / "issues" / "isofix" / "99.md",
+        "---\n"
+        "issue: 99\n"
+        "title: Decoy Child\n"
+        "state: OPEN\n"
+        "parent: 0\n"
+        "blocked-by: none\n"
+        "---\n"
+        "No run marker.\n",
+    )
+    write_fixture_file(repo_root / "docs" / "checks" / "isofix" / "dummy.md", "# Check\nplaceholder\n")
+    git_fixture(repo_root, "add", "-A")
+    git_fixture(repo_root, "commit", "-m", "base")
+    freeze = git_fixture(repo_root, "rev-parse", "HEAD")
+    if freeze.returncode != 0:
+        return None
+    return freeze.stdout.strip()
+
+
+def check_run_isolation() -> None:
+    # Github-mode marker scoping: the fixture below is markdown-tracker (no
+    # gh available), and gh's --jq runs inside gh itself, so the github-mode
+    # jq filter cannot be exercised by a fixture. Pin its two scoping clauses
+    # - parent pinning AND the run-marker contains() - at the file level in
+    # BOTH scripts instead; deleting either clause fails here (final-review
+    # falsifiability proof, ground-scripts run: a marker-clause-deleting
+    # mutant survived the fixture-only version of this test).
+    for script in ("ground.sh", "ground.ps1"):
+        path = SKILLS / "architect" / script
+        if not path.exists():
+            errors.append(f"skills/architect/{script}: missing (required for run isolation)")
+            continue
+        text = read_text(path)
+        for clause in (".parent.number == ", 'contains("<!-- architect-run: '):
+            if clause not in text:
+                errors.append(
+                    f"skills/architect/{script}: github-mode jq filter lost its "
+                    f"{clause!r} scoping clause (run isolation, "
+                    "docs/checks/ground-scripts/s5-ship-wiring.md reviewer intent)"
+                )
+
+    cases = run_isolation_executor_cases()
+    if not cases:
+        errors.append("ground isolation fixture: no runnable executor found")
+        return
+
+    base = ROOT / ".architect" / "tmp" / "ground-run-isolation-fixture"
+    if base.exists():
+        rmtree_with_writable_retry(base)
+    base.mkdir(parents=True)
+    fixture_repo = base / "repo"
+    if build_ground_run_isolation_fixture(fixture_repo) is None:
+        return
+
+    for label, prefix, flag in cases:
+        command = [*prefix, "isofix", flag, str(fixture_repo)]
+        run_env = os.environ.copy()
+        run_env.pop("CLAUDE_CODE_SUBAGENT_MODEL", None)
+        try:
+            result = subprocess.run(command, cwd=ROOT, env=run_env, text=True, capture_output=True, timeout=20)
+        except Exception as exc:
+            errors.append(f"ground isolation fixture {label}: raised {exc!r}")
+            continue
+        stdout = result.stdout.replace("\r\n", "\n")
+        stderr = result.stderr.replace("\r\n", "\n")
+        if result.returncode != 0:
+            errors.append(
+                f"ground isolation fixture {label}: expected exit 0 got {result.returncode}\n"
+                f"stdout:\n{stdout}\nstderr:\n{stderr}"
+            )
+            continue
+        scoped_lines = "\n".join(
+            line for line in stdout.splitlines() if line.startswith(("ISSUE:", "FRONTIER:"))
+        )
+        if "ISSUE: 2 open blockedBy=none" not in scoped_lines:
+            errors.append(f"ground isolation fixture {label}: missing marked issue #2\nstdout:\n{stdout}")
+        if "FRONTIER: 2" not in scoped_lines:
+            errors.append(f"ground isolation fixture {label}: missing marked frontier #2\nstdout:\n{stdout}")
+        if re.search(r"(?m)^ISSUE: 99\b", scoped_lines):
+            errors.append(f"ground isolation fixture {label}: decoy issue #99 leaked\nstdout:\n{stdout}")
+        if re.search(r"(?m)^FRONTIER:.*\b99\b", scoped_lines):
+            errors.append(f"ground isolation fixture {label}: decoy frontier #99 leaked\nstdout:\n{stdout}")
+
+
+def ffcheck_executor_cases() -> list[tuple[str, list[str]]]:
+    cases: list[tuple[str, list[str]]] = []
+    powershell = shutil.which("powershell")
+    if powershell:
+        cases.append(
+            (
+                "powershell",
+                [
+                    powershell,
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    str(SKILLS / "architect" / "ffcheck.ps1"),
+                ],
+            )
+        )
+    bash = shutil.which("bash")
+    if bash and os.name != "nt":
+        cases.append(("bash", [bash, str(SKILLS / "architect" / "ffcheck.sh")]))
+    return cases
+
+
+def check_ffcheck_contract() -> None:
+    ps1 = SKILLS / "architect" / "ffcheck.ps1"
+    sh = SKILLS / "architect" / "ffcheck.sh"
+    for path in (ps1, sh):
+        if not path.exists():
+            errors.append(f"{path.relative_to(ROOT)}: missing ffcheck script")
+    if not ps1.exists() or not sh.exists():
+        return
+
+    cases = ffcheck_executor_cases()
+    if not cases:
+        errors.append("ffcheck fixture: no runnable executor found")
+        return
+
+    head = git_fixture(ROOT, "rev-parse", "HEAD")
+    if head.returncode != 0:
+        return
+    head_sha = head.stdout.strip()
+
+    for label, prefix in cases:
+        bad = subprocess.run(
+            [*prefix, "not-a-real-sha"], cwd=ROOT, text=True, capture_output=True, timeout=20
+        )
+        bad_stdout = bad.stdout.replace("\r\n", "\n")
+        if bad.returncode != 5:
+            errors.append(
+                f"ffcheck contract {label} bad-sha: expected exit 5 got {bad.returncode}\nstdout:\n{bad_stdout}"
+            )
+        if "FFCHECK: ERROR" not in bad_stdout:
+            errors.append(f"ffcheck contract {label} bad-sha: missing 'FFCHECK: ERROR'\nstdout:\n{bad_stdout}")
+
+        ok = subprocess.run([*prefix, head_sha], cwd=ROOT, text=True, capture_output=True, timeout=20)
+        ok_stdout = ok.stdout.replace("\r\n", "\n")
+        if ok.returncode != 0:
+            errors.append(
+                f"ffcheck contract {label} at-head: expected exit 0 got {ok.returncode}\nstdout:\n{ok_stdout}"
+            )
+        if "FFCHECK: OK" not in ok_stdout:
+            errors.append(f"ffcheck contract {label} at-head: missing 'FFCHECK: OK'\nstdout:\n{ok_stdout}")
+
+
 def require_status_contains(label: str, output: str, needle: str) -> None:
     if needle not in output:
         errors.append(f"{label}: missing {needle!r}\noutput:\n{output}")
@@ -1269,6 +1709,9 @@ def main() -> int:
     check_status_run_pinning_fixture()
     check_postflight_lane_fixture()
     check_check_runner_fixture()
+    check_ground_contract()
+    check_run_isolation()
+    check_ffcheck_contract()
     check_tracker_contract()
     check_architect_handoff_free()
     check_retired_loop_terms()
