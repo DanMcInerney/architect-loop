@@ -7,7 +7,7 @@
 **Through the seam**: test real behavior, not mocks of internal parts.
 
 ```typescript
-// GOOD: tests observable behavior through the public seam
+// GOOD: tests observable behavior
 test("user can checkout with valid cart", async () => {
   const cart = createCart();
   cart.add(product);
@@ -20,7 +20,7 @@ Characteristics:
 
 - Tests behavior a caller of the seam cares about
 - Uses the seam only, never internals
-- Survives refactors
+- Survives internal refactors
 - Describes WHAT, not HOW
 - One logical assertion per test
 
@@ -42,7 +42,7 @@ Red flags:
 - Mocking internal collaborators
 - Testing private methods
 - Asserting on call counts/order
-- Test breaks on refactor with no behavior change
+- Test breaks when refactoring without behavior change
 - Test name describes HOW, not WHAT
 - Verifying through a side channel instead of the seam
 
@@ -63,7 +63,7 @@ test("createUser makes user retrievable", async () => {
 ```
 
 **Tautological tests**: the expected value restates the implementation, so
-the test passes by construction — it can never disagree with the code.
+the test passes by construction.
 
 ```typescript
 // BAD: expected value is recomputed the way the code computes it

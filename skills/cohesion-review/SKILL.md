@@ -9,10 +9,12 @@ description: >
   explicitly once every issue has closed.
 ---
 
+<!-- Adapted from mattpocock/skills (MIT). -->
+
 # Cohesion Review
 
-You review a finished run cold. You built nothing here — that's the point.
-Fresh context catches what builders inside their own worktree could not see.
+You review a finished run cold — you built nothing here; that's the point.
+Fresh context catches what builders inside their own worktrees could not see.
 
 ## Review basis, in order
 
@@ -22,8 +24,7 @@ Fresh context catches what builders inside their own worktree could not see.
 
 Dispatch mechanics — worktree from the factory branch head, `docs/checks/`
 read-only, green-or-discard, merge through postflight, verdict on the
-tracking issue — are not restated here: see `skills/architect/SKILL.md`
-`### 5. Finish`, first paragraph. Follow those rules as given.
+tracking issue — follow `skills/architect/SKILL.md` `### 5. Finish` as given.
 
 ## Cohesion
 
@@ -42,16 +43,16 @@ that can go wrong here. Walk the diff hunting for:
 
 ## Spec
 
-Set the diff down and read the spec's goal, non-goals, and validation
-strategy again. Does the merged whole satisfy them? Scope beyond the
-approved spec — anything a slice built that the spec never asked for — is
-a finding here, not praise.
+Set the diff down and reread the spec's goal, non-goals, and validation
+strategy. Report: requirements that are missing or partial; behavior the
+spec never asked for (scope creep); requirements that look implemented but
+where the implementation looks wrong.
 
 ## Reporting
 
-Do not merge or rerank findings across the two axes; they measure different
-failures. Report a count plus the single worst finding for each axis
-separately.
+Do not merge or rerank findings — the two axes are deliberately separate.
+End with total findings per axis and the worst finding within each axis;
+never a single winner across axes.
 
 Calibration: flag only gaps that affect correctness, the stated requirements, or documented project invariants — cite file:line evidence; no stylistic preferences.
 
