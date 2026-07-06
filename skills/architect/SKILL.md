@@ -187,9 +187,10 @@ to the docs job. `REVIEW: FINDINGS n=<count>` names a review spec, fix-issue
 drafts, and check drafts; the orchestrator harvests those three draft sets,
 discards the reviewer worktree, and runs the frozen-checks freeze gate over
 every draft RUN command, amending drafts pre-freeze where the gate demands it
-(rulings record intent-bearing amendments). It commits the review spec, issue
-bodies, and checks as the fix-wave freeze into the run's checks directory,
-updates the tracking-issue body's freeze record to the latest freeze SHA
+(rulings record intent-bearing amendments). It commits the review spec and
+issue bodies under the run directory and the checks into the run's checks
+directory as the fix-wave freeze, updates the tracking-issue body's freeze
+record to the latest freeze SHA
 (prior SHAs stay in comments), files the fix issues as sub-issues, and posts
 the verdict plus fix-issue list as the digest — no human gate; the digest is
 the veto surface. It then dispatches the fix wave through the existing wave
