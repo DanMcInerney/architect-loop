@@ -8,7 +8,7 @@
 - Researcher 3 — Cutting-edge repos (emerging, not hype)
 - Researcher 4 — Production-grade design patterns
 - Researcher 5 — General web
-- Researcher 6 — Expert opinion (second wave — dispatch after researchers 1-5 return)
+- Expert opinion — second wave, after the first researchers return
 
 Researcher assignments are DESIGNED per topic by the orchestrator (SKILL.md step 2); the
 sections below are search tactics and verified endpoints per source class —
@@ -50,7 +50,7 @@ Return: (1) canonical terminology and the names the field itself uses;
 (2) the 5–10 load-bearing systems/papers/repos/vendors, one line each on why
 they matter; (3) the named people whose positions recur; (4) which source
 classes look rich vs empty for this topic (papers? repos? vendor blogs?
-forums?); (5) the topic's natural fault lines — the 3–6 sub-questions an
+forums?); (5) the topic's natural fault lines — the 3–10 sub-questions an
 expert would split it into. Budget ~10 searches; breadth over depth; snippet
 over page. Output is a MAP for the orchestrator to design researcher assignments from —
 structure matters more than completeness.
@@ -166,7 +166,7 @@ docs/changelogs, pricing/operational constraints.
   aggregators are pointers, never citations — chase them to the primary
   source or drop the claim.
 
-## Researcher 6 — Expert opinion (second wave — dispatch after researchers 1-5 return)
+## Expert opinion — second wave
 
 Objective: what the named experts in <topic> are saying right now — positions,
 warnings, predictions, and especially disagreements — from their blogs, talks,

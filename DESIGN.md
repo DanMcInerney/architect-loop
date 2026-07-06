@@ -240,8 +240,8 @@ architect-v5 and architect-v5.1 specs, and loop-improvements research
   boundaries, and native parent/blocked-by edges
   ([mattpocock/skills](https://github.com/mattpocock/skills) `/to-issues`;
   [Anthropic multi-agent](https://www.anthropic.com/engineering/multi-agent-research-system)).
-  The parallel set is always the plan's ready issues, capped at five
-  jobs plus one watchdog sweep.
+  The parallel set is always the plan's ready issues, capped at 10
+  CLI-launched jobs or the built-in harness cap (currently 5).
   Tracking issue #43's 2026-07-03 DIGEST comment, reflected in the
   loop-tuning spec and status-scripts rulings (evidence: git history before
   the 2026-07-04 cleanup), tightened run mechanics: the old "judges dispatch
@@ -706,12 +706,12 @@ decisions, from the 2026-06 evidence review and the r2 calibration pass
   ([OAgents](https://arxiv.org/abs/2506.15741) 47.88→51.52;
   [AOrchestra](https://arxiv.org/abs/2602.03786) +16.28% relative). A cheap
   scout (~10 searches) maps terminology, load-bearing systems, and fault
-  lines; the orchestrator designs 3–6 researchers from that map, drawing
+  lines; the orchestrator designs 3–10 researchers from that map, drawing
   source-class tactics from `tactics.md`. Perspective discovery was STORM's
   largest measured lever (unique references 99.83 vs 54.36,
   [STORM](https://arxiv.org/abs/2402.14207)). Fact-finds and comparisons
   skip the scout.
-- **Hard budgets per researcher.** Researcher counts scale 1/2–4/4–6 by tier;
+- **Hard budgets per researcher.** Researcher counts scale 1/2–4/4–10 by tier;
   tool-call budgets 3–10/10–15/15–25; ≤5 subjects per researcher (a
   researcher that fills its window dies without writing output); saturation
   stop; ≤2 gap rounds. Numbers from Anthropic's published orchestrator

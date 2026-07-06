@@ -139,9 +139,9 @@ respawn fresh. Builders never re-plan.
 
 Event loop: loop.md `## Factory block procedure`.
 
-- Dispatch the ready issues — up to five build jobs plus one detection-only
-  watchdog (`dispatch.md` `## Monitor dispatch`). Builders default to
-  codex-CLI jobs (`codex/best`); Claude-native Agent-tool jobs
+- Dispatch the ready issues to the backend cap: up to 10 CLI-launched build
+  jobs, or the built-in harness subagent cap (currently 5). Builders default
+  to codex-CLI jobs (`codex/best`); Claude-native Agent-tool jobs
   (`architect-builder` def preloads `tdd` + `codebase-design`; model per
   alias table) are the config alternative and codex-absent fallback. Every
   job end is a dispatch event: recompute the frontier and dispatch before

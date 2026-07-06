@@ -1,21 +1,19 @@
 # architect-loop
 
 **Set-it-and-forget-it research and software factory loop with best
-practices built in. Save 80% of Fable token usage, lose no quality.**
+practices built in. Cut frontier-model usage while keeping the quality gates.**
 
 ## Usage
 
 ```
 /architect-research <topic>
-/architect <what you want>
+/architect <hours+ feature/product request>
 /architect-fast <small change>
 ```
 
-Ask for work, come back when it's done. Your one job is approving the spec —
-in-session, or by commenting `APPROVE` on the tracking issue from your phone.
-`/architect-fast` is the light lane for small, few-file changes you want done
-in one sitting — same shape as `/architect`, without the per-issue grading
-machinery; anything bigger routes itself to `/architect` instead.
+`/architect-research` to explore ideas or features  
+`/architect-fast` to do a quick change  
+`/architect` for long, multi-hour runs. Start it and walk away.
 
 ## Installation
 
@@ -25,18 +23,11 @@ cd architect-loop && ./install.sh        # Windows: .\install.ps1
 npm i -g @openai/codex@latest            # optional: Codex CLI (>= 0.133)
 ```
 
-One installer, both ecosystems: the same skills land in Claude Code and in
-Codex's `.agents/skills`. You need [Claude Code](https://claude.com/claude-code)
-on any paid plan; the Codex CLI on a ChatGPT plan powers the default
-builders — without it, builders fall back to Claude (`claude/tier-down`).
-No API keys.
-
 ## Design
 
-A configurable **orchestrator** model (default: Fable, high) designs,
-assigns, and reviews. A configurable **builder** model (default: GPT-5.5,
-xhigh, Fast mode) does the heavy lifting. Both are overridable — see
-[Config](#config).
+The current session is the **orchestrator** by default: it designs, assigns,
+and reviews. A configurable **builder** model (default: GPT-5.5, xhigh, Fast
+mode) does the heavy lifting. Both are overridable — see [Config](#config).
 
 ### /architect
 
@@ -46,11 +37,11 @@ xhigh, Fast mode) does the heavy lifting. Both are overridable — see
   (shared vocabulary), `to-spec`, `adversarial-review`, `to-issues`,
   `frozen-checks`; builders preload `tdd`; `final-review` audits the run
   read-only and decomposes findings into fix issues for a fix wave;
-  `integrate` updates the docs and preps the ship.
+  builder-tier `integrate` updates the docs and preps the ship.
 - Orchestrator grounds in the vocabulary, then writes a spec doc and asks
   you no more than 5 questions.
 - A fresh orchestrator-tier subagent adversarially reviews the spec.
-- Orchestrator breaks the work into parallelizable, vertical-slice GitHub
+- Orchestrator breaks the work into parallelizable, vertical-slice tracker
   issues.
 - Orchestrator freezes the acceptance checks in git.
 - A run manifest in `docs/runs/<run>/manifest.md` pins the tracking issue,
@@ -58,8 +49,8 @@ xhigh, Fast mode) does the heavy lifting. Both are overridable — see
   read that pin instead of scanning every issue.
 - Orchestrator loops through the issues, assigning builders until every
   issue is fully complete:
-  - builders work test-first and run their own tests, with progress landing
-    on the GitHub issue;
+  - builders work test-first and run their own tests, with progress mirrored
+    to the tracker issue when the backend allows it;
   - a deterministic check-runner grades each issue's frozen checks;
   - on failure, the orchestrator diagnoses why, updates the issue and its
     requirements, and respawns a fresh builder — otherwise it comments,
@@ -100,13 +91,15 @@ xhigh, Fast mode) does the heavy lifting. Both are overridable — see
 
 ![research flow](assets/research-flow.svg)
 
-- Orchestrator launches a scouting agent for the overhead view of the topic.
+- For brainstorm-scale work, orchestrator launches a scout for the overhead
+  view of the topic; quick fact-finds and focused comparisons skip it.
 - Orchestrator designs research lanes along the topic's fault lines.
-- Orchestrator launches a researcher agent per lane, in parallel.
-- Orchestrator drafts a skeleton report.
-- A fresh orchestrator-tier model adversarially reviews the draft.
-- Orchestrator launches a targeted second round of researchers at the gaps.
-- Orchestrator verifies the claims and compiles the final report.
+- Orchestrator launches researchers per lane, in parallel: up to 10 through
+  CLI-launched workers or the harness cap for built-in subagents.
+- Orchestrator drafts a skeleton report marked SUPPORTED / THIN / EMPTY.
+- THIN / EMPTY sections trigger targeted gap researchers, up to 2 rounds.
+- Orchestrator verifies load-bearing claims against raw sources and writes
+  the final report.
 
 ## Details
 
@@ -147,15 +140,16 @@ git — not left as advice. Full evidence and citations: [DESIGN.md](DESIGN.md).
 - **Acceptance checks freeze in git before any builder exists.**
   Criteria written after results exist always pass; a builder touching a
   check file is an automatic FAIL.
-- **Issues are vertical slices with disjoint file sets, ≤5 in parallel.**
-  Merge conflicts are the top multi-agent failure mode; a
-  conflict means the plan was wrong, so the job is killed and re-sliced,
-  never hand-merged.
+- **Issues are vertical slices with disjoint file sets, up to 10 in parallel.**
+  CLI-launched builders run 10-wide; built-in harness subagents use their
+  native cap, currently 5. Merge conflicts are the top multi-agent failure
+  mode; a conflict means the plan was wrong, so the job is killed and
+  re-sliced, never hand-merged.
 - **Builders get their own git worktree and no commit rights.**
   A broken builder can't reach a branch; the orchestrator owns every commit
   and merge.
 - **Run identity is pinned, not discovered.** Each run has a
-  committed `docs/runs/<run>/manifest.md` plus a run marker in every issue
+  local `docs/runs/<run>/manifest.md` plus a run marker in every issue
   body. Status reads `skills/architect/status.ps1 <run>` or
   `skills/architect/status.sh <run>` from that manifest; foreign issues under
   the same parent are escalated instead of dispatched.
@@ -290,7 +284,7 @@ subagents follow `builders`; adversarial reviewers
 and closing review follow the orchestrator tier; `/architect-research`
 researchers follow `builders`. `when <task
 class> -> <model>` lines route classes of work to a tier. A configured CLI
-missing at dispatch falls back to the default with a note on the tracking
+missing at dispatch uses the recorded fallback with a note on the tracking
 issue — never a hard fail.
 
 ### Local issues without GitHub
