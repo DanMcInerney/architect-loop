@@ -430,11 +430,14 @@ def check_tools_pad(rel_path: str, tools_list: list[str]) -> None:
 
 
 def check_agent_definitions() -> None:
+    # .claude/ is untracked local dev config (2026-07-06): the agent defs
+    # exist only on machines that use the Claude-native builder fallback.
+    # Validate their contracts when present; a fresh clone without them
+    # passes clean.
     builder = ROOT / ".claude" / "agents" / "architect-builder.md"
     judge = ROOT / ".claude" / "agents" / "architect-judge.md"
     for path in (builder, judge):
         if not path.exists():
-            errors.append(f"{path.relative_to(ROOT)} missing")
             continue
         fm = frontmatter(path)
         if fm is None:
