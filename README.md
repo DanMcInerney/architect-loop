@@ -46,7 +46,7 @@ xhigh, Fast mode) does the heavy lifting. Both are overridable — see
   (shared vocabulary), `to-spec`, `adversarial-review`, `to-issues`,
   `frozen-checks`; builders preload `tdd`; `final-review` audits the run
   read-only and decomposes findings into fix issues for a fix wave;
-  `integrate` preps the ship.
+  `integrate` updates the docs and preps the ship.
 - Orchestrator grounds in the vocabulary, then writes a spec doc and asks
   you no more than 5 questions.
 - A fresh orchestrator-tier subagent adversarially reviews the spec.
@@ -69,9 +69,9 @@ xhigh, Fast mode) does the heavy lifting. Both are overridable — see
   cut into fix issues, never editing the diff itself.
 - Fix issues build through the fix wave, the same parallel builder
   machinery as any other issue; zero findings short-circuits straight to
-  the docs job.
-- A dedicated builder docs job consumes the run's accumulated docs debt,
-  then an `integrate` subagent merges remaining green branches,
+  integrate.
+- An `integrate` subagent updates the product docs first — consuming the
+  run's docs-debt digest — then merges remaining green branches,
   re-verifies, and preps the ship.
 - The run ends in one PR plus a digest of what shipped.
 
@@ -92,10 +92,9 @@ xhigh, Fast mode) does the heavy lifting. Both are overridable — see
   running their own tests.
 - Once every issue merges, the orchestrator itself performs one complete
   review — code, cohesion, and tests — over the whole run diff, and makes
-  the fixes directly: no check-runner, no fresh final-review subagent, no
-  separate docs job.
-- Orchestrator dispatches the existing `integrate` stage skill to ship: one
-  PR plus a digest, the same as `/architect`.
+  the fixes directly: no check-runner, no fresh final-review subagent.
+- Orchestrator dispatches the existing `integrate` stage skill to ship —
+  docs pass first, then one PR plus a digest, the same as `/architect`.
 
 ### /architect-research
 
@@ -179,7 +178,7 @@ git — not left as advice. Full evidence and citations: [DESIGN.md](DESIGN.md).
   collapse from 4–5 orchestrator calls into one typed-exit line.
 - **The closing review decomposes findings instead of editing.** One
   fresh orchestrator-tier subagent reads the whole run diff read-only
-  before the docs job; verified findings become a review spec cut into fix
+  before integrate; verified findings become a review spec cut into fix
   issues for a parallel fix wave; zero findings short-circuits to done.
 - **Reviewed diffs target ≤~400 changed lines per issue.**
   Review effectiveness collapses past a few hundred lines, so bigger specs
@@ -203,8 +202,8 @@ git — not left as advice. Full evidence and citations: [DESIGN.md](DESIGN.md).
   Claude-reviews-Codex is the preferred direction.
 - **Closing review and docs debt are batched at the PR boundary.** *token
   savings* — Product docs are the highest-contention files in a repo; one
-  gated review and one docs job consume the accumulated pointers instead of
-  every builder fighting over the README.
+  gated review and integrate's single docs pass consume the accumulated
+  pointers instead of every builder fighting over the README.
 - **Hard stops.** The `docs/STOP` kill-all switch,
   `docs/runs/<run>/STOP` for one run, irreversible actions, two consecutive
   killed jobs, or scope growth beyond the approved spec halt the factory and
@@ -308,15 +307,15 @@ needs a GitHub remote, authenticated `gh` ≥ 2.94.0, and push access.
 
 ### Run artifacts
 
-A run writes specs to `docs/spec/`, its manifest to
-`docs/runs/<run>/manifest.md`, frozen checks to `docs/checks/<run>/`, job
-reports and check evidence to `docs/jobs/<run>/`, markdown issues to
-`docs/issues/<run>/`, and reusable fix notes to `docs/solutions/`. Each
-concurrent run uses its own orchestrator checkout on `factory/<run>` (local
-convention: `.architect/runs/<slug>`), while builder worktrees live under
-`.architect/wt/<run>/` and are removed at merge. An empty `docs/STOP` file
-halts every factory at the next dispatch boundary; an empty
-`docs/runs/<run>/STOP` halts only that run and is never committed.
+A run commits specs to `docs/spec/`, frozen checks to `docs/checks/<run>/`,
+and markdown-mode issues to `docs/issues/<run>/`. Everything else is local,
+gitignored bookkeeping: the manifest at `docs/runs/<run>/manifest.md`, job
+reports and check evidence under `docs/jobs/<run>/` — the tracker is the
+durable record. Each concurrent run uses its own orchestrator checkout on
+`factory/<run>` (local convention: `.architect/runs/<slug>`), while builder
+worktrees live under `.architect/wt/<run>/` and are removed at merge. An
+empty `docs/STOP` file halts every factory at the next dispatch boundary;
+an empty `docs/runs/<run>/STOP` halts only that run.
 
 ## License
 

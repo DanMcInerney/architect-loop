@@ -60,7 +60,7 @@ Glossary only. No implementation details, no spec content.
 - **Review cycle** - one final review plus its fix wave; exactly one per run.
 - **Factory run** - everything between spec approval and the closing PR; runs
   unattended on the factory branch (`factory/<run>`), with an optional
-  human-gated closing review before docs-finish.
+  human-gated closing review before integrate.
 - **Fast lane** - the `/architect-fast` loop as a whole; `/architect` is the
   full factory. Both are loop skills over the same stage-skill library.
 
@@ -96,7 +96,8 @@ Glossary only. No implementation details, no spec content.
   any dispatch, and worktrees are verified against it after spawn.
 - **Rulings file** (`docs/jobs/<run>/<issue-slug>-rulings.md`) - orchestrator-owned,
   append-only post-freeze intent: PHASE-0 rulings, boundary amendments,
-  respawn answers. Read by the closing review instead of thread prose.
+  respawn answers. A local run artifact; it travels verbatim in the closing
+  reviewer's dispatch block instead of thread prose.
 - **Verdict comment** - the grading record posted on the issue at close:
   checkrun summary plus typed exit, postflight result, and the slice call
   with its decisive reason. The closing review's run-level verdict goes on
@@ -114,15 +115,15 @@ Glossary only. No implementation details, no spec content.
   verification. Input to fix-issue decomposition; a run artifact, not
   human-approved.
 - **Closing review** - the human-gated review-and-decompose pass after build
-  issues close and before docs-finish. It uses the orchestrator tier, is
+  issues close and before integrate. It uses the orchestrator tier, is
   read-only over product code and tests, and on findings writes a review spec
   cut into fix issues for the fix wave; zero findings short-circuits to a
   GREEN verdict.
 - **Canary** - the preflight spawn that proves a builder backend actually has
   working tools before the decomposition records it.
 - **Change-context digest** - the shipped-issues, diffstat, rulings,
-  docs-debt, and domain-language summary passed to the builder-run docs finish
-  job.
+  docs-debt, and domain-language summary passed to the integrate subagent,
+  whose first step is the docs pass.
 - **Config vocabulary** - flat `.architect/config` keys include
   `tracker = github | markdown`, `orchestrator = cli/model`,
   `builders = cli/model:effort`, and optional
@@ -132,8 +133,10 @@ Glossary only. No implementation details, no spec content.
   (boundaries, check-file integrity, raw-only report, status-line form) before
   integration. Distinct from judgment.
 - **Codify** - the compound step: nontrivial diagnoses become durable product
-  documentation, usually DESIGN for evidence and CONTEXT for vocabulary. Raw
-  run artifacts still live under `docs/jobs/` while a run is active.
+  documentation, usually DESIGN for evidence and CONTEXT for vocabulary,
+  through integrate's docs pass. Raw run artifacts under `docs/jobs/` and
+  `docs/runs/` are local, gitignored scratch; the tracker is the durable
+  record.
 - **docs/STOP** - the kill switch; its presence halts the factory before the
   next dispatch.
 
@@ -171,3 +174,8 @@ Glossary only. No implementation details, no spec content.
   fix issues, and a failed fix is isolated to its own issue.
 - **review branch** - retired the same run; the closing review works in its
   own worktree and never opens a branch of its own.
+- **docs job / docs-finish** -> **integrate's docs pass** (2026-07-06): the
+  dedicated builder docs job folded into the integrate subagent as its
+  first step; same digest, same never-the-orchestrator doctrine.
+- **`docs/solutions/`** - retired (2026-07-04 cleanup; references purged
+  2026-07-06). Diagnoses codify into DESIGN and CONTEXT instead.

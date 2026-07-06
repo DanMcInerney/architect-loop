@@ -60,7 +60,7 @@ alias table) is the config-selected alternative and the recorded fallback
 when the codex CLI is absent. Flat `key = value` lines are the supported
 format for role keys. Unknown keys warn and never fail.
 
-A pin is a request, not proof — served-model verification and its resume/env-var caveats: `docs/solutions/served-model-verification.md`.
+A pin is a request, not proof — verify the served model from the spawn transcript's model field; resume drifts a subagent's model back to the parent's, and `CLAUDE_CODE_SUBAGENT_MODEL` outranks per-invocation pins.
 
 Optional dispatch-rules lines route task classes to a builder tier:
 
@@ -433,8 +433,8 @@ everything else.
 | Condition | Substitution | Provenance |
 |---|---|---|
 | Git Bash CreateFileMapping Win32 error 5 in Codex Windows sandbox | PowerShell + native git same-pattern, recorded per check | evidence: factory-hardening research, git history |
-| `uv` AppData cache denial (os error 5) | `UV_CACHE_DIR=.architect/tmp/uv-cache`, recorded | evidence: uv-cache sandbox redirect solution, git history |
-| Tracker posting unavailable in sandbox | `MIRROR: ORCHESTRATOR` in the report | evidence: subagent shell-strip codex fallback solution, git history |
+| `uv` AppData cache denial (os error 5) | `UV_CACHE_DIR=.architect/tmp/uv-cache`, recorded | evidence: uv-cache sandbox redirect, git history |
+| Tracker posting unavailable in sandbox | `MIRROR: ORCHESTRATOR` in the report | evidence: subagent shell-strip codex fallback, git history |
 
 ## Orchestrator shell hygiene
 

@@ -6,8 +6,8 @@ decomposes it into a GitHub issue plan, dispatches parallel fresh builder jobs
 into worktrees that work test-first and run their own tests, answers blockers,
 grades every issue's frozen checks through a deterministic check-runner, closes
 with one fresh, read-only review over the whole run diff that decomposes any
-findings into fix issues built by a parallel fix wave before the docs job and
-the PR, and merges — with exactly one human step, spec approval. This document is the
+findings into fix issues built by a parallel fix wave before the integrate
+subagent (docs pass first) preps the PR, and merges — with exactly one human step, spec approval. This document is the
 "why", with citations; the skill files in `skills/architect/` are the "how";
 [CONTEXT.md](CONTEXT.md) is the vocabulary.
 
@@ -504,12 +504,12 @@ runner's first live use finished 7/7.
   the direction in the verdict comment
   ([cross-provider review](https://www.mindstudio.ai/blog/openai-codex-plugin-claude-code-cross-provider-review)).
 - **Closing review is human-gated and read-only (review-fanout, 2026-07-06,
-  issue #137).** After the last build issue closes and before the docs-finish
-  job, the orchestrator asks through the timed-ruling protocol whether to run
+  issue #137).** After the last build issue closes and before integrate, the
+  orchestrator asks through the timed-ruling protocol whether to run
   a comprehensive review. The default is yes; if it runs, the reviewer is at
   the resolved orchestrator model, reads spec -> scout map -> diff, and edits
   no product code and no tests. Zero verified findings return a GREEN verdict
-  and the run proceeds straight to the docs job. One or more findings become a
+  and the run proceeds straight to integrate. One or more findings become a
   review spec — the findings as requirements — cut into fix issues with draft
   graded checks; the orchestrator freezes the checks, files the issues, and
   dispatches a fix wave through the normal wave machinery, same as any other
@@ -621,21 +621,22 @@ runner's first live use finished 7/7.
   the 2026-07-04 cleanup):
   duplicated graph logic failed repeatedly until one pinned emitter produced
   the line protocol consumed by both status scripts.
-- **Docs debt batches into one dedicated job at the PR boundary (P7).**
-  Product docs (README, DESIGN) are the highest-contention files in the
-  repo and evidence rows need post-judgment information, so build jobs and
-  the orchestrator never edit them mid-run; pointers accumulate and one
-  docs job consumes them before the PR.
-- **Builder-run docs finish uses a change-context digest (2026-07-04).**
-  The finish job is dispatched like any other builder job; the orchestrator
-  supplies shipped issue numbers, one-line summaries, diffstats, rulings
-  pointers, docs-debt notes, and domain-language changes. The orchestrator
-  still owns judgment and merge, but it does not write product docs directly.
-  This docs-finish job is the first dispatch under that contract. Because the
-  2026-07-04 cleanup removes development-era `docs/` artifacts, durable
-  diagnoses from solutions and rulings are folded into surviving product docs
-  such as DESIGN and CONTEXT; old `docs/solutions/` entries remain provenance
-  in git history before the cleanup.
+- **Docs debt batches into integrate's docs pass at the PR boundary (P7;
+  the dedicated docs job folded into integrate 2026-07-06).** Product docs
+  (README, DESIGN) are the highest-contention files in the repo and
+  evidence rows need post-judgment information, so build jobs and the
+  orchestrator never edit them mid-run; pointers accumulate and the
+  integrate subagent's first step consumes them before any merge.
+- **The docs pass uses a change-context digest (2026-07-04).** The
+  orchestrator supplies shipped issue numbers, one-line summaries,
+  diffstats, rulings pointers, docs-debt notes, and domain-language
+  changes in the integrate dispatch block. The orchestrator still owns
+  judgment and merge, but it does not write product docs directly. Because
+  the 2026-07-04 cleanup removed development-era `docs/` artifacts,
+  durable diagnoses are folded into surviving product docs such as DESIGN
+  and CONTEXT; old `docs/solutions/` entries remain provenance in git
+  history before the cleanup, and run bookkeeping (`docs/jobs/`,
+  `docs/runs/`) is local and gitignored as of 2026-07-06.
 - **Conversational status display.** Decision: a mid-run status question runs
   the status tree script and prints that plain-text tree beside the prose
   answer. Why: Lazyagent's agent-tree precedent shows the right visual shape;
@@ -772,14 +773,14 @@ What it drops, and why the drops are safe at the size ceiling (≤3 issues,
   vetoable assumptions substitute; the size ceiling is the safety valve —
   an honest decomposition needing more than 3 issues stops and recommends
   `/architect` instead of stretching the light lane past where it's safe.
-- **No separate docs job.** The orchestrator folds product-doc updates into
-  its one review-and-fix pass — a deliberate, recorded relaxation of the
-  docs-job doctrine ("never the orchestrator", §4, Run mechanics and
-  memory) alongside Hard Rules 3 and 4: the orchestrator both reviews its
-  own run's diff (no fresh subagent) and writes the fixes directly (no
+- **The review doctrine is relaxed, not the docs doctrine.** A deliberate,
+  recorded relaxation of Hard Rules 3 and 4: the orchestrator both reviews
+  its own run's diff (no fresh subagent) and writes the fixes directly (no
   third-strike gate). The closing PR is the later eyes on that work — the
   `integrate` subagent verifies mechanically but reviews no code
-  correctness.
+  correctness. Product docs still land in integrate's docs pass, the same
+  never-the-orchestrator path as `/architect` (§4, Run mechanics and
+  memory).
 - **No watchdog script.** One per-wave timed background sleep is the
   stall-fallback wake; on a fallback wake with jobs still in flight the
   orchestrator judges liveness from report growth and process activity
