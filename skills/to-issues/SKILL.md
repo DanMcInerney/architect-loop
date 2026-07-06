@@ -7,7 +7,6 @@ description: >
   publishing producer/consumer interface contracts, and attaching a compact
   change-skeleton to each issue. Orchestrator-invoked only, after spec
   approval — never left to description-trigger discovery.
-disable-model-invocation: true
 ---
 
 <!-- Adapted from mattpocock/skills (MIT). -->
