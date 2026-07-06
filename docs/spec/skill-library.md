@@ -133,10 +133,31 @@ benchmarks or named expert guidance. Conciseness is a standing tiebreak.
 Divergence without such evidence is reverted to his wording. A dedicated
 reconciliation slice applies this to the merged stage skills.
 
+## Review architecture (human ruling, in-session, 2026-07-06 — vetoes
+assumption 3)
+
+The per-issue intent judge is REMOVED. Grading becomes: builders run their
+own tests; the deterministic check-runner grades each issue's frozen checks;
+ONE closing cohesion review — a fresh subagent at the resolved orchestrator
+model — runs after all issues close, immediately before the PR, and is the
+only model review in the loop. (The fresh-subagent form preserves
+nobody-grades-their-own-work at the run level; recorded as the
+interpretation of "done by the orchestrator" — veto-able.) The
+cohesion-review skill is upgraded from researched code-review patterns
+(official Anthropic and OpenAI review skills among the sources), targeted at
+its actual object: independent worktree subagents building off one spec.
+Its scope includes test stewardship — review, rewrite, delete, or add tests
+so coverage of spec behaviors is real; details set from the research.
+Run-history note: this run's judges caught two wording/intent defects on
+green checks before removal; that detection duty moves to the closing
+review — accepted trade-off (later detection, one reviewer, simpler loop).
+
+## Assumptions (timer rulings, 2026-07-05, auto after 5m silence)
+
 1. Refactor in place; no parallel old flow, no backcompat shims.
 2. Claude-native builders default; codex-first default retired to config.
-3. Per-issue builders-model intent judge KEPT (validated: 3/3 judge FAILs on
-   green checks were real intent misses; Fable docs endorse fresh verifiers).
+3. Per-issue builders-model intent judge KEPT — **VETOED by the human,
+   2026-07-06; see `## Review architecture`.**
 4. Third-strike orchestrator implementation adopted as directed, with
    frozen-check + closing-review guards intact.
 
