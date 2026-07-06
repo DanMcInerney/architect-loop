@@ -123,7 +123,7 @@ Glossary only. No implementation details, no spec content.
   `tracker = github | markdown`, `orchestrator = cli/model`,
   `builders = cli/model:effort`, and optional
   `when -> cli/model:effort - why` dispatch rules. Absent `tracker =` means
-  GitHub mode; absent builder routing means tier-down default.
+  GitHub mode; absent builder routing means the `codex/best` default.
 - **Post-flight** - the orchestrator's mechanical checks on a completed job
   (boundaries, check-file integrity, raw-only report, status-line form) before
   integration. Distinct from judgment.

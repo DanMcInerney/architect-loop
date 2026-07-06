@@ -69,11 +69,11 @@ dispatch. State the plan in a few lines; proceed unless the user redirects.
 
 Resolve the researcher model as builders, same order as `/architect`: repo
 `.architect/config`, then user `~/.architect/config`, then the
-config-resolved default in `skills/architect/dispatch.md` — `claude/tier-down`
-(Sonnet at high) as the Claude-native default; `codex/best` (gpt-5.5, xhigh)
-is the config-selected alternative (`builders = codex/best`). One fresh
+config-resolved default in `skills/architect/dispatch.md` — `codex/best`
+(gpt-5.5 at xhigh) via the codex CLI; the Claude-native rows
+(`builders = claude/...`) are the config-selected alternative. One fresh
 researcher per assignment, all parallel, in the background — this is the
-codex/best example, when that alternative is configured:
+default codex/best form:
 
 ```bash
 codex exec --sandbox read-only -c web_search="live" \
