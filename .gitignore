@@ -20,3 +20,4 @@ __pycache__/
 /research/
 .gstack/
 !/docs/adr/
+benchmarks/
