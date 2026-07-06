@@ -140,9 +140,9 @@ roulette. Reference machinery (`dispatch.md`, `loop.md`, `tracker.md`,
 
 ## Open human decisions
 
-- License/attribution: verify mattpocock/skills license before adapting any
-  text; if absent or incompatible, write original wording (decomposition
-  gains a RUN item for this).
+- None. License question resolved at decomposition: mattpocock/skills is MIT
+  (verified on the repo About panel, 2026-07-05). Adapted skills carry a
+  one-line attribution comment naming the source repo and MIT license.
 
 ## Verified facts (citations)
 
