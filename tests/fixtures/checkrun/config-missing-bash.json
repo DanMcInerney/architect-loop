@@ -1,0 +1,1 @@
+{"check_file":"tests/fixtures/checkrun/fixture-checks-missing-bash.md","workdir":".","freeze_sha":"HEAD","evidence_out":".architect/tmp/checkrun-missing-bash.md","executor":"bash","max_output_lines":60}

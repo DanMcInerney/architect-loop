@@ -8,6 +8,7 @@
 - C5 judge delegation template
 - Codex judge delegation template
 - Check-runner dispatch
+- Scout dispatch
 - Stress-test delegation template
 - Codex backend from a Claude orchestrator
 - Preflight and postflight dispatch
@@ -75,6 +76,14 @@ default above. Absent dispatch rules = the codex-first default. A matching
 rule is still a judgment aid; the orchestrator records which rule was used
 and may override it with a reason recorded on the issue.
 
+Builder speed default: when the resolved builders backend is Codex under
+ChatGPT auth, every builder `codex exec` appends the Fast-mode pins
+`-c service_tier="fast" -c features.fast_mode=true` — same model, faster
+inference (gpt-5.5 at 2.5x credit burn), never a tier change. Verify at the
+intake canary; API-key auth cannot use Fast mode — drop the two pins and
+record the substitution on the tracking issue (no silent fallback). The
+default is builder-only; judges and the monitor never carry the Fast pins.
+
 Configured builders CLI absent at preflight -> fall back per the codex-first
 default (on Claude Code without Codex: `claude/tier-down`) and write one
 tracking-issue comment naming requested vs substituted. Cross-family
@@ -89,7 +98,7 @@ retry-at-a-different-tier job (see `loop.md` "## Failure ladder").
 | | Claude Code (CLI + Desktop) | Codex (CLI + app) |
 |---|---|---|
 | Builder | Agent tool with `.claude/agents/architect-builder.md`; `disallowedTools` denies `Bash(git commit *)` and `Bash(git push *)`; `isolation: worktree`; `background: true`; model may be passed per invocation from the alias table. On the desktop app, the harness auto-creates the agent's isolation worktree (`.claude/worktrees/agent-<id>`) and its branch — integrate from that branch. On the CLI, spawns have been observed to run UNISOLATED in the orchestrator's checkout despite `isolation: worktree` frontmatter (D11) — pass isolation explicitly per invocation if supported, and never run two Claude-backend builder jobs concurrently unless each is verified to have its own worktree (`git worktree list` after spawn). In all cases, never pre-create a job worktree for Claude-backend jobs (a pre-made one is ignored); do not use `.architect/wt/<run>/<slice>-<NN>` (that pattern is Codex-backend only, below). | `spawn_agent` with defensive framing: "Your task is: ..."; worktree created by the orchestrator via git; use `/goal` semantics for persistent job completion. |
-| Judge | Agent tool with `.claude/agents/architect-judge.md`; dispatch synchronously with `run_in_background: false` so the verdict is the tool result; read-only tools plus Bash for check commands; orchestrator tier via `model: inherit` or per-invocation model. | Background `codex exec -o <file>` typed-exit path with read-only instructions and the fixed judge template; the process exit wakes the loop. |
+| Judge | Agent tool with `.claude/agents/architect-judge.md`; dispatch synchronously with `run_in_background: false` so the verdict is the tool result; read-only tools plus Bash for check commands; the resolved builders model passed per invocation (the def's `model: inherit` is only the fallback where per-invocation model is unsupported). | Background `codex exec -o <file>` typed-exit path with read-only instructions and the fixed judge template; the process exit wakes the loop. |
 | Monitor | Script watchdog (`watchdog.ps1` on Windows, `watchdog.sh` on POSIX) when the orchestrator can run background processes and receive exit notifications; LLM fallback template only otherwise. | Script watchdog (`watchdog.ps1` on Windows, `watchdog.sh` on POSIX) when background process exits wake the orchestrator; LLM fallback template only otherwise and it counts as one of the 6 `max_threads`. |
 | Parallelism | Background subagents; permission prompts surface to the main session. | Native subagents, `max_threads` 6, `max_depth` 1 (root session is depth 0; a spawned child may not spawn further — no nested orchestrators, the orchestrator dispatches builders directly), `wait_agent` for completion (the live collab event stream names the underlying tool call `wait`, not `wait_agent` — evidence: v4-codex CG4 architect-run canary `events.jsonl`). |
 | Review (high-stakes) | `codex review --base` when Codex is installed; otherwise a fresh same-CLI subagent with bias caveat. | `/review` / `review_model`; Claude reviewer when installed. |
@@ -111,8 +120,7 @@ or reports the check BLOCKED — never silently skips a check or invents output.
 
 ## C5 judge delegation template
 
-The orchestrator must send this template as-is except for replacing placeholders. It must not add slice-specific prose, encouragement, summaries, or interpretation.
-Judge intent context is pointer-only: frozen check file, spec pointer, job report, and `docs/jobs/<run>/<issue-slug>-rulings.md` (orchestrator-owned, append-only; absent = no post-freeze rulings).
+The orchestrator must send this template as-is except for replacing placeholders. It must not add slice-specific prose, encouragement, summaries, or interpretation. Judge intent context is pointer-only: frozen check file, spec pointer, job report, and `docs/jobs/<run>/<issue-slug>-rulings.md` (orchestrator-owned, append-only; absent = no post-freeze rulings).
 
 <!-- architect-judge-template:start -->
 ```text
@@ -126,20 +134,9 @@ Rulings file: docs/jobs/<run>/<issue-slug>-rulings.md (absent = no post-freeze r
 
 Batch independent reads (frozen check file, spec, job report, rulings file, checkrun evidence file) into parallel tool calls in one turn; serialize only dependent steps and command re-runs.
 
-Evidence rules: read the checkrun evidence file before grading; grade RUN items from the evidence file; execute judge-only items yourself; re-run at least one RUN command and compare with the evidence file -- any mismatch is automatic INVALID with both outputs quoted; missing/stale evidence (integrity false or freeze SHA mismatch) -> INVALID, never FAIL.
+Evidence rules: read the checkrun evidence SUMMARY before intent review. Do not grade RUN items from the evidence file. Re-run exactly ONE graded RUN item and compare the verdicts; any mismatch is automatic INVALID with both outputs quoted. Missing or stale evidence (integrity false or freeze SHA mismatch) is INVALID, never FAIL.
 
-Verdict format:
-- Checks integrity: PASS | FAIL | INVALID
-  Raw evidence: <git diff <freeze-sha>..HEAD -- docs/checks/>
-- Diff vs intent: PASS | FAIL | INVALID
-  Raw evidence: <file:line evidence from the diff and frozen check/spec text>
-- Per check:
-  - <check id>: PASS | FAIL | INVALID
-    Command: <exact command from the frozen check>
-    Source: evidence-file | re-run
-    Raw evidence: <verbatim stdout/stderr and exit code>
-- Slice verdict: PASS | FAIL | INVALID
-  Decisive reason: <one sentence tied to raw evidence>
+Verdict format: Checks integrity: PASS | FAIL | INVALID with raw `git diff <freeze-sha>..HEAD -- docs/checks/`; Diff vs intent: PASS | FAIL | INVALID with file:line evidence; Spot-check: PASS | FAIL | INVALID with item and both quoted outputs; Slice verdict: PASS | FAIL | INVALID with one decisive reason.
 ```
 <!-- architect-judge-template:end -->
 
@@ -155,67 +152,43 @@ Branch to judge: <branch>
 Worktree note: <worktree note>
 checkrun evidence file path: <docs/jobs/<run>/<issue-slug>-checkrun.md>
 
-You are a fresh read-only judge. You did not build this job. Flag only gaps
-that affect correctness, the stated requirements, or documented project
-invariants -- cite file:line evidence for every finding. Do not report
-stylistic preferences.
-
-Tree audit: workspace-write exists only so validators can run. Any tracked-file
-modification during judgment means the verdict is discarded INVALID.
-
-Sanctioned substitutions, recorded per check: Git Bash CreateFileMapping Win32
-error 5 -> PowerShell same-pattern; uv AppData cache denial -> run with
-`UV_CACHE_DIR=.architect/tmp/uv-cache`; tracker posting unavailable -> report
-`MIRROR: ORCHESTRATOR`.
+You are a fresh read-only judge. You did not build this job. Flag only gaps that affect correctness, the stated requirements, or documented project invariants; cite file:line evidence. Do not report stylistic preferences.
+Tree audit: workspace-write exists only so validators can run. Any tracked-file modification during judgment means the verdict is discarded INVALID.
+Sanctioned substitutions, recorded per check: Git Bash CreateFileMapping Win32 error 5 -> PowerShell same-pattern; uv AppData cache denial -> run with `UV_CACHE_DIR=.architect/tmp/uv-cache`; tracker posting unavailable -> report `MIRROR: ORCHESTRATOR`.
 
 Intent context pointers: frozen check file above; spec pointer named by the frozen check; job report named by the issue/check; rulings file `docs/jobs/<run>/<issue-slug>-rulings.md` (absent = no post-freeze rulings).
 
 Batch independent reads (frozen check file, spec, job report, rulings file, checkrun evidence file) into parallel tool calls in one turn; serialize only dependent steps and command re-runs.
 
-Evidence rules: read the checkrun evidence file before grading; grade RUN items from the evidence file; execute judge-only items yourself; re-run at least one RUN command and compare with the evidence file -- any mismatch is automatic INVALID with both outputs quoted; missing/stale evidence (integrity false or freeze SHA mismatch) -> INVALID, never FAIL.
+Evidence rules: read the checkrun evidence SUMMARY before intent review. Do not grade RUN items from the evidence file. Re-run exactly ONE graded RUN item and compare the verdicts; any mismatch is automatic INVALID with both outputs quoted. Missing or stale evidence (integrity false or freeze SHA mismatch) is INVALID, never FAIL.
 
-Verdict format:
-- Checks integrity: PASS | FAIL | INVALID
-  Raw evidence: <git diff <freeze-sha>..HEAD -- docs/checks/>
-- Diff vs intent: PASS | FAIL | INVALID
-  Raw evidence: <file:line evidence from the diff and frozen check/spec text>
-- Per check:
-  - <check id>: PASS | FAIL | INVALID
-    Command: <exact command from the frozen check>
-    Executor: <executor used>
-    Source: evidence-file | re-run
-    Raw evidence: <verbatim stdout/stderr and exit code>
-- Slice verdict: PASS | FAIL | INVALID
-  Decisive reason: <one sentence tied to raw evidence>
+Verdict format: Checks integrity: PASS | FAIL | INVALID with raw `git diff <freeze-sha>..HEAD -- docs/checks/`; Diff vs intent: PASS | FAIL | INVALID with file:line evidence; Spot-check: PASS | FAIL | INVALID with item, executor, and both quoted outputs; Slice verdict: PASS | FAIL | INVALID with one decisive reason.
 ```
 <!-- architect-codex-judge-template:end -->
 
 ## Check-runner dispatch
 
-RUN grammar for check files is normative from judge-runner D1 (evidence: judge-runner spec, git history): a runnable check is a list line beginning `- RUN:` whose first single backtick span is the complete command, executable verbatim in the file's named executor. Everything after the closing backtick is judge-facing prose the runner ignores. The check file header names one `Executor:`; items without `RUN:` are judge-only.
-Example line: ``- RUN: `git grep -c "needle" -- path/to/file.md` -> 1``
+Graded RUN grammar is normative from the shipped s1 runner in `skills/architect/check-runner.ps1`: first backtick span is the command; expectation begins immediately after the closing backtick as ``-> exit:<n>`` with optional `match:"<substring>"`. `match:` is a fixed, case-sensitive stdout substring check, never regex. Text after the expectation is judge-facing prose; non-RUN items are judge-only. A RUN item without an expectation exits 5 with `CHECKRUN: ERROR missing RUN expectation`, and no partial evidence is kept.
+Example line: ``- RUN: `git grep -F -c "needle" -- path/to/file.md` -> exit:0 match:"needle"``
 
-Runner config JSON, written by the orchestrator per judgment:
+Evidence contains per-item `expected:` and `verdict:` lines, then `CHECKRUN SUMMARY: run_items=<n> pass=<n> fail=<n>`.
+Typed exits: 0 = all RUN items pass; 2 = any RUN item fails; 5 = error, no partial evidence file left behind.
+Launch pattern: write the runner config JSON — fields `check_file`, `workdir`, `freeze_sha`, `evidence_out`, `executor` (`powershell`|`bash`), `max_output_lines` (default 60) — then run `skills/architect/check-runner.ps1 -Config <path>` or `check-runner.sh <path>` in the background and commit `docs/jobs/<run>/<issue-slug>-checkrun.md` before judge dispatch on exit 0. Exit 2 routes to the failure ladder with no judge dispatch; `loop.md` owns the full rule.
 
-```json
-{
-  "check_file": "docs/checks/<run>/<slice>.md",
-  "workdir": "<worktree or repo path>",
-  "freeze_sha": "<sha>",
-  "evidence_out": "docs/jobs/<run>/<issue-slug>-checkrun.md",
-  "executor": "powershell|bash",
-  "max_output_lines": 60
-}
+## Scout dispatch
+
+Dispatch one scout during intake when the run needs a code map. The scout uses the resolved builders model and job shape `scout`, read-only except its single write: the orchestrator names the output path, the scout writes the map there, and the orchestrator commits it at `docs/runs/<run>/map.md`.
+
+```text
+You are a read-only code scout. Output path: <docs/runs/<run>/map.md>.
+Return <= ~2,500 tokens. No recommendations.
+Include only anchored entries: key modules/files; load-bearing types/function signatures; conventions/patterns; testing seams; gotchas.
+Every entry must carry a real file:line anchor. If a requested category is absent, write `NOT FOUND: <category> - <searched paths>`. No implementation plan, no edits beyond the output path.
 ```
-
-Typed exits: 0 = evidence file written; 5 = `CHECKRUN: ERROR <reason>` on stdout, no partial evidence file left behind.
-Launch pattern: the orchestrator writes the config with file tools, then launches `skills/architect/check-runner.ps1` or `skills/architect/check-runner.sh` as a background process whose exit wakes the loop. On success, the orchestrator commits the evidence file `docs/jobs/<run>/<issue-slug>-checkrun.md` before judge dispatch.
 
 ## Stress-test delegation template
 
-The orchestrator must send this template as-is except for replacing
-placeholders. It must not add slice-specific prose, encouragement, summaries,
-or interpretation.
+The orchestrator must send this template as-is except for replacing placeholders. It must not add slice-specific prose, encouragement, summaries, or interpretation.
 
 <!-- architect-stress-test-template:start -->
 ```text
@@ -223,17 +196,14 @@ Draft check file path: <docs/checks/<run>/<slice>.md>
 Branch: <branch>
 Issue bodies: <pasted issue bodies for this plan>
 
-Grill clause: every mechanical check MUST use `- RUN:` form; a mechanical check not in RUN form is a check defect.
+Grill clause: every mechanical check MUST use `- RUN:` form with a `->` expectation; a RUN item without an expectation is a check defect.
 
 Task: try to falsify this draft. Execute each check command against the current tree, verify every referenced path/SHA/pointer resolves, attack each acceptance criterion and pasted issue bodies against the spec for contradictions and non-falsifiability, including patterns that collide with repo realities (e.g. a grep pattern matching the repo's own name), and flag any assumption not evidenced in the repo.
 For every file a job deletes or renames, grep the whole repo for references and verify the owning job's boundary covers them or a dependency edge orders the fix.
 For every NEW artifact path a job will create, run `git check-ignore <path>` and flag the plan if ignored.
+If a run map exists, sample map entries and verify each file:line anchor resolves; a dangling anchor is a check defect.
 
-Defect report format:
-- <check id or clause>: FALSIFIED | HOLDS
-  Evidence: <command run and verbatim output, or file:line>
-- Plan findings: <delete/rename reference and ignored-new-path findings, or none>
-- Assumptions not evidenced in the repo: <list or none>
+Defect report format: `<check id or clause>: FALSIFIED | HOLDS` with command output or file:line evidence; plan findings; assumptions not evidenced.
 ```
 <!-- architect-stress-test-template:end -->
 
@@ -252,6 +222,7 @@ Single-job slice in the current checkout, resolved builders `codex/best`:
 ```bash
 codex exec -C <repo-root> --sandbox workspace-write \
   -m gpt-5.5 -c model_reasoning_effort="xhigh" \
+  -c service_tier="fast" -c features.fast_mode=true \
   --json -o .architect/last-run.md \
   - < .architect/dispatch-block.md
 ```
@@ -261,6 +232,7 @@ If the effort call resolves to `codex/tier-down`, change only the effort pin:
 ```bash
 codex exec -C <repo-root> --sandbox workspace-write \
   -m gpt-5.5 -c model_reasoning_effort="high" \
+  -c service_tier="fast" -c features.fast_mode=true \
   --json -o .architect/last-run.md \
   - < .architect/dispatch-block.md
 ```
@@ -273,6 +245,7 @@ git -C <repo-root> worktree add .architect/wt/<run>/<slice>-<NN> \
 
 codex exec -C <repo-root>/.architect/wt/<run>/<slice>-<NN> --sandbox workspace-write \
   -m gpt-5.5 -c model_reasoning_effort="xhigh" \
+  -c service_tier="fast" -c features.fast_mode=true \
   --json -o .architect/wt/<run>/<slice>-<NN>.last-run.md \
   - < .architect/wt/<run>/<slice>-<NN>.block.md
 ```

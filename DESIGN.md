@@ -3,8 +3,9 @@
 **The design rationale for an autonomous software factory.** The orchestrator model
 (the session you open — Claude Fable 5 or Codex) runs intake, writes the spec,
 decomposes it into a GitHub issue plan, dispatches parallel fresh builder jobs
-into worktrees, answers blockers, sends fresh judges against frozen checks, and
-merges — with exactly one human step, spec approval. This document is the
+into worktrees, answers blockers, runs graded frozen checks, sends fresh intent
+judges against diffs, and merges — with exactly one human step, spec approval.
+This document is the
 "why", with citations; the skill files in `skills/architect/` are the "how";
 [CONTEXT.md](CONTEXT.md) is the vocabulary.
 
@@ -68,34 +69,35 @@ wiring them into two installable skills with the failure modes closed.
 |---|---|---|
 | **Orchestrator** | the session the human opened | intake, spec, decomposition, check freeze, dispatch, blocker answers, merge decisions, digest |
 | **Builder** | fresh worker agent, one per issue, own worktree | implementation and raw-evidence reporting only |
-| **Judge** | fresh orchestrator-tier agent, read-only | frozen-check verdicts and diff-vs-intent |
+| **Judge** | fresh builders-model agent, read-only | checks-integrity review, diff-vs-intent, one graded-check spot-check |
 | **Watchdog** | deterministic script per wave; "monitor" informally | mechanical stall evidence only — never kills, never decides |
 | **Adversarial reviewer** | fresh reviewer, pre-freeze | the stress-test pass (called the *grill* in earlier runs) falsifies the decomposition before it's authorized |
 | **Human** | you | spec approval, hard stops, taste |
 
 Why the orchestrator does the design work and the builders only build:
 [PEAR](https://arxiv.org/abs/2510.07505) measured that weak planners hurt
-multi-agent performance more than weak executors, so judgment minutes go on
-the strongest model and typing hours on the cheaper one. Community
+multi-agent performance more than weak executors, so planning and merge
+decisions go on the strongest model and typing hours on the cheaper one. Community
 measurements of orchestrator/worker splits report 58–74% lower cost than
 running the top model end-to-end
 ([Fable 5 Orchestrator Playbook](https://www.developersdigest.tech/blog/fable-5-orchestrator-model-playbook)).
 
-Why the judge is a *separate fresh context* at orchestrator tier rather than the
-orchestrator itself: fresh-session review finds more real defects than
-same-session self-review (F1 28.6% vs 24.6%, p=0.008,
+Why the judge is a *separate fresh context* rather than the orchestrator itself:
+fresh-session review finds more real defects than same-session self-review (F1
+28.6% vs 24.6%, p=0.008,
 [Cross-Context Review](https://arxiv.org/abs/2603.12123)), and Anthropic's
 Fable 5 guidance states it directly: "Separate, fresh-context verifier
 subagents tend to outperform self-critique"
 ([Prompting Fable 5](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5)).
+After the 2026-07-05 judge-scout run, routine slice judges run at the resolved
+builders model because deterministic grading moved into the check-runner; the
+judge spends its context on integrity, intent, and one spot-check of the runner.
 
-Why cross-vendor when both CLIs are installed: builder and judge from
-different labs reduces same-model review bias, which is measured at the
-model-family level ([arXiv:2410.21819](https://arxiv.org/abs/2410.21819),
-Panickssery et al. 2024). GPT-5.5 leads Terminal-Bench 2.0 (82.7%) for
-hands-on terminal work while Anthropic positions Fable 5 for long-horizon
-judgment ([Fable 5 announcement](https://www.anthropic.com/news/claude-fable-5-mythos-5)) —
-the split lines up with what each model is best at.
+Why cross-vendor remains available when both CLIs are installed: builder and
+judge from different labs reduces same-model review bias, which is measured at
+the model-family level ([arXiv:2410.21819](https://arxiv.org/abs/2410.21819),
+Panickssery et al. 2024). It is now the high-stakes review choice, not the
+ordinary route for mechanical shell access.
 
 ---
 
@@ -259,6 +261,14 @@ architect-v5 and architect-v5.1 specs, and loop-improvements research
   runs only for new load-bearing abstractions; testing seams are confirmed
   in the spec so jobs don't invent them mid-flight (TDD sourced from
   mattpocock's `tdd` skill; human ruling 2026-07-02).
+- **Scout map and change-skeletons ground the plan.** The 2026-07-05
+  judge-scout run added a read-only pre-spec scout dispatched in parallel with
+  intake questions. The orchestrator commits its file:line-anchored map at
+  `docs/runs/<run>/map.md`, cites it from the spec and issue bodies, and gives
+  each issue a compact change-skeleton: files, signatures, data flow, and
+  invariants, not implementation bodies. The ready frontier is computed from
+  that skeleton file ownership so disjointness is planned before dispatch
+  rather than discovered as a merge conflict.
 - **Judged diffs target ≤ ~400 changed lines (P3).** Human review
   effectiveness falls off past ~200–400 LOC per pass, and long-context
   degradation compounds it ([Chroma](https://www.trychroma.com/research/context-rot));
@@ -382,12 +392,13 @@ grading, checks-integrity review, and diff-vs-intent.
 
 The check-runner is a deterministic script, not an LLM, because a script
 cannot fabricate an exit code; an LLM runner is an unaudited junior judge. The
-check-runner executes frozen RUN commands outside subagent sandboxes and
-records raw evidence, while the fresh judge grades that evidence, performs
-diff-vs-intent, and re-runs at least one RUN command as the spot-check honesty
-guard. D12 consequence: shell-dependent checks no longer force cross-family
-codex judges just to get a shell; cross-family review returns to a high-stakes
-review choice rather than a workaround for stripped tools.
+check-runner executes frozen RUN commands outside subagent sandboxes, grades
+each machine-readable expectation, records per-item expected/verdict evidence,
+and exits typed: 0 when all RUN items pass, 2 when any RUN item fails, and 5 for
+runner error with partial evidence when possible. D12 consequence:
+shell-dependent checks no longer force cross-family codex judges just to get a
+shell; cross-family review returns to a high-stakes review choice rather than a
+workaround for stripped tools.
 
 The RUN grammar came from the design-it-twice record in judge-runner spec D1
 (evidence: git history before the 2026-07-04 cleanup):
@@ -395,6 +406,13 @@ heuristic backtick-span parsing was rejected for structural false positives in
 prose, fenced run blocks were rejected for authoring churn and for separating
 the command from its inline expected outcome, and explicit `- RUN:` markers
 were chosen.
+
+The 2026-07-05 judge-scout run made the grammar graded:
+``- RUN: `<cmd>` -> exit:<n> [match:"substring"]``. `match:` is a fixed
+case-sensitive stdout substring, never regex. A typed runner exit of 2 goes
+straight to the failure ladder with checkrun evidence and no judge dispatch;
+exit 5 uses the runner-error rail. The intent judge still re-runs exactly one
+graded RUN item as the runner-defect spot-check.
 
 #### Orchestrator mechanics offload (2026-07-04)
 
@@ -432,19 +450,36 @@ tree-audit guard also caught an orchestrator orphan-race snapshot commit
 (judgment #2 on #71, INVALID), which shows the honesty guards catch defects in
 both directions.
 
+Run judge-scout (2026-07-05) was the first live use of the graded runner and
+narrowed judge pipeline. Slice #99 shipped graded RUN parsing and typed exits;
+slice #100 narrowed both judge templates and coupled their validator contract;
+slice #101 updated the skill loop for scout maps, change-skeletons, runner
+typed exits, and the human-gated closing review. The closing review then
+hardened malformed `match:` expectations. Evidence pattern: all 3 judged
+slices had green deterministic checkruns and all 3 judge FAILs were useful
+diff-vs-intent catches; parser-divergence defects were caught twice by intent
+review rather than fixtures alone (glob-style shell matching at judgment, then
+space-less and unclosed `match:` expectations at closing review). The run also
+recorded one decomposition kill: judge templates and validator contract greps
+were one atomic contract and had to be re-specced into one boundary. The graded
+runner's first live use finished 7/7.
+
 - **Nobody grades their own work.** The builder reports evidence; a fresh
-  orchestrator-tier judge runs the frozen checks itself (builder claims are
-  hearsay) and returns per-check **PASS / FAIL / INVALID** — INVALID meaning
-  "not measured the way the check specifies", so unmeasured never equals
-  passed ([Demystifying Evals](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)).
-- **The judge also reads the diff against intent.** Check output alone is
+  deterministic check-runner grades frozen RUN items and the fresh intent judge
+  reads the runner evidence, verifies checks integrity, spot-checks one graded
+  RUN item, and judges diff-vs-intent. INVALID still means "not measured the
+  way the check specifies", so unmeasured never equals passed
+  ([Demystifying Evals](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)).
+- **The intent judge reads the diff against intent.** Check output alone is
   insufficient: METR found agent PRs that pass tests are mostly unmergeable
   as-is ([METR](https://metr.org/blog/2025-08-12-research-update-towards-reconciling-slowdown-with-time-horizons/)).
 - **The orchestrator may not turn a judge FAIL into a merge.** Verdicts are
   posted as issue comments; an issue with no verdict comment is not built
-  upon. Judgment context is pointer-only — frozen check file, spec, job
-  report, rulings file — delivered by frozen templates the orchestrator may
-  not decorate (template drift is how judge scope quietly widens).
+  upon unless the typed runner exit already put it on the failure ladder.
+  Judgment context is pointer-only — frozen check file, spec, job report,
+  rulings file, checkrun summary, and diff — delivered by frozen templates the
+  orchestrator may not decorate (template drift is how judge scope quietly
+  widens).
 - **Reviewers are calibrated.** "Flag only gaps that affect correctness, the
   stated requirements, or documented project invariants — cite file:line
   evidence. No style preferences." An uncalibrated reviewer always finds
@@ -454,6 +489,12 @@ both directions.
   while the reverse hurt; the skill prefers Claude-reviews-Codex and records
   the direction in the verdict comment
   ([cross-provider review](https://www.mindstudio.ai/blog/openai-codex-plugin-claude-code-cross-provider-review)).
+- **Closing review is human-gated and green-or-discard.** After the last build
+  issue closes and before the docs-finish job, the orchestrator asks through
+  the timed-ruling protocol whether to run a comprehensive review. The default
+  is yes; if it runs, the reviewer is at the resolved orchestrator model, reads
+  spec -> scout map -> diff, may make final fixes, and must keep every graded
+  RUN item green. Red review changes are discarded whole.
 - **Post-freeze rulings live in an append-only file (v5.1 D4).**
   `docs/jobs/<run>/<issue-slug>-rulings.md`, orchestrator-owned, committed before
   judge dispatch and mirrored to the issue — so judges read rulings from a
@@ -504,13 +545,17 @@ both directions.
 
 ### Model routing
 
-- **Orchestrator, builders, judge, and watchdog are configurable roles, not brand
+- **Orchestrator, builders, judges, and watchdog are routed roles, not brand
   names (D2).** Flat `key = value` lines in `.architect/config` (repo) then
   `~/.architect/config` (user); the alias table in `dispatch.md` is the
   single owned rot point mapping `codex/best`, `claude/best`, and tier-downs
   to current CLI flags, so model churn is reviewed in one place. The
   inherit-by-default shape follows the `opusplan` precedent and matching
   requests across aider/goose issue trackers.
+- **Routine issue judges resolve to the builders model.** The runner now owns
+  deterministic grading, so the ordinary judge is a fresh builders-model intent
+  reviewer with one spot-check. The closing review uses the orchestrator model,
+  and cross-family judgment remains an explicit high-stakes route.
 - **Default builders are codex-first.** `codex/best` (gpt-5.5, xhigh) whenever
   the Codex CLI is on PATH; `claude/tier-down` (Sonnet, high) otherwise.
   Typing hours land on the flat-rate subscription with verified `.git`
@@ -663,7 +708,7 @@ decisions, from the 2026-06 evidence review and the r2 calibration pass
 | Failure mode | Mitigation |
 |---|---|
 | Reward hacking / check tampering | Checks frozen in git pre-dispatch; `git diff` integrity check at judgment; tampering = automatic FAIL |
-| Builder grades own work | Raw-evidence-only reports; fresh judge runs checks itself; cross-family review for high-stakes |
+| Builder grades own work | Raw-evidence-only reports; deterministic runner grades frozen RUN items; fresh intent judge checks integrity, diff-vs-intent, and one spot-check; cross-family review for high-stakes |
 | Goalpost moving | Verbatim frozen check text; checks read-only after freeze; missing check = spec defect for the *next* issue |
 | Scope creep | Explicit boundaries and out-of-scope per issue; silent additions = job failure; scope growth beyond spec = hard stop |
 | Context rot | Orchestrator holds judgment only, never reads large diffs; fresh job per issue; tracker + git carry state |
@@ -671,7 +716,7 @@ decisions, from the 2026-06 evidence review and the r2 calibration pass
 | Placeholder implementations | End-to-end executable check commands; "search before implementing; full implementations only" in the builder block |
 | Silent fallbacks masking breakage | P1 ban; fail loudly; explicitly-specced resilience only |
 | Fabricated status reports | Every status claim audited against a tool result, both sides |
-| Check-passing but unmergeable work | Judge reads diff vs intent, not check output alone (METR) |
+| Check-passing but unmergeable work | Intent judge reads diff vs intent, not check output alone (METR) |
 | Builder gaming visible checks | Frozen read-only checks; no iterate-against-judge loop (ImpossibleBench 33%→38%) |
 | Stalled jobs | Watchdog script: growth + process + repeated-action checks; orchestrator rules on typed evidence; no kill ceilings |
 | Wrong run selected by tracker scan | `docs/runs/<run>/manifest.md` pins the tracking issue; status commands take the run slug and never compute a tracker-wide max |
@@ -809,6 +854,18 @@ cleanup. Both namespaces are load-bearing in shipped text.)
   docs debt from the same run produced the route-arounds in
   `docs/solutions/postflight-lane-commit.md` and
   `docs/solutions/worktree-cleanup-locks.md`.
+- **Judge-scout run (2026-07-05).** Spec
+  `docs/spec/judge-narrowing-and-scout.md` shipped #99, #100, #101, then a
+  closing review. Deterministic checkruns stayed green on every judged state,
+  but all three slice judgments initially failed on diff-vs-intent: the first
+  live graded runner used shell-glob matching instead of fixed substring; the
+  failure ladder named judge evidence but not checkrun evidence; and the first
+  dispatch slice split judge templates from validator contract greps before
+  being killed and re-specced as one atomic contract. Closing review was the
+  first live G5 use and caught malformed `match:` parser divergence
+  (space-less and unclosed quotes) before docs-finish. Reusable notes from the
+  run live in `docs/solutions/atomic-contract-decomposition.md` and
+  `docs/solutions/graded-expectation-divergence.md`.
 - **Dogfood runs.** v5 was built *by* the factory as a real issue plan (tracking issue
   #12, issues #13–#18): 1 judge FAIL, 3 respawns, all jobs fresh-judged.
   The v5.1 hardening run (tracking issue #20, issues #21–#25, on `factory/v5.1`)
