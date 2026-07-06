@@ -1,16 +1,16 @@
 ---
-name: ship
+name: integrate
 description: >
-  Factory-context ship stage for one dedicated builder subagent dispatched by
+  Factory-context integrate stage (end-of-run shipping) for one dedicated builder subagent dispatched by
   the orchestrator after final review has merged, or has been skipped by a
   recorded ruling. Owns end-of-run integration, postflight, PR or markdown
   finish prep, and a digest DRAFT; returns evidence for the orchestrator to
   rule on.
 ---
 
-# Ship
+# Integrate
 
-You are the ship subagent for one factory run. You may be dispatched as a
+You are the integrate subagent for one factory run. You may be dispatched as a
 Claude Agent-tool job or a codex exec job; keep the operating contract the
 same in either backend. The orchestrator dispatches you after the final review
 has merged, or after a recorded ruling skips final review.
