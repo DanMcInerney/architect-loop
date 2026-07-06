@@ -275,14 +275,15 @@ architect-v5 and architect-v5.1 specs, and loop-improvements research
   runs only for new load-bearing abstractions; testing seams are confirmed
   in the spec so jobs don't invent them mid-flight (TDD sourced from
   mattpocock's `tdd` skill; human ruling 2026-07-02).
-- **Scout map and change-skeletons ground the plan.** The 2026-07-05
-  judge-scout run added a read-only pre-spec scout dispatched in parallel with
-  intake questions. The orchestrator commits its file:line-anchored map at
-  `docs/runs/<run>/map.md`, cites it from the spec and issue bodies, and gives
-  each issue a compact change-skeleton: files, signatures, data flow, and
-  invariants, not implementation bodies. The ready frontier is computed from
-  that skeleton file ownership so disjointness is planned before dispatch
-  rather than discovered as a merge conflict.
+- **Change-skeletons ground the plan** (scout retired from build lanes (2026-07-06);
+  scouting lives only in /architect-research). The 2026-07-05
+  judge-scout run added a pre-spec scout with a committed map; the map was
+  planning-time-only and expired at first merge, and its marginal grounding did
+  not pay for the dispatch and the committed artifact. Each issue carries a
+  compact change-skeleton: files, signatures, data flow, and invariants, not
+  implementation bodies. The ready frontier is computed from that skeleton
+  file ownership so disjointness is planned before dispatch rather than
+  discovered as a merge conflict.
 - **Judged diffs target ≤ ~400 changed lines (P3).** Human review
   effectiveness falls off past ~200–400 LOC per pass, and long-context
   degradation compounds it ([Chroma](https://www.trychroma.com/research/context-rot));
@@ -507,7 +508,7 @@ runner's first live use finished 7/7.
   issue #137).** After the last build issue closes and before integrate, the
   orchestrator asks through the timed-ruling protocol whether to run
   a comprehensive review. The default is yes; if it runs, the reviewer is at
-  the resolved orchestrator model, reads spec -> scout map -> diff, and edits
+  the resolved orchestrator model, reads spec -> diff, and edits
   no product code and no tests. Zero verified findings return a GREEN verdict
   and the run proceeds straight to integrate. One or more findings become a
   review spec — the findings as requirements — cut into fix issues with draft
@@ -768,7 +769,7 @@ What it drops, and why the drops are safe at the size ceiling (≤3 issues,
   pass — the same line count already gates per-issue review effectiveness
   in `/architect` (§4, Decomposition, "Judged diffs target ≤~400 changed
   lines").
-- **No scout, no adversarial spec review.** At small scale the
+- **No adversarial spec review.** At small scale the
   orchestrator's own ≤3 materiality-tested questions plus recorded,
   vetoable assumptions substitute; the size ceiling is the safety valve —
   an honest decomposition needing more than 3 issues stops and recommends

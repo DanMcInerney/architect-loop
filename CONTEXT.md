@@ -34,8 +34,6 @@ Glossary only. No implementation details, no spec content.
   attacks the frozen-but-not-yet-dispatched decomposition (check commands,
   issue bodies, repo reality) before the freeze is authorized. Target 1 of
   the same skill is the pre-decomposition spec review.
-- **Scout** - a researcher-shaped investigator: reads, researches, reports;
-  may not modify code. Build runs commit a scout map before decomposition.
 
 ## Units of work
 
@@ -86,9 +84,6 @@ Glossary only. No implementation details, no spec content.
 - **Graded RUN** - a check RUN item with `-> exit:<n>` and optional fixed
   stdout `match:"substring"` expectation. Runner exits are typed: 0 all pass,
   2 any expectation fails, 5 runner error.
-- **Scout map** - the committed `docs/runs/<run>/map.md` file: file:line
-  anchors, conventions, testing seams, and gotchas gathered before
-  decomposition.
 - **Change-skeleton** - a compact per-issue structure block naming files,
   signatures, data flow, and invariants. It proves ownership and parallelism;
   it is not implementation code.
@@ -103,7 +98,7 @@ Glossary only. No implementation details, no spec content.
   with its decisive reason. The closing review's run-level verdict goes on
   the tracking issue.
 - **Sync dispatch** - dispatching a result-bearing subagent (closing review,
-  scout, adversarial review, optional verification) with
+  adversarial review, optional verification) with
   `run_in_background: false`, so the result returns as the tool result.
 - **Recovery ladder** - the ordered rescue path for a missing background
   deliverable: retrieve task output, nudge once, then discard and respawn
@@ -142,6 +137,7 @@ Glossary only. No implementation details, no spec content.
 
 ## Retired terms (historical; appear in pre-v5 docs and git history)
 
+- **Scout / scout map** - retired from build lanes 2026-07-06; scouting lives only in /architect-research.
 - **gate** -> **check**.
 - **DAG** -> **the plan** / issues linked with blocked-by.
 - **cold** -> **fresh**.
