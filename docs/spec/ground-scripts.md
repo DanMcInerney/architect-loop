@@ -66,3 +66,15 @@ ffcheck.
 ## Approval record
 
 - In-session approval 2026-07-06, quoted verbatim in Assumptions #1.
+
+## Amendment (human, in-session, 2026-07-06)
+
+Verbatim: "when it's time to ship the code after the final review, do that
+with a subagent not the orchestrator. That subagent can handle all the stuff
+like merge conflicts and whatnot... use codex subagents." New slice s4:
+`skills/ship/SKILL.md` — a ship-stage skill driving one dedicated subagent
+that owns end-of-run integration after the final review merges: remaining
+branch merges, conflict resolution AT SHIP TIME ONLY (mid-run conflicts stay
+decomposition failures), PR preparation with Closes/back-links, digest draft.
+s5: wiring (SKILL.md Finish delegates shipping; run-isolation regression test
+pinning marker-scoped reads), blocked by s3+s4.
