@@ -74,7 +74,7 @@ when broad ambiguous refactor -> codex/best:xhigh # deeper search and edit budge
 ```
 
 Format: `when <task-class description> -> <cli>/<model-spec>[:<effort>] # why`.
-The trailing reason is optional but preferred. Absent file = the Claude-native
+The trailing reason is optional but preferred. Absent file = the `codex/best`
 default above. Absent dispatch rules = the same default. A matching rule is
 still a judgment aid; the orchestrator records which rule was used and may
 override it with a reason recorded on the issue.
@@ -87,8 +87,8 @@ intake canary; API-key auth cannot use Fast mode — drop the two pins and
 record the substitution on the tracking issue (no silent fallback). The
 default is builder-only; verification subagents and the monitor never carry the Fast pins.
 
-Configured builders CLI absent at preflight -> fall back to the Claude-native
-default (`claude/tier-down`) and write one tracking-issue comment naming
+Configured builders CLI absent at preflight -> fall back to `claude/tier-down`
+(the Claude-native fallback) and write one tracking-issue comment naming
 requested vs substituted. Cross-family
 review backend absent -> run review in a fresh same-CLI context and log the
 same-family bias caveat. Never hard-fail on model availability alone. Tier is
