@@ -14,7 +14,7 @@ The loop is one orchestrator session that runs the factory to completion after
 the spec approval approves the issue plan. Tracker issues carry coordination
 state; git carries specs and frozen checks. The orchestrator dispatches the
 ready issues, sleeps, and wakes only on an event.
-Parallel rules: harness-native judge subagents (Claude Agent tool) dispatch synchronously with `run_in_background: false` so the verdict returns as the tool result; codex-backend judges keep the background `codex exec -o <file>` typed-exit path, whose process exit wakes the loop; the ready-issue frontier recomputes on EVERY merge, not at wave boundaries; independent orchestrator bookkeeping batches into parallel calls; merges, synthesis, and the pre-freeze `adversarial-review` stress pass stay serial by design.
+Parallel rules: harness-native judge subagents (Claude Agent tool) dispatch synchronously with `run_in_background: false` so the verdict returns as the tool result; codex-backend judges keep the background `codex exec -o <file>` typed-exit path, whose process exit wakes the loop; a job END (DONE or BLOCKED) is a dispatch event that recomputes the full ready frontier and dispatches every ready issue into a free slot before grading (Factory block procedure step 3); merges recompute the frontier too, since a merge can unblock issues no END could; independent orchestrator bookkeeping batches into parallel calls; merges, synthesis, and the pre-freeze `adversarial-review` stress pass stay serial by design.
 
 ## Factory block procedure
 
@@ -25,7 +25,7 @@ Parallel rules: harness-native judge subagents (Claude Agent tool) dispatch sync
 2. **Sleep.** Zero orchestrator work between dispatch and the next event —
    no polling.
 3. **Wake on one event**, exactly one of:
-   - **Job DONE.** Ordering: write the runner config; launch `check-runner.ps1` or `check-runner.sh` as a background process whose typed exit is the next wake. Exit 0: commit the checkrun artifact `docs/jobs/<run>/<issue-slug>-checkrun.md`, then dispatch the fixed intent judge template from `dispatch.md` by backend; Claude Agent-tool judges run synchronously with `run_in_background: false`, while codex-backend judges run the background `codex exec -o <file>` typed-exit path. Exit 2: commit failure evidence and enter the Failure ladder without judge dispatch. Exit 5: stay on the recorded error rail. After judge PASS, run `postflight.ps1` or `postflight.sh`: exit 0 `POSTFLIGHT: OK` means merge completed with clean touch-set evidence; exit 2 `POSTFLIGHT: VIOLATION` is automatic FAIL evidence; exit 3 `POSTFLIGHT: CONFLICT` is the decomposition-failure rail; exit 5 `POSTFLIGHT: ERROR` falls back to the recorded manual integration sequence in `dispatch.md`. Exception: after the closing review is applied or skipped, the finish-boundary docs job skips the judge (human-ruled; see SKILL.md `### 5. Finish`) and the orchestrator grades its checkrun evidence directly before merge.
+   - **Job DONE.** A job END (DONE or BLOCKED) is a dispatch event: before grading the finished job, recompute the full ready frontier — newly unblocked issues AND previously-ready issues queued beyond the concurrency cap — and dispatch every ready issue into a free slot; one completion may launch multiple builders. Merges still recompute the frontier too, since a merge can unblock issues no END could. Ordering: after that recompute-and-dispatch, write the runner config; launch `check-runner.ps1` or `check-runner.sh` as a background process whose typed exit is the next wake. Exit 0: commit the checkrun artifact `docs/jobs/<run>/<issue-slug>-checkrun.md`, then dispatch the fixed intent judge template from `dispatch.md` by backend; Claude Agent-tool judges run synchronously with `run_in_background: false`, while codex-backend judges run the background `codex exec -o <file>` typed-exit path. Exit 2: commit failure evidence and enter the Failure ladder without judge dispatch. Exit 5: stay on the recorded error rail. After judge PASS, run `postflight.ps1` or `postflight.sh`: exit 0 `POSTFLIGHT: OK` means merge completed with clean touch-set evidence; exit 2 `POSTFLIGHT: VIOLATION` is automatic FAIL evidence; exit 3 `POSTFLIGHT: CONFLICT` is the decomposition-failure rail; exit 5 `POSTFLIGHT: ERROR` falls back to the recorded manual integration sequence in `dispatch.md`. Exception: after the closing review is applied or skipped, the finish-boundary docs job skips the judge (human-ruled; see SKILL.md `### 5. Finish`) and the orchestrator grades its checkrun evidence directly before merge.
    - **Job BLOCKED.** A blocker comment on the issue is a completion event.
      Read it, rule an answer, and respawn a fresh builder job on the same
      issue with the answer in its spawn context (see `dispatch.md`
@@ -79,13 +79,19 @@ verdict from memory.
 For ANY backgrounded subagent that goes idle without its expected deliverable,
 use the recovery ladder in order: retrieve its output via the harness task-output
 mechanism; nudge once asking it to deliver the artifact; discard it and respawn
-fresh. The orchestrator never authors a missing verdict.
+fresh. The orchestrator never authors a missing verdict. The sync-dispatch rule
+for Claude Agent-tool judges stays, but harnesses have been observed to run
+judge spawns async regardless: an idle notification arriving without a verdict
+gets exactly one poke requesting delivery in the fixed verdict format before
+escalation.
 
-Close-out: after consuming a subagent result or a background process's typed
-exit, stop or close that subagent or shell task in the same turn, batching
-independent close-outs into parallel calls; no polling and no per-close
-commentary. Before postflight, kill lingering codex children of any consumed
-exec; kill any lingering job processes when a job is discarded.
+Close-out: after processing a subagent's final result — verdict, report, or
+fix — release or stop its session in the same turn, batching independent
+close-outs into parallel calls; a lingering idle session is bookkeeping debt
+and can shadow names, so never leave one open once its result is consumed. No
+polling and no per-close commentary. Before postflight, kill lingering codex
+children of any consumed exec; kill any lingering job processes when a job is
+discarded.
 
 ## Failure ladder
 

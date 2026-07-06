@@ -164,7 +164,7 @@ Use loop.md `## Factory block procedure` for the detailed event loop.
 - Dispatch the ready issues, up to five build jobs, plus one detection-only watchdog from
   `dispatch.md` `## Monitor dispatch`; rule on its typed exits. Builders default to Claude-native
   Agent-tool jobs: the `architect-builder` def preloads the `tdd` and `codebase-design` stage
-  skills, model per the alias table; the codex backend is the config-selected alternative.
+  skills, model per the alias table; the codex backend is the config-selected alternative. Every job end (DONE or BLOCKED) is a dispatch event: recompute the ready frontier and dispatch before grading, so one completion routinely launches several builders.
 - Sleep between events. Wake only on DONE, BLOCKED, stall/kill evidence, watchdog anomaly
   evidence, or a ready-issue recomputation.
 - On human status requests, run `skills/architect/status.ps1 <run>` on Windows or
