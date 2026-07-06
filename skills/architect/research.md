@@ -8,8 +8,8 @@ load-bearing claims and writes the spec itself.
 ## Fan out
 
 Resolve the researcher model as builders, same order as `/architect`: repo
-`.architect/config`, then user `~/.architect/config`, then the tier-down
-defaults in `skills/architect/dispatch.md`.
+`.architect/config`, then user `~/.architect/config`, then the `codex/best`
+default in `skills/architect/dispatch.md`.
 
 Decompose the question into 3–5 narrow, NON-OVERLAPPING research questions.
 Cover different angles, not the same angle five times — typical split:
@@ -17,9 +17,8 @@ official docs/reference, changelog/breaking changes, community failure reports,
 alternatives/comparisons, security/operational constraints.
 
 One fresh `codex exec` per question, all launched in parallel, in the
-background — this is the codex-backend example (codex/tier-down; the
-builders default is Claude-native, see `dispatch.md` `## Model resolution
-and dispatch rules`):
+background — codex/tier-down shown; the builders default is `codex/best`
+(`dispatch.md` `## Model resolution and dispatch rules`):
 
 ```bash
 codex exec -C <repo-root> --sandbox read-only -c web_search="live" \

@@ -580,13 +580,15 @@ runner's first live use finished 7/7.
   spot-check, and optional read-only verification dispatches keep that tier.
   The closing review uses the orchestrator model, and cross-family judgment
   remains an explicit high-stakes route.
-- **Default builders are Claude-native** since the skill-library run (spec
-  assumption 2, 2026-07-05): `claude/tier-down` (Sonnet, high) as Agent-tool
-  jobs with preloaded stage skills; `codex/best` (gpt-5.5, xhigh) is the
-  config-selected alternative whenever the Codex CLI is on PATH — its
-  economics case (typing hours on the flat-rate subscription with verified
-  `.git` sandbox protection; §2 economics, PR #28) is why the option stays
-  first-class.
+- **Default builders are codex-frontier** (human ruling 2026-07-06,
+  flipping the skill-library-era Claude-native default): `codex/best`
+  (gpt-5.5, xhigh, Fast pins under ChatGPT auth) via the codex CLI from
+  either orchestrator harness — the economics case (typing hours on the
+  flat-rate subscription with verified `.git` sandbox protection; §2
+  economics, PR #28) now backs the default, not just the option.
+  `claude/tier-down` (Sonnet, high) as Agent-tool jobs with preloaded
+  stage skills is the config-selected alternative and the recorded
+  fallback when the codex CLI is absent.
 - **xhigh for unattended builders.** Effort-curve data shows xhigh winning
   the metrics that matter unattended — semantic equivalence to the human PR
   (88% vs 69%) and review-pass rate (69% vs 38%) at ~2.2× the cost of high

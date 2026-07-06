@@ -29,8 +29,8 @@ on any paid plan; the Codex CLI on a ChatGPT plan is optional — set
 ## Design
 
 A configurable **orchestrator** model (default: Fable, high) designs,
-assigns, and reviews. A configurable **builder** model (default: Sonnet,
-high) does the heavy lifting. Both are overridable — see
+assigns, and reviews. A configurable **builder** model (default: GPT-5.5,
+xhigh, Fast mode) does the heavy lifting. Both are overridable — see
 [Config](#config).
 
 ### /architect
@@ -231,8 +231,9 @@ Role strings are `<cli>/<model-spec>[:<effort>]`, with `<cli>` `claude` or
 `codex`. `best` and `tier-down` are per-family aliases (Fable at high /
 GPT-5.5 at xhigh, and Sonnet at high / GPT-5.5 at high); any concrete model
 works too. Unconfigured, the orchestrator is your current session and
-builders are `claude/tier-down`; `codex/best` is the config-selected
-alternative when the Codex CLI is installed. Optional read-only verification
+builders are `codex/best` (Fast mode under ChatGPT auth); `claude/tier-down`
+is the config-selected alternative, and the recorded fallback when the
+Codex CLI is absent. Optional read-only verification
 subagents follow `builders`; adversarial reviewers
 and closing review follow the orchestrator tier; `/architect-research`
 researchers follow `builders`. `when <task
