@@ -23,36 +23,42 @@ npm i -g @openai/codex@latest            # optional: Codex CLI (>= 0.133)
 
 One installer, both ecosystems: the same skills land in Claude Code and in
 Codex's `.agents/skills`. You need [Claude Code](https://claude.com/claude-code)
-on any paid plan; the Codex CLI on a ChatGPT plan is optional but recommended —
-builders default to it. No API keys.
+on any paid plan; the Codex CLI on a ChatGPT plan is optional — set
+`builders = codex/best` to route builders there. No API keys.
 
 ## Design
 
 A configurable **orchestrator** model (default: Fable, high) designs,
-assigns, and reviews. A configurable **builder** model (default: Codex
-GPT-5.5, xhigh) does the heavy lifting. Both are overridable — see
+assigns, and reviews. A configurable **builder** model (default: Sonnet,
+high) does the heavy lifting. Both are overridable — see
 [Config](#config).
 
 ### /architect
 
 ![architect flow](assets/architect-flow.svg)
 
-- Orchestrator writes a spec doc and asks you no more than 5 questions.
-- A fresh orchestrator-tier model adversarially reviews the spec.
-- Orchestrator breaks the work into parallelizable GitHub issues.
+- Each stage is its own small skill, invoked in order: `codebase-design`
+  (shared vocabulary), `to-spec`, `adversarial-review`, `to-issues`,
+  `frozen-checks`; builders preload `tdd`; `code-review` closes the run.
+- Orchestrator grounds in the vocabulary, then writes a spec doc and asks
+  you no more than 5 questions.
+- A fresh orchestrator-tier subagent adversarially reviews the spec.
+- Orchestrator breaks the work into parallelizable, vertical-slice GitHub
+  issues.
 - Orchestrator freezes the acceptance checks in git.
 - A run manifest in `docs/runs/<run>/manifest.md` pins the tracking issue,
   factory branch, tracker, and spec; status commands take the run slug and
   read that pin instead of scanning every issue.
 - Orchestrator loops through the issues, assigning builders until every
   issue is fully complete:
-  - progress lands on the GitHub issue as builders work;
-  - frozen checks run deterministically and grade their expected results;
-  - a fresh builders-model judge reviews integrity and intent, with one
-    spot-check of the runner;
+  - builders work test-first and run their own tests, with progress landing
+    on the GitHub issue;
+  - a deterministic check-runner grades each issue's frozen checks;
   - on failure, the orchestrator diagnoses why, updates the issue and its
     requirements, and respawns a fresh builder — otherwise it comments,
     closes, and merges.
+- A closing cohesion review — one fresh orchestrator-tier subagent over the
+  whole run diff — runs immediately before the PR.
 - The run ends in one PR plus a digest of what shipped.
 
 ### /architect-research
@@ -81,12 +87,12 @@ git — not left as advice. Full evidence and citations: [DESIGN.md](DESIGN.md).
   than weak executors.
 - **Fresh context everywhere it matters.** *quality* — An agent reviewing
   its own work in the same session measurably misses more defects, so every
-  builder, researcher, judge, and adversarial reviewer starts cold.
+  builder, researcher, adversarial reviewer, and closing reviewer starts cold.
 - **The tracker is the memory.** *quality* — Specs and checks live in git;
   disagreements, verdicts, and digests live on the issues. Not in the
   tracker = didn't happen, so any later session can recover the run.
 - **The orchestrator sleeps between events.** *token savings* — It reads
-  one-line typed results from scripts and judges; builder output streams
+  one-line typed results from scripts and reviewers; builder output streams
   never enter its context.
 - **Thin, size-guarded skill text.** *token savings* — Skill bodies ride in
   context all session, so a validator caps their size and a
@@ -135,15 +141,16 @@ git — not left as advice. Full evidence and citations: [DESIGN.md](DESIGN.md).
 - **Dispatch and merge mechanics are scripted.** *token savings* — Worktree
   setup, freeze verification, touch-set audit, merge, and cleanup each
   collapse from 4–5 orchestrator calls into one typed-exit line.
-- **A fresh intent judge owns every merge.** *quality* — It checks
-  integrity, reads the diff against intent, and spot-checks one graded RUN
-  item; the orchestrator cannot overrule a FAIL.
-- **Judged diffs target ≤~400 changed lines.** *quality* — Review
-  effectiveness collapses past a few hundred lines, so bigger specs split
-  into more issues.
+- **A deterministic check-runner owns every issue's grading.** *quality* —
+  It executes and grades frozen RUN items with typed exits; a closing
+  cohesion review — one fresh orchestrator-tier subagent over the whole run
+  diff — runs immediately before the PR and is green-or-discard.
+- **Reviewed diffs target ≤~400 changed lines per issue.** *quality* —
+  Review effectiveness collapses past a few hundred lines, so bigger specs
+  split into more issues.
 - **Failures fix inputs, not models.** *quality* — First FAIL: diagnose from
-  the judge's evidence, amend the issue, respawn fresh at the same tier. A
-  failure is a spec or context problem, not a retry knob.
+  the check-runner's evidence, amend the issue, respawn fresh at the same
+  tier. A failure is a spec or context problem, not a retry knob.
 - **BLOCKED is a completion event.** *quality* — A stuck builder posts the
   blocker and stops; the orchestrator answers durably on the issue and
   respawns fresh, because resuming a polluted context is the documented
@@ -168,7 +175,7 @@ git — not left as advice. Full evidence and citations: [DESIGN.md](DESIGN.md).
   ask you.
 - **`tracker = markdown` runs the same loop without GitHub.** *quality* —
   Issues live in git-tracked `docs/issues/<run>/` for GitLab or fully local
-  repos; every rule, judge, check, and the status tree work identically.
+  repos; every rule, check, review, and the status tree work identically.
 
 ### /architect-research
 
@@ -217,8 +224,9 @@ Role strings are `<cli>/<model-spec>[:<effort>]`, with `<cli>` `claude` or
 `codex`. `best` and `tier-down` are per-family aliases (Fable at high /
 GPT-5.5 at xhigh, and Sonnet at high / GPT-5.5 at high); any concrete model
 works too. Unconfigured, the orchestrator is your current session and
-builders are `codex/best` when the Codex CLI is installed, else
-`claude/tier-down`. Routine judges follow `builders`; adversarial reviewers
+builders are `claude/tier-down`; `codex/best` is the config-selected
+alternative when the Codex CLI is installed. Optional read-only verification
+subagents follow `builders`; adversarial reviewers
 and closing review follow the orchestrator tier; `/architect-research`
 researchers follow `builders`. `when <task
 class> -> <model>` lines route classes of work to a tier. A configured CLI
@@ -230,7 +238,7 @@ issue — never a hard fail.
 `tracker = markdown` runs the identical loop with no GitHub dependency —
 for GitLab-hosted or fully local repos. Issues become git-tracked files in
 `docs/issues/<run>/<NNN>-<slug>.md` with per-run numbering, the same states,
-parent/blocker edges, and comment log, so every rule, judge, check, and
+parent/blocker edges, and comment log, so every rule, check, review, and
 the status tree work unchanged. Only a git repo is required; a remote is
 optional and `gh` isn't needed. Two differences: spec approval is
 in-session only, and the run ends with the factory branch ready plus merge

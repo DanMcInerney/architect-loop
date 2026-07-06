@@ -1,7 +1,8 @@
 # Trigger Eval Prompts
 
 Purpose: lightweight fixture for checking whether Claude Code routes prompts to
-the architect and architect-research skills.
+the architect, architect-research, and seven stage skills (codebase-design,
+to-spec, to-issues, frozen-checks, tdd, adversarial-review, code-review).
 Run: `skills/architect/trigger-eval.ps1 -Limit 4` or
 `skills/architect/trigger-eval.sh --limit 4`; add `-Bare` or `--bare` if
 local hooks fail in a sandbox.
@@ -84,4 +85,60 @@ local hooks fail in a sandbox.
 
 - PROMPT: Does .gitignore currently ignore docs/evals/trigger-prompts.md? Check this repo only.
   SKILL: architect-research
+  EXPECT: no-trigger
+
+- PROMPT: Ground the factory run: load the codebase-design skill for the glossary and deepening vocabulary before writing anything.
+  SKILL: codebase-design
+  EXPECT: trigger
+
+- PROMPT: Help me center a div with flexbox in this stylesheet.
+  SKILL: codebase-design
+  EXPECT: no-trigger
+
+- PROMPT: Intake is done; run the to-spec stage skill to synthesize the run's evidence into docs/spec/payments.md for approval.
+  SKILL: to-spec
+  EXPECT: trigger
+
+- PROMPT: Write a short blog post announcing our new payments feature.
+  SKILL: to-spec
+  EXPECT: no-trigger
+
+- PROMPT: The spec is approved; use the to-issues skill to decompose it into tracer-bullet slices under tracking issue #103.
+  SKILL: to-issues
+  EXPECT: trigger
+
+- PROMPT: List the open issues in this repo sorted by age.
+  SKILL: to-issues
+  EXPECT: no-trigger
+
+- PROMPT: Decomposition is done; invoke the frozen-checks skill to write per-issue graded checks under docs/checks/payments/ before any builder dispatch.
+  SKILL: frozen-checks
+  EXPECT: trigger
+
+- PROMPT: Add a unit test for the date parser in src/utils.
+  SKILL: frozen-checks
+  EXPECT: no-trigger
+
+- PROMPT: You are a builder on issue #41; work test-first with the tdd skill at the seams named in the issue body and report raw evidence.
+  SKILL: tdd
+  EXPECT: trigger
+
+- PROMPT: Rename this variable across the file and fix the imports.
+  SKILL: tdd
+  EXPECT: no-trigger
+
+- PROMPT: You are a fresh reviewer; run adversarial-review against the draft spec and return FALSIFIED or HOLDS findings with file:line evidence.
+  SKILL: adversarial-review
+  EXPECT: trigger
+
+- PROMPT: Proofread this README paragraph for typos.
+  SKILL: adversarial-review
+  EXPECT: no-trigger
+
+- PROMPT: Every issue in the run is closed; run the code-review skill over the whole run diff from the factory branch head.
+  SKILL: code-review
+  EXPECT: trigger
+
+- PROMPT: Summarize what changed in the last commit.
+  SKILL: code-review
   EXPECT: no-trigger

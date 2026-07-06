@@ -100,7 +100,7 @@ parse_fixture() {
     /^- PROMPT: / {
       prompt = substr($0, 11)
       if ((getline skill_line) <= 0) { printf "ERROR\tincomplete prompt block at line %d\n", NR > "/dev/stderr"; exit 2 }
-      if (skill_line !~ /^[[:space:]]+SKILL: (architect|architect-research)$/) { printf "ERROR\tinvalid SKILL line after prompt near line %d: %s\n", NR - 1, skill_line > "/dev/stderr"; exit 2 }
+      if (skill_line !~ /^[[:space:]]+SKILL: (architect|architect-research|codebase-design|to-spec|to-issues|frozen-checks|tdd|adversarial-review|code-review)$/) { printf "ERROR\tinvalid SKILL line after prompt near line %d: %s\n", NR - 1, skill_line > "/dev/stderr"; exit 2 }
       skill = skill_line
       sub(/^[[:space:]]+SKILL: /, "", skill)
       if ((getline expect_line) <= 0) { printf "ERROR\tincomplete prompt block at line %d\n", NR > "/dev/stderr"; exit 2 }

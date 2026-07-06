@@ -5,11 +5,10 @@
 - Model alias table
 - Model resolution and dispatch rules
 - Per-harness delegation
-- C5 judge delegation template
-- Codex judge delegation template
+- C5 judge delegation template (RETIRED)
+- Codex judge delegation template (RETIRED)
 - Check-runner dispatch
 - Scout dispatch
-- Stress-test delegation template
 - Codex backend from a Claude orchestrator
 - Preflight and postflight dispatch
 - Integration commands
@@ -23,7 +22,7 @@
 - Builder block template
 - Builder-side standing setup
 
-Dispatch turns a frozen slice into fresh builder or judge work. The
+Dispatch turns a frozen slice into fresh builder or verification work. The
 orchestrator chooses the job shape, model tier, worktree, and report path;
 the subagent receives a self-contained task and returns raw evidence.
 
@@ -52,12 +51,14 @@ flags in every command; this table is the source of those pins.
 
 Role strings are `<cli>/<model-spec>[:<effort>]`, with `<cli>` in `{claude,
 codex}`. Resolution order per role is repo `.architect/config`, then user
-`~/.architect/config`, then defaults: orchestrator = the running session; builders is
-codex-first — `codex/best` (gpt-5.5, xhigh) whenever the Codex CLI is on
-PATH, from either harness (a Codex orchestrator trivially satisfies this);
-if the orchestrator is Claude Code and Codex is absent, builders =
-`claude/tier-down` (Sonnet at high). Flat `key = value` lines are the
-supported format for role keys. Unknown keys warn and never fail.
+`~/.architect/config`, then defaults: orchestrator = the running session;
+builders = `claude/tier-down` (Sonnet at high) as Claude-native Agent-tool
+jobs — the `architect-builder` def preloads the `tdd` and `codebase-design`
+stage skills via its `skills:` field, and the model is passed per invocation
+from the alias table (config-raisable, e.g. `builders = claude/best`). The
+codex backend (`builders = codex/best`) is the config-selected alternative;
+its dispatch path in the sections below is unchanged. Flat `key = value`
+lines are the supported format for role keys. Unknown keys warn and never fail.
 
 Optional dispatch-rules lines route task classes to a builder tier:
 
@@ -71,10 +72,10 @@ when broad ambiguous refactor -> codex/best:xhigh # deeper search and edit budge
 ```
 
 Format: `when <task-class description> -> <cli>/<model-spec>[:<effort>] # why`.
-The trailing reason is optional but preferred. Absent file = the codex-first
-default above. Absent dispatch rules = the codex-first default. A matching
-rule is still a judgment aid; the orchestrator records which rule was used
-and may override it with a reason recorded on the issue.
+The trailing reason is optional but preferred. Absent file = the Claude-native
+default above. Absent dispatch rules = the same default. A matching rule is
+still a judgment aid; the orchestrator records which rule was used and may
+override it with a reason recorded on the issue.
 
 Builder speed default: when the resolved builders backend is Codex under
 ChatGPT auth, every builder `codex exec` appends the Fast-mode pins
@@ -82,11 +83,11 @@ ChatGPT auth, every builder `codex exec` appends the Fast-mode pins
 inference (gpt-5.5 at 2.5x credit burn), never a tier change. Verify at the
 intake canary; API-key auth cannot use Fast mode — drop the two pins and
 record the substitution on the tracking issue (no silent fallback). The
-default is builder-only; judges and the monitor never carry the Fast pins.
+default is builder-only; verification subagents and the monitor never carry the Fast pins.
 
-Configured builders CLI absent at preflight -> fall back per the codex-first
-default (on Claude Code without Codex: `claude/tier-down`) and write one
-tracking-issue comment naming requested vs substituted. Cross-family
+Configured builders CLI absent at preflight -> fall back to the Claude-native
+default (`claude/tier-down`) and write one tracking-issue comment naming
+requested vs substituted. Cross-family
 review backend absent -> run review in a fresh same-CLI context and log the
 same-family bias caveat. Never hard-fail on model availability alone. Tier is
 fixed at decomposition by config plus dispatch rules and never moves because a
@@ -98,7 +99,7 @@ retry-at-a-different-tier job (see `loop.md` "## Failure ladder").
 | | Claude Code (CLI + Desktop) | Codex (CLI + app) |
 |---|---|---|
 | Builder | Agent tool with `.claude/agents/architect-builder.md`; `disallowedTools` denies `Bash(git commit *)` and `Bash(git push *)`; `isolation: worktree`; `background: true`; model may be passed per invocation from the alias table. On the desktop app, the harness auto-creates the agent's isolation worktree (`.claude/worktrees/agent-<id>`) and its branch — integrate from that branch. On the CLI, spawns have been observed to run UNISOLATED in the orchestrator's checkout despite `isolation: worktree` frontmatter (D11) — pass isolation explicitly per invocation if supported, and never run two Claude-backend builder jobs concurrently unless each is verified to have its own worktree (`git worktree list` after spawn). In all cases, never pre-create a job worktree for Claude-backend jobs (a pre-made one is ignored); do not use `.architect/wt/<run>/<slice>-<NN>` (that pattern is Codex-backend only, below). | `spawn_agent` with defensive framing: "Your task is: ..."; worktree created by the orchestrator via git; use `/goal` semantics for persistent job completion. |
-| Judge | Agent tool with `.claude/agents/architect-judge.md`; dispatch synchronously with `run_in_background: false` so the verdict is the tool result; read-only tools plus Bash for check commands; the resolved builders model passed per invocation (the def's `model: inherit` is only the fallback where per-invocation model is unsupported). | Background `codex exec -o <file>` typed-exit path with read-only instructions and the fixed judge template; the process exit wakes the loop. |
+| Verification (optional, read-only) | Agent tool with `.claude/agents/architect-judge.md` (read-only verification def); dispatch synchronously with `run_in_background: false` so the result is the tool result; read-only tools plus Bash for check commands; the resolved builders model passed per invocation (the def's `model: inherit` is only the fallback where per-invocation model is unsupported). | Background `codex exec -o <file>` typed-exit path with read-only instructions and a RETIRED verification template below when applicable; the process exit wakes the loop. |
 | Monitor | Script watchdog (`watchdog.ps1` on Windows, `watchdog.sh` on POSIX) when the orchestrator can run background processes and receive exit notifications; LLM fallback template only otherwise. | Script watchdog (`watchdog.ps1` on Windows, `watchdog.sh` on POSIX) when background process exits wake the orchestrator; LLM fallback template only otherwise and it counts as one of the 6 `max_threads`. |
 | Parallelism | Background subagents; permission prompts surface to the main session. | Native subagents, `max_threads` 6, `max_depth` 1 (root session is depth 0; a spawned child may not spawn further — no nested orchestrators, the orchestrator dispatches builders directly), `wait_agent` for completion (the live collab event stream names the underlying tool call `wait`, not `wait_agent` — evidence: v4-codex CG4 architect-run canary `events.jsonl`). |
 | Review (high-stakes) | `codex review --base` when Codex is installed; otherwise a fresh same-CLI subagent with bias caveat. | `/review` / `review_model`; Claude reviewer when installed. |
@@ -106,7 +107,7 @@ retry-at-a-different-tier job (see `loop.md` "## Failure ladder").
 
 D9 note: the desktop harness strips the Bash tool from spawned subagents by
 name; both agent defs now carry `PowerShell` as the desktop-safe executor
-(still padded interior per the position guard above). Job and judge reports
+(still padded interior per the position guard above). Job and verification reports
 must name which executor — Bash or PowerShell — ran each check command.
 
 D12 note: CLI subagent tool strips have also been observed intermittent and
@@ -118,9 +119,9 @@ cross-family codex judge for shell-dependent checks, plus a fresh headless
 builder in this position records the exact missing tools and its substitute,
 or reports the check BLOCKED — never silently skips a check or invents output.
 
-## C5 judge delegation template
+## C5 judge delegation template (RETIRED)
 
-The orchestrator must send this template as-is except for replacing placeholders. It must not add slice-specific prose, encouragement, summaries, or interpretation. Judge intent context is pointer-only: frozen check file, spec pointer, job report, and `docs/jobs/<run>/<issue-slug>-rulings.md` (orchestrator-owned, append-only; absent = no post-freeze rulings).
+RETIRED (human ruling 2026-07-06, spec `## Review architecture`): the per-issue intent judge is out of the loop — the check-runner and the closing cohesion review are the only graders; this template is kept for OPTIONAL read-only verification dispatches (cross-model or human-requested), never the normal DONE path. When used, the orchestrator must send this template as-is except for replacing placeholders. It must not add slice-specific prose, encouragement, summaries, or interpretation. Verification intent context is pointer-only: frozen check file, spec pointer, job report, and `docs/jobs/<run>/<issue-slug>-rulings.md` (orchestrator-owned, append-only; absent = no post-freeze rulings).
 
 <!-- architect-judge-template:start -->
 ```text
@@ -137,12 +138,14 @@ Batch independent reads (frozen check file, spec, job report, rulings file, chec
 Evidence rules: read the checkrun evidence SUMMARY before intent review. Do not grade RUN items from the evidence file. Re-run exactly ONE graded RUN item and compare the verdicts; any mismatch is automatic INVALID with both outputs quoted. Missing or stale evidence (integrity false or freeze SHA mismatch) is INVALID, never FAIL.
 
 Verdict format: Checks integrity: PASS | FAIL | INVALID with raw `git diff <freeze-sha>..HEAD -- docs/checks/`; Diff vs intent: PASS | FAIL | INVALID with file:line evidence; Spot-check: PASS | FAIL | INVALID with item and both quoted outputs; Slice verdict: PASS | FAIL | INVALID with one decisive reason.
+
+When the verdict is complete, deliver it via SendMessage to main; do not end the session without sending it.
 ```
 <!-- architect-judge-template:end -->
 
-## Codex judge delegation template
+## Codex judge delegation template (RETIRED)
 
-The orchestrator must send this template as-is except for replacing the check file path, freeze SHA, branch, worktree note, and checkrun evidence file path. It must not add slice-specific prose, encouragement, summaries, or interpretation.
+RETIRED with the C5 template above (same ruling): kept for OPTIONAL read-only verification dispatches on the codex backend, never the normal DONE path. When used, the orchestrator must send this template as-is except for replacing the check file path, freeze SHA, branch, worktree note, and checkrun evidence file path. It must not add slice-specific prose, encouragement, summaries, or interpretation.
 
 <!-- architect-codex-judge-template:start -->
 ```text
@@ -173,11 +176,13 @@ Example line: ``- RUN: `git grep -F -c "needle" -- path/to/file.md` -> exit:0 ma
 
 Evidence contains per-item `expected:` and `verdict:` lines, then `CHECKRUN SUMMARY: run_items=<n> pass=<n> fail=<n>`.
 Typed exits: 0 = all RUN items pass; 2 = any RUN item fails; 5 = error, no partial evidence file left behind.
-Launch pattern: write the runner config JSON — fields `check_file`, `workdir`, `freeze_sha`, `evidence_out`, `executor` (`powershell`|`bash`), `max_output_lines` (default 60) — then run `skills/architect/check-runner.ps1 -Config <path>` or `check-runner.sh <path>` in the background and commit `docs/jobs/<run>/<issue-slug>-checkrun.md` before judge dispatch on exit 0. Exit 2 routes to the failure ladder with no judge dispatch; `loop.md` owns the full rule.
+Launch pattern: write the runner config JSON — fields `check_file`, `workdir`, `freeze_sha`, `evidence_out`, `executor` (`powershell`|`bash`), `max_output_lines` (default 60) — then run `skills/architect/check-runner.ps1 -Config <path>` or `check-runner.sh <path>` in the background; on exit 0 commit `docs/jobs/<run>/<issue-slug>-checkrun.md`, then merge through postflight. Exit 2 routes to the failure ladder; `loop.md` owns the full rule.
 
 ## Scout dispatch
 
 Dispatch one scout during intake when the run needs a code map. The scout uses the resolved builders model and job shape `scout`, read-only except its single write: the orchestrator names the output path, the scout writes the map there, and the orchestrator commits it at `docs/runs/<run>/map.md`.
+
+Map expiry: the map is planning-time input only and expires at the run's first merge. The spec and decomposition read it; builders never receive it — issues carry change-skeletons and interface contract blocks instead, and no dispatch block cites the map.
 
 ```text
 You are a read-only code scout. Output path: <docs/runs/<run>/map.md>.
@@ -185,27 +190,6 @@ Return <= ~2,500 tokens. No recommendations.
 Include only anchored entries: key modules/files; load-bearing types/function signatures; conventions/patterns; testing seams; gotchas.
 Every entry must carry a real file:line anchor. If a requested category is absent, write `NOT FOUND: <category> - <searched paths>`. No implementation plan, no edits beyond the output path.
 ```
-
-## Stress-test delegation template
-
-The orchestrator must send this template as-is except for replacing placeholders. It must not add slice-specific prose, encouragement, summaries, or interpretation.
-
-<!-- architect-stress-test-template:start -->
-```text
-Draft check file path: <docs/checks/<run>/<slice>.md>
-Branch: <branch>
-Issue bodies: <pasted issue bodies for this plan>
-
-Grill clause: every mechanical check MUST use `- RUN:` form with a `->` expectation; a RUN item without an expectation is a check defect.
-
-Task: try to falsify this draft. Execute each check command against the current tree, verify every referenced path/SHA/pointer resolves, attack each acceptance criterion and pasted issue bodies against the spec for contradictions and non-falsifiability, including patterns that collide with repo realities (e.g. a grep pattern matching the repo's own name), and flag any assumption not evidenced in the repo.
-For every file a job deletes or renames, grep the whole repo for references and verify the owning job's boundary covers them or a dependency edge orders the fix.
-For every NEW artifact path a job will create, run `git check-ignore <path>` and flag the plan if ignored.
-If a run map exists, sample map entries and verify each file:line anchor resolves; a dangling anchor is a check defect.
-
-Defect report format: `<check id or clause>: FALSIFIED | HOLDS` with command output or file:line evidence; plan findings; assumptions not evidenced.
-```
-<!-- architect-stress-test-template:end -->
 
 ## Codex backend from a Claude orchestrator
 
@@ -376,13 +360,14 @@ gh issue comment <n> --body "STATUS: <the report's exact status line>"
 ```
 
 Orchestrator comments on the sub-issue: rulings, blocker answers, and the
-judge verdict + decisive reason at close. The batched escalation digest goes
-on the tracking issue only, never on a sub-issue.
+checkrun result + decisive reason at close. The closing review's verdict +
+diffstat and the batched escalation digest go on the tracking issue only.
 
 ```bash
 gh issue comment <n> --body "RULING: <decision> - <one line why>"
 gh issue comment <n> --body "ANSWER: <blocker answer>"
-gh issue comment <n> --body "VERDICT: PASS|FAIL|INVALID - <decisive reason>"
+gh issue comment <n> --body "CHECKRUN: exit <0|2> <CHECKRUN SUMMARY line> | POSTFLIGHT: <line> - <decisive reason>"
+gh issue comment <tracking-issue-n> --body "REVIEW: <closing code-review verdict + diffstat>"
 gh issue comment <tracking-issue-n> --body "DIGEST: <batched escalations + run summary>"
 ```
 
@@ -494,7 +479,7 @@ everything else.
 ## Orchestrator shell hygiene
 
 Use absolute paths in every orchestrator shell command. Write dispatch,
-judge, and config blocks with file tools, never heredocs. Never rely on a
+verification, and config blocks with file tools, never heredocs. Never rely on a
 persisted cwd across commands; run #30 lost three commands to current-directory
 drift before this rule was written down.
 

@@ -28,7 +28,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SKILLS = ROOT / "skills"
 MAX_DESC = 1024
-ARCHITECT_SKILL_TEXT_MAX_NON_BLANK = 1100
+# s9 ruling (docs/jobs/skill-library/s9-validator-evals-rulings.md): BOTH
+# frontmatter caps hold - `description` alone <= MAX_DESC (1024, Codex
+# loader limit) AND `description` + `when_to_use` combined <= 1536 (Claude
+# skill-listing cap).
+MAX_DESC_PLUS_WHEN_TO_USE = 1536
+ARCHITECT_SKILL_TEXT_MAX_NON_BLANK = 989
 ARCHITECT_RESEARCH_TEXT_MAX_NON_BLANK = 500
 SKILL_BODY_TOKEN_PROXY_MAX = 5_000
 SKILL_BODY_TOKEN_PROXY_FACTOR = 1.33
@@ -51,6 +56,101 @@ REQUIRED_SIBLINGS = {
         "tracker.md",
     ],
     "architect-research": ["tactics.md"],
+}
+# s9 library inventory: the seven stage skills shipped by the skill-library
+# run, each mapped to the sibling files its SKILL.md relies on.
+LIBRARY_SKILLS = {
+    "codebase-design": ["DEEPENING.md", "DESIGN-IT-TWICE.md"],
+    "to-spec": [],
+    "to-issues": [],
+    "frozen-checks": [],
+    "tdd": ["tests.md", "mocking.md"],
+    "adversarial-review": [],
+    "code-review": [],
+}
+# s9 per-skill non-blank-line budgets, caps named in each stage skill's
+# frozen check (docs/checks/skill-library/). The architect entry (SKILL.md
+# <= 220) is the post-s8 re-baseline; the pre-existing five-file combined
+# guard (ARCHITECT_SKILL_TEXT_MAX_NON_BLANK) was left unchanged through s9-s12
+# because check_design_guard_cap pins its cap to the number stated in
+# DESIGN.md, and no build slice was scoped to touch that doc sentence.
+# docs-finish (issue #116) re-baselined both together to the measured
+# post-s12 combined total (989 non-blank lines across the five files).
+LIBRARY_LINE_BUDGETS = {
+    "codebase-design": (("SKILL.md", "DEEPENING.md", "DESIGN-IT-TWICE.md"), 240),
+    "to-spec": (("SKILL.md",), 100),
+    "to-issues": (("SKILL.md",), 110),
+    "frozen-checks": (("SKILL.md",), 100),
+    "tdd": (("SKILL.md", "tests.md", "mocking.md"), 220),
+    "adversarial-review": (("SKILL.md",), 110),
+    "code-review": (("SKILL.md",), 110),
+    "architect": (("SKILL.md",), 220),
+}
+# License ruling (docs/spec/skill-library.md `## Open human decisions`):
+# adapted skills carry a one-line attribution naming the source repo + MIT.
+# s11 (`## Wording policy`) made Pocock's text the baseline for five skills
+# and added the attribution to to-spec, to-issues, and code-review; the
+# guard covers all five (was two, a pre-s11 baseline - closing review fix).
+LIBRARY_ATTRIBUTION = "Adapted from mattpocock/skills (MIT)"
+LIBRARY_ATTRIBUTED_SKILLS = (
+    "codebase-design",
+    "tdd",
+    "to-spec",
+    "to-issues",
+    "code-review",
+)
+# s9 glossary cohesion lint scope: the seven stage-skill SKILL.md files plus
+# skills/architect/SKILL.md. Sibling reference files (tdd/tests.md,
+# tdd/mocking.md, codebase-design/DEEPENING.md, ...) are adapted Pocock
+# source material and stay out of scope - the lint must not false-positive
+# on quoted source material (spec, `Validation strategy`).
+GLOSSARY_LINT_SKILLS = tuple(LIBRARY_SKILLS) + ("architect",)
+# Lines that NAME a banned substitute while banning it (the glossary's own
+# ban lists) are mentions, not uses-as-terms; without this exemption the
+# lint would fail on its own definition text at codebase-design/SKILL.md:24-25,
+# to-spec/SKILL.md:22-23, to-issues/SKILL.md:28-29,
+# adversarial-review/SKILL.md:77-78, and code-review/SKILL.md:105-106.
+GLOSSARY_BAN_LIST_MENTIONS = (
+    "component/service/boundary/API",
+    "component, service, boundary, or API",
+    "service, boundary, or API",
+    "never substitute component",
+    "task or ticket for issue",
+    "task/ticket for issue",
+)
+# Fixed phrases in which boundary/boundaries is not a module/interface
+# substitute. The first three come from the spec; MAY TOUCH / MUST NOT
+# TOUCH and `Boundary`/`Boundaries` headings are exempted line-level in
+# check_glossary_cohesion. The rest are documented exemptions found on
+# already-merged skill text (skill text is out of s9's boundary; each is
+# reported as a finding in docs/jobs/skill-library/s9-validator-evals-01.md):
+#   "boundary amendment"          - factory glossary term, defined in the
+#                                   Ruling entry (codebase-design/SKILL.md:54;
+#                                   used at architect/SKILL.md:187).
+#   "block boundary"              - process-phase edge, not a module
+#                                   substitute (architect/SKILL.md:52).
+#   "finish boundary"             - process-phase edge (architect/SKILL.md:201).
+#   "public boundary you test at" - tdd seam-definition apposition; the same
+#                                   sentence resolves it to "the interface"
+#                                   (tdd/SKILL.md:15).
+#   "owning job's boundary"       - the MAY TOUCH / MUST NOT TOUCH file-set
+#                                   concept the spec itself exempts
+#                                   (adversarial-review/SKILL.md:51).
+GLOSSARY_BOUNDARY_FIXED_PHRASES = (
+    "system boundaries",
+    "boundary amendment",
+    "block boundary",
+    "finish boundary",
+    "public boundary you test at",
+    "owning job's boundary",
+)
+GLOSSARY_BOUNDARY_RE = re.compile(r"\b[Bb]oundar(?:y|ies)\b")
+GLOSSARY_BOUNDARY_HEADING_RE = re.compile(r"^#{1,6}\s+Boundar(?:y|ies)\s*$")
+# Case-sensitive word matches per the spec; each maps to the glossary term
+# the substitute displaces.
+GLOSSARY_BANNED_WORDS = {
+    "component": ("module or interface", re.compile(r"\bcomponent\b")),
+    "ticket": ("issue", re.compile(r"\bticket\b")),
 }
 ARCHITECT_HANDOFF_FREE_FILES = [
     SKILLS / "architect" / "SKILL.md",
@@ -119,6 +219,7 @@ def check_frontmatter(skill_dir: Path) -> None:
     if fm.get("name") != skill_dir.name:
         errors.append(f"{skill_dir.name}: frontmatter name != directory name")
     desc = fm.get("description")
+    flat = ""
     if not desc:
         errors.append(f"{skill_dir.name}: frontmatter has no description")
     else:
@@ -128,6 +229,14 @@ def check_frontmatter(skill_dir: Path) -> None:
                 f"{skill_dir.name}: description {len(flat)} chars > {MAX_DESC} "
                 "(Codex refuses to load the skill)"
             )
+    flat_when = re.sub(r"\s+", " ", fm.get("when_to_use", "")).strip(" >")
+    combined = len(flat) + len(flat_when)
+    if combined > MAX_DESC_PLUS_WHEN_TO_USE:
+        errors.append(
+            f"{skill_dir.name}: description + when_to_use {combined} chars > "
+            f"{MAX_DESC_PLUS_WHEN_TO_USE} (Claude skill-listing cap; both caps "
+            "per docs/jobs/skill-library/s9-validator-evals-rulings.md)"
+        )
 
 
 def check_siblings(skill_dir: Path) -> None:
@@ -318,7 +427,6 @@ def check_check_runner_dispatch_contract() -> None:
     for marker in (
         "architect-judge-template",
         "architect-codex-judge-template",
-        "architect-stress-test-template",
         "architect-monitor-fallback-template",
     ):
         start = f"<!-- {marker}:start -->"
@@ -1043,6 +1151,155 @@ def check_retired_loop_terms() -> None:
             errors.append(f"{path.relative_to(ROOT)}: contains retired LOOP line")
 
 
+def check_library_inventory() -> None:
+    """s9: each stage skill in the library exists with a well-formed SKILL.md
+    (name matches the dir, nonempty description) and its required sibling
+    files (docs/checks/skill-library/s9-validator-evals.md)."""
+    for name, siblings in LIBRARY_SKILLS.items():
+        skill_dir = SKILLS / name
+        skill_md = skill_dir / "SKILL.md"
+        if not skill_md.exists():
+            errors.append(f"skills/{name}: missing SKILL.md (library inventory)")
+            continue
+        fm = frontmatter(skill_md)
+        if fm is None:
+            errors.append(f"skills/{name}: SKILL.md has no frontmatter block (library inventory)")
+            continue
+        if fm.get("name") != name:
+            errors.append(f"skills/{name}: frontmatter name != directory name (library inventory)")
+        if not fm.get("description", "").strip():
+            errors.append(f"skills/{name}: frontmatter has no description (library inventory)")
+        for sibling in siblings:
+            if not (skill_dir / sibling).exists():
+                errors.append(f"skills/{name}: required library file {sibling} missing")
+
+
+def check_library_line_budgets() -> None:
+    """s9 per-skill budgets: caps from each stage skill's frozen check; the
+    architect entry is the post-s8 SKILL.md re-baseline (see the
+    LIBRARY_LINE_BUDGETS comment for why the five-file combined guard keeps
+    its DESIGN.md-pinned cap)."""
+    for name, (files, cap) in LIBRARY_LINE_BUDGETS.items():
+        total = 0
+        complete = True
+        for fname in files:
+            path = SKILLS / name / fname
+            if not path.exists():
+                errors.append(f"skills/{name}/{fname}: missing (required for library line budget)")
+                complete = False
+                continue
+            total += non_blank_line_count(path)
+        if complete and total > cap:
+            listing = " + ".join(files)
+            errors.append(
+                f"skills/{name}: non-blank line count {total} ({listing}) "
+                f"exceeds {cap} (frozen per-skill cap, docs/checks/skill-library/)"
+            )
+
+
+def check_library_attribution() -> None:
+    for name in LIBRARY_ATTRIBUTED_SKILLS:
+        path = SKILLS / name / "SKILL.md"
+        if not path.exists():
+            errors.append(f"skills/{name}/SKILL.md: missing (required for attribution check)")
+            continue
+        if LIBRARY_ATTRIBUTION not in read_text(path):
+            errors.append(
+                f"skills/{name}/SKILL.md: missing attribution "
+                f"'{LIBRARY_ATTRIBUTION}' (adapted skill; license ruling in "
+                "docs/spec/skill-library.md)"
+            )
+
+
+def check_glossary_cohesion() -> None:
+    """s9 glossary cohesion lint: the codebase-design glossary bans
+    component/service/boundary/API for module/interface and task/ticket for
+    issue. This lint flags the banned substitutes that grep cleanly -
+    case-sensitive word matches for `component` and `ticket`, and
+    `boundary`/`boundaries` outside fixed phrases - across the eight files
+    in GLOSSARY_LINT_SKILLS. Exemption rationale lives on the
+    GLOSSARY_BAN_LIST_MENTIONS and GLOSSARY_BOUNDARY_FIXED_PHRASES
+    constants; keep the list conservative and documented."""
+    for name in GLOSSARY_LINT_SKILLS:
+        path = SKILLS / name / "SKILL.md"
+        if not path.exists():
+            errors.append(f"skills/{name}/SKILL.md: missing (required for glossary lint)")
+            continue
+        rel = path.relative_to(ROOT)
+        for lineno, line in enumerate(read_text(path).splitlines(), start=1):
+            if any(mention in line for mention in GLOSSARY_BAN_LIST_MENTIONS):
+                continue
+            for word, (term, word_re) in GLOSSARY_BANNED_WORDS.items():
+                if word_re.search(line):
+                    errors.append(
+                        f"{rel}:{lineno}: banned glossary substitute '{word}' "
+                        f"(codebase-design glossary: use {term})"
+                    )
+            if "MAY TOUCH" in line or "MUST NOT TOUCH" in line:
+                continue
+            if GLOSSARY_BOUNDARY_HEADING_RE.match(line):
+                continue
+            scrubbed = line
+            for phrase in GLOSSARY_BOUNDARY_FIXED_PHRASES:
+                scrubbed = scrubbed.replace(phrase, "")
+            if GLOSSARY_BOUNDARY_RE.search(scrubbed):
+                errors.append(
+                    f"{rel}:{lineno}: 'boundary' outside its fixed phrases "
+                    "(codebase-design glossary: use module, interface, or seam)"
+                )
+
+
+# Cross-skill pointer integrity (docs/spec/skill-library.md `## Validation
+# strategy`; closing-review fix - no slice shipped it). A pointer is a
+# backticked or bare skill-file name followed by a backticked or quoted
+# `##`/`###` heading, the form the stage skills use to cite orchestrator
+# sections (e.g. `skills/architect/SKILL.md` `### 2. Spec Approval`). The
+# regex is deliberately conservative: filename-then-heading only, so prose
+# that names a heading without a file (or vice versa) is never flagged.
+CROSS_SKILL_POINTER_RE = re.compile(
+    r"(?:`(?P<path>[\w./-]+\.md)`"
+    r"|(?<![\w`/])(?P<bare>(?:SKILL|dispatch|loop|tracker|research|tactics)\.md))"
+    r"(?:'s)?\s+"
+    r"(?:`(?P<tick>#{2,3} [^`]+?)`|\"(?P<quote>#{2,3} [^\"]+?)\")"
+)
+
+
+def normalize_heading(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def check_cross_skill_pointers() -> None:
+    heading_cache: dict[Path, set[str]] = {}
+
+    def headings_of(target: Path) -> set[str]:
+        if target not in heading_cache:
+            heading_cache[target] = {
+                normalize_heading(line)
+                for line in read_text(target).splitlines()
+                if re.match(r"#{1,6}\s", line)
+            }
+        return heading_cache[target]
+
+    for path in sorted(SKILLS.rglob("*.md")):
+        rel = path.relative_to(ROOT)
+        for m in CROSS_SKILL_POINTER_RE.finditer(read_text(path)):
+            name = m.group("path") or m.group("bare")
+            target = ROOT / name if "/" in name else path.parent / name
+            heading = normalize_heading(m.group("tick") or m.group("quote"))
+            if not target.exists():
+                errors.append(
+                    f"{rel}: pointer names missing file {name} "
+                    f"(cited section: {heading})"
+                )
+                continue
+            if heading not in headings_of(target):
+                errors.append(
+                    f"{rel}: pointer `{name}` -> '{heading}' does not match "
+                    "any heading in the target (cross-skill pointer "
+                    "integrity, docs/spec/skill-library.md Validation strategy)"
+                )
+
+
 def main() -> int:
     skill_dirs = sorted(d for d in SKILLS.iterdir() if d.is_dir())
     if not skill_dirs:
@@ -1079,6 +1336,11 @@ def main() -> int:
     check_skill_body_token_budgets()
     check_reference_tocs()
     check_design_guard_cap()
+    check_library_inventory()
+    check_library_line_budgets()
+    check_library_attribution()
+    check_glossary_cohesion()
+    check_cross_skill_pointers()
     if errors:
         print(f"FAIL - {len(errors)} problem(s):")
         for e in errors:

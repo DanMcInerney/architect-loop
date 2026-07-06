@@ -14,7 +14,7 @@ The loop is one orchestrator session that runs the factory to completion after
 the spec approval approves the issue plan. Tracker issues carry coordination
 state; git carries specs and frozen checks. The orchestrator dispatches the
 ready issues, sleeps, and wakes only on an event.
-Parallel rules: harness-native judge subagents (Claude Agent tool) dispatch synchronously with `run_in_background: false` so the verdict returns as the tool result; codex-backend judges keep the background `codex exec -o <file>` typed-exit path, whose process exit wakes the loop; the ready-issue frontier recomputes on EVERY merge, not at wave boundaries; independent orchestrator bookkeeping batches into parallel calls; merges, synthesis, and the stress-test stay serial by design.
+Parallel rules: harness-native result-bearing subagents (Claude Agent tool) dispatch synchronously with `run_in_background: false` so the result returns as the tool result; codex-backend subagents keep the background `codex exec -o <file>` typed-exit path, whose process exit wakes the loop; a job END (DONE or BLOCKED) is a dispatch event that recomputes the full ready frontier and dispatches every ready issue into a free slot before grading (Factory block procedure step 3); merges recompute the frontier too, since a merge can unblock issues no END could; independent orchestrator bookkeeping batches into parallel calls; merges, synthesis, and the pre-freeze `adversarial-review` stress pass stay serial by design.
 
 ## Factory block procedure
 
@@ -25,7 +25,7 @@ Parallel rules: harness-native judge subagents (Claude Agent tool) dispatch sync
 2. **Sleep.** Zero orchestrator work between dispatch and the next event —
    no polling.
 3. **Wake on one event**, exactly one of:
-   - **Job DONE.** Ordering: write the runner config; launch `check-runner.ps1` or `check-runner.sh` as a background process whose typed exit is the next wake. Exit 0: commit the checkrun artifact `docs/jobs/<run>/<issue-slug>-checkrun.md`, then dispatch the fixed intent judge template from `dispatch.md` by backend; Claude Agent-tool judges run synchronously with `run_in_background: false`, while codex-backend judges run the background `codex exec -o <file>` typed-exit path. Exit 2: commit failure evidence and enter the Failure ladder without judge dispatch. Exit 5: stay on the recorded error rail. After judge PASS, run `postflight.ps1` or `postflight.sh`: exit 0 `POSTFLIGHT: OK` means merge completed with clean touch-set evidence; exit 2 `POSTFLIGHT: VIOLATION` is automatic FAIL evidence; exit 3 `POSTFLIGHT: CONFLICT` is the decomposition-failure rail; exit 5 `POSTFLIGHT: ERROR` falls back to the recorded manual integration sequence in `dispatch.md`. Exception: after the closing review is applied or skipped, the finish-boundary docs job skips the judge (human-ruled; see SKILL.md `### 5. Finish`) and the orchestrator grades its checkrun evidence directly before merge.
+   - **Job DONE.** A job END (DONE or BLOCKED) is a dispatch event: before grading the finished job, recompute the full ready frontier — newly unblocked issues AND previously-ready issues queued beyond the concurrency cap — and dispatch every ready issue into a free slot; one completion may launch multiple builders. Merges still recompute the frontier too, since a merge can unblock issues no END could. Ordering: after that recompute-and-dispatch, write the runner config; launch `check-runner.ps1` or `check-runner.sh` as a background process whose typed exit is the next wake. Exit 0: commit the checkrun artifact `docs/jobs/<run>/<issue-slug>-checkrun.md`, post the checkrun result on the issue, then run `postflight.ps1` or `postflight.sh` — no per-issue model review exists on this path: exit 0 `POSTFLIGHT: OK` means merge completed with clean touch-set evidence; exit 2 `POSTFLIGHT: VIOLATION` is automatic FAIL evidence; exit 3 `POSTFLIGHT: CONFLICT` is the decomposition-failure rail; exit 5 `POSTFLIGHT: ERROR` falls back to the recorded manual integration sequence in `dispatch.md`. Exit 2: commit failure evidence and enter the Failure ladder. Exit 5: stay on the recorded error rail. The finish-boundary docs job takes the same path (see SKILL.md `### 5. Finish`): the orchestrator grades its checkrun evidence directly before merge.
    - **Job BLOCKED.** A blocker comment on the issue is a completion event.
      Read it, rule an answer, and respawn a fresh builder job on the same
      issue with the answer in its spawn context (see `dispatch.md`
@@ -41,7 +41,7 @@ Parallel rules: harness-native judge subagents (Claude Agent tool) dispatch sync
      protocol, SKILL.md "### 2. Spec Approval"); already resolved is a no-op.
 4. **Recompute the ready issues.** Closing an issue may unblock others;
    recompute and dispatch the next wave.
-5. **Finish boundary.** When build issues close, run the SKILL.md `### 5. Finish` timed-ruling closing review before the docs job: default YES, 5-minute silence applies; YES uses one fresh resolved-orchestrator-model MEDIUM subagent from the factory branch head, reading spec -> `docs/runs/<run>/map.md` -> run diff, editing directly with `docs/checks/` read-only, keeping every graded RUN green, rerunning the full closing checkrun plus named suites, and merging only green review work through postflight. Red review changes are discarded whole and recorded on the digest; verdict plus diffstat is posted on the tracking issue.
+5. **Finish boundary.** When build issues close, run the SKILL.md `### 5. Finish` timed-ruling closing review before the docs job: default YES, 5-minute silence applies; YES uses one fresh resolved-orchestrator-model MEDIUM subagent from the factory branch head running the `code-review` stage skill — review basis spec -> run diff -> published interface contract blocks (the scout map expired at first merge) — editing directly with `docs/checks/` read-only, keeping every graded RUN green, rerunning the full closing checkrun plus named suites, and merging only green review work through postflight. Red review changes are discarded whole and recorded on the digest; verdict plus diffstat is posted on the tracking issue.
 6. **Repeat** until no issues remain open, the closing review/docs finish boundary is handled, then post the escalation digest's end-of-run summary on the tracking issue.
 
 ## Monitor protocol
@@ -53,8 +53,8 @@ the orchestrator rules on the evidence.
 
 Ruling options:
 
-- Exit 0 `WATCHDOG: ALL_DONE` -> proceed to the judging backlog for every
-  report listed by path and byte size.
+- Exit 0 `WATCHDOG: ALL_DONE` -> proceed to the grading backlog (check-runner
+  per report) for every report listed by path and byte size.
 - Exit 2 `WATCHDOG: INTEGRATED` -> benign mid-sweep integration; relaunch the
   watchdog if any jobs remain in flight.
 - Exit 3 `WATCHDOG: STALL` -> run the rescue ladder: inspect the named job,
@@ -69,45 +69,60 @@ detection-only boundary and per-job evidence requirements.
 
 ## Verdict comments
 
-Judgment is recorded on the issue, not in a file. At judgment, one comment is posted on the job's issue with: the check-runner typed summary, checks-integrity verdict, diff-vs-intent verdict, one spot-check result, slice call KILL/CONTINUE, and the decisive reason tied to raw evidence; exact tracker comment format lives in `dispatch.md` "## Issue conventions".
-The judge's intent context is exactly the frozen check file, spec, job report, checkrun evidence file, and `docs/jobs/<run>/<issue-slug>-rulings.md`. The checkrun artifact `docs/jobs/<run>/<issue-slug>-checkrun.md` is committed before judge dispatch. The rulings file is orchestrator-owned, append-only, and committed before judge dispatch; if it is absent, there are no post-freeze rulings. Judge dispatch blocks carry no ruling prose and do not re-grade every RUN item.
-The issue is closed on merge. No verdict comment on an issue means the
+Grading is recorded on the issue, not in a file. At each job close, one comment is posted on the job's issue with: the check-runner typed summary (`CHECKRUN SUMMARY` line plus typed exit), the postflight result, the slice call KILL/CONTINUE, and the decisive reason tied to raw evidence; exact tracker comment format lives in `dispatch.md` "## Issue conventions". The closing cohesion review posts the run-level verdict — findings with file:line evidence, diffstat, and the green-or-discard call — on the tracking issue.
+The checkrun artifact `docs/jobs/<run>/<issue-slug>-checkrun.md` is committed before the merge. The rulings file `docs/jobs/<run>/<issue-slug>-rulings.md` is orchestrator-owned, append-only, and committed before the merge; if it is absent, there are no post-freeze rulings; the closing review reads rulings files rather than thread prose.
+The issue is closed on merge. No checkrun-result comment on an issue means the
 next factory block must not build on it as accepted; the orchestrator may re-run
-judgment with a fresh judge if evidence is missing, but may not fill in a
-verdict from memory.
+the check-runner if evidence is missing, but may not fill in a result from memory.
 
 For ANY backgrounded subagent that goes idle without its expected deliverable,
 use the recovery ladder in order: retrieve its output via the harness task-output
 mechanism; nudge once asking it to deliver the artifact; discard it and respawn
-fresh. The orchestrator never authors a missing verdict.
+fresh. The orchestrator never authors a missing result. The sync-dispatch rule
+(`run_in_background: false`) applies to any result-bearing Claude Agent-tool
+subagent — closing review, scout, adversarial review, optional verification —
+but harnesses have been observed to run such spawns async regardless: an idle
+notification without the deliverable gets exactly one poke requesting delivery
+in the deliverable's fixed format before escalation.
 
-Close-out: after consuming a subagent result or a background process's typed
-exit, stop or close that subagent or shell task in the same turn, batching
-independent close-outs into parallel calls; no polling and no per-close
-commentary. Before postflight, kill lingering codex children of any consumed
-exec; kill any lingering job processes when a job is discarded.
+Close-out: after processing a subagent's final result — verdict, report, or
+fix — release or stop its session in the same turn, batching independent
+close-outs into parallel calls; a lingering idle session is bookkeeping debt
+and can shadow names, so never leave one open once its result is consumed. No
+polling and no per-close commentary. Before postflight, kill lingering codex
+children of any consumed exec; kill any lingering job processes when a job is
+discarded.
 
 ## Failure ladder
 
-First FAIL on an issue: on a judge FAIL, the orchestrator diagnoses from the
-judge's evidence; on check-runner exit 2, where no judge exists on that path, it
-diagnoses from the checkrun evidence file's failing items (not the full diff),
-may fan out researcher agents to inform the diagnosis, fixes
-the input — issue text, missing context, or a forbidden-pattern note — and
-respawns a fresh builder job at the same tier.
-The tier is set once, at decomposition (config plus dispatch rules), and
-never changes because a job failed; a failure is a spec or context problem
-the orchestrator fixes, never a signal to move the tier. Second FAIL on the same
-issue after an orchestrator intervention: re-decompose the issue or escalate it to
-the digest. A merge conflict, including postflight exit 3, is a decomposition
-failure, not a build failure: kill the conflicting job and re-spec; never
-hand-resolve builder conflicts.
+Three rungs on the same issue, ending at a third strike; the tier is set once
+at decomposition (config plus dispatch rules) and never changes because a job
+failed — a failure is a spec, context, or architecture problem the
+orchestrator diagnoses, never a signal to move the tier.
+
+1. First failure: on check-runner exit 2, diagnose from the checkrun evidence
+   file's failing items; on a closing-review finding, diagnose from the
+   finding's file:line evidence (never the full diff). The
+   orchestrator may fan out researcher agents to inform the diagnosis, fixes
+   the input — issue text, missing context, or a forbidden-pattern note — and
+   respawns one fresh fix builder at the same tier with the answer in its
+   spawn context.
+2. Second failure: a fresh builder with a deeper orchestrator diagnosis —
+   re-read the spec and change-skeleton, question the decomposition assumption
+   that failed, and rewrite the issue input before respawning.
+3. Third strike: the orchestrator implements the remainder itself — Hard Rule
+   4's only license. Its work is graded like any builder's: the frozen-check
+   runner and the closing review still pass it; no self-grading in artifacts.
+
+A merge conflict, including postflight exit 3, is a decomposition failure, not
+a build failure: kill the conflicting job and re-spec; never hand-resolve
+builder conflicts.
 
 ## Escalation digest
 
 Batched on the tracking issue instead of interleaved per-job noise:
 
-- completed and failed jobs, with verdicts
+- completed and failed jobs, with checkrun results
 - open blockers and the answers given
 - decisions the approved spec genuinely does not answer
 - foreign sub-issues under the run parent with wrong author or missing run marker
@@ -120,11 +135,11 @@ immediate stop.
 | Situation | Hard stop |
 |---|---|
 | `docs/STOP` exists in the run checkout or primary checkout, or `docs/runs/<run>/STOP` exists | Stop before dispatching the next wave; global stop halts all runs, per-run stop halts only this run and is never committed. |
-| No verdict comment for completed work | Do not build on it as accepted. |
+| No checkrun-result comment for completed work | Do not build on it as accepted. |
 | Builder touched `docs/checks/` | Automatic FAIL for that job. |
 | Foreign sub-issue under the run parent | Never dispatch it; escalate on the tracking-issue digest. |
 | Merge conflict or postflight exit 3 | Decomposition failure: kill the job, re-spec. |
-| Second FAIL on the same issue | Re-decompose or escalate to the digest. |
+| Third strike on the same issue | The orchestrator implements the remainder itself (Hard Rule 4); the frozen-check runner and closing review still grade that work. |
 | Two consecutive KILLs | Stop the factory and ask the human. |
 | Monitor reports an anomaly | Orchestrator rules before any further dispatch on that job. |
 | Blocker collides with a recorded assumption | Ask the human; it is a spec approval decision surfacing late. |
@@ -134,9 +149,9 @@ immediate stop.
 
 ## Context discipline
 
-- Delegate heavy reading to judge, monitor, or builder subagents; the orchestrator
+- Delegate heavy reading to review, monitor, or builder subagents; the orchestrator
   stays thin and never reads a full diff directly.
-- The issue tracker and git are the memory: specs, frozen checks, verdict
+- The issue tracker and git are the memory: specs, frozen checks, checkrun-result
   comments, and job reports carry state across sessions, not the
   conversation.
 - Compact proactively when the harness supports it.
