@@ -55,15 +55,15 @@ glossary exactly — substitution is a defect.
 
 - Read in authority order: `CLAUDE.md`/`AGENTS.md`, `README.md`, architecture
   docs, active spec, `docs/solutions/`, open issues, reports, checks, branches.
-- Load `docs/runs/<run>/manifest.md`; tracker reads stay scoped to the pinned
-  tracking issue and children carrying `<!-- architect-run: <run> -->`.
-  Reconcile tracker against git: issue states, blocked-by edges, ungraded
-  jobs, freeze SHAs, branch heads.
+- Run `skills/architect/ground.ps1|.sh <run>` and rule on its typed exit: 0
+  `GROUND: OK` proceeds — read its `FRONTIER:` line for the ready issues; 2
+  `GROUND: STOP <which>` halts before dispatch; 3 `GROUND: DRIFT <fact>` is a
+  tracker/git disagreement to rule on before continuing; 5 `GROUND: ERROR
+  <why>` is a script/input error to fix. Detection only — it never posts,
+  edits, or decides.
 - Resolve models: `.architect/config`, then `~/.architect/config`, then
   dispatch.md `## Model alias table`. Verification subagents run at the
   builders model; the monitor is a script.
-- Check `docs/STOP` in run and primary checkouts (`git rev-parse
-  --git-common-dir`) plus uncommitted `docs/runs/<run>/STOP` before dispatch.
 
 ### 1. Intake
 

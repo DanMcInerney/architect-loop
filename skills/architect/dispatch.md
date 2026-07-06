@@ -542,6 +542,12 @@ comment.
 ```text
 Execute the architect spec below. Operating rules:
 
+FIRST ACTION - run `bash skills/architect/ffcheck.sh <dispatch-head-sha>`
+(PowerShell: `powershell -File skills/architect/ffcheck.ps1 <dispatch-head-sha>`)
+from the worktree root and rule on its typed exit before any other step: 0
+`FFCHECK: OK` proceed, 2 `FFCHECK: DIVERGED` stop and report, 5
+`FFCHECK: ERROR` stop and report.
+
 PHASE 0 - Before any code: reply with your plan and EVERY disagreement you have
 with this spec, with reasons, citing real files in this repo. Silent compliance
 is a failure. Silent scope additions are a failure. If you have no
