@@ -58,7 +58,8 @@ REQUIRED_SIBLINGS = {
     "architect-research": ["tactics.md"],
 }
 # s9 library inventory: the seven stage skills shipped by the skill-library
-# run, each mapped to the sibling files its SKILL.md relies on.
+# run, each mapped to the sibling files its SKILL.md relies on. Also carries
+# the architect-fast loop skill.
 LIBRARY_SKILLS = {
     "codebase-design": ["DEEPENING.md", "DESIGN-IT-TWICE.md"],
     "to-spec": [],
@@ -68,6 +69,7 @@ LIBRARY_SKILLS = {
     "adversarial-review": [],
     "final-review": [],
     "integrate": [],
+    "architect-fast": [],
 }
 # s9 per-skill non-blank-line budgets, caps named in each stage skill's
 # frozen check (docs/checks/skill-library/). The architect entry (SKILL.md
@@ -87,6 +89,7 @@ LIBRARY_LINE_BUDGETS = {
     "final-review": (("SKILL.md",), 110),
     "integrate": (("SKILL.md",), 90),
     "architect": (("SKILL.md",), 220),
+    "architect-fast": (("SKILL.md",), 160),
 }
 # License ruling (docs/spec/skill-library.md `## Open human decisions`):
 # adapted skills carry a one-line attribution naming the source repo + MIT.

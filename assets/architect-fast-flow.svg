@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 880" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker>
+  </defs>
+  <rect width="1000" height="880" fill="#ffffff"/>
+
+  <text x="45" y="44" font-size="20" font-weight="700" fill="#0f172a">/architect-fast</text>
+  <text x="215" y="44" font-size="12" fill="#64748b">spec → approve → issues (≤3) → builders → orchestrator review + fixes → integrate → PR</text>
+
+  <!-- spine arrows (single-column section) -->
+  <line x1="380" y1="126" x2="380" y2="168" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
+  <line x1="380" y1="232" x2="380" y2="274" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
+  <line x1="380" y1="338" x2="380" y2="380" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
+
+  <!-- 1 SPEC -->
+  <rect x="230" y="70" width="300" height="56" rx="10" fill="#1f2937"/>
+  <text x="380" y="93" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">SPEC</text>
+  <text x="380" y="111" font-size="10.5" fill="#e2e8f0" text-anchor="middle">orchestrator writes it, via to-spec · ≤3 questions</text>
+  <text x="560" y="90" font-size="11" fill="#475569">same materiality test as /architect, fewer questions</text>
+  <text x="560" y="104" font-size="11" fill="#475569">expected at small scale — no scout, no adversarial review</text>
+
+  <!-- 2 APPROVE -->
+  <rect x="230" y="176" width="300" height="56" rx="10" fill="#d97706"/>
+  <text x="380" y="199" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">APPROVE</text>
+  <text x="380" y="217" font-size="10.5" fill="#fef3c7" text-anchor="middle">the one human step · 5-min auto-approve on silence</text>
+  <text x="560" y="196" font-size="11" fill="#475569">identical to /architect: in-session or an APPROVE</text>
+  <text x="560" y="210" font-size="11" fill="#475569">comment; irreversible silence still defaults safe</text>
+
+  <!-- 3 ISSUES (<=3) -->
+  <rect x="230" y="282" width="300" height="56" rx="10" fill="#1f2937"/>
+  <text x="380" y="305" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">ISSUES (≤3)</text>
+  <text x="380" y="323" font-size="10.5" fill="#e2e8f0" text-anchor="middle">file-disjoint slices · acceptance criteria, not a check path</text>
+  <text x="560" y="302" font-size="11" fill="#475569">no change-skeleton required, no check-runner path —</text>
+  <text x="560" y="316" font-size="11" fill="#475569">over the size ceiling, the skill stops and recommends /architect</text>
+
+  <!-- 4 BUILDERS (3 in parallel) -->
+  <rect x="182" y="388" width="118" height="56" rx="10" fill="#0d9488"/>
+  <rect x="321" y="388" width="118" height="56" rx="10" fill="#0d9488"/>
+  <rect x="459" y="388" width="118" height="56" rx="10" fill="#0d9488"/>
+  <text x="241" y="411" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="middle">BUILDER</text>
+  <text x="380" y="411" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="middle">BUILDER</text>
+  <text x="518" y="411" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="middle">BUILDER</text>
+  <text x="241" y="429" font-size="9.5" fill="#ccfbf1" text-anchor="middle">own worktree</text>
+  <text x="380" y="429" font-size="9.5" fill="#ccfbf1" text-anchor="middle">own worktree</text>
+  <text x="518" y="429" font-size="9.5" fill="#ccfbf1" text-anchor="middle">own worktree</text>
+  <text x="740" y="404" font-size="11" fill="#475569">fresh, worktree-isolated, same agent def</text>
+  <text x="740" y="418" font-size="11" fill="#475569">as /architect — own tests only, no</text>
+  <text x="740" y="432" font-size="11" fill="#475569">per-issue check-runner grading</text>
+
+  <!-- builder → converge -->
+  <line x1="241" y1="444" x2="241" y2="468" stroke="#334155" stroke-width="2"/>
+  <line x1="380" y1="444" x2="380" y2="468" stroke="#334155" stroke-width="2"/>
+  <line x1="518" y1="444" x2="518" y2="468" stroke="#334155" stroke-width="2"/>
+  <line x1="241" y1="468" x2="518" y2="468" stroke="#334155" stroke-width="2"/>
+  <line x1="380" y1="468" x2="380" y2="510" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
+  <text x="392" y="494" font-size="11" font-weight="700" fill="#16a34a">ALL ISSUES MERGED</text>
+
+  <!-- 5 ORCHESTRATOR REVIEW + FIXES -->
+  <rect x="230" y="518" width="300" height="56" rx="10" fill="#1f2937"/>
+  <text x="380" y="541" font-size="14.5" font-weight="700" fill="#ffffff" text-anchor="middle">ORCHESTRATOR REVIEW + FIXES</text>
+  <text x="380" y="559" font-size="10.5" fill="#e2e8f0" text-anchor="middle">code · cohesion · tests — same session, fixes made directly</text>
+  <text x="560" y="538" font-size="11" fill="#475569">no fresh subagent: the fast lane's only review, a recorded</text>
+  <text x="560" y="552" font-size="11" fill="#475569">relaxation of Hard Rules 3 and 4 — the PR is the later eyes on it</text>
+
+  <!-- arrow to integrate -->
+  <line x1="380" y1="574" x2="380" y2="616" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
+
+  <!-- 6 INTEGRATE -->
+  <rect x="230" y="624" width="300" height="56" rx="10" fill="#7c3aed"/>
+  <text x="380" y="647" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">INTEGRATE</text>
+  <text x="380" y="665" font-size="10.5" fill="#ede9fe" text-anchor="middle">fresh subagent runs the existing integrate stage skill</text>
+  <text x="560" y="644" font-size="11" fill="#475569">the review verdict stands in for final-review by recorded</text>
+  <text x="560" y="658" font-size="11" fill="#475569">ruling; graded-RUN set is empty by design, validator still runs</text>
+
+  <!-- arrow to PR -->
+  <line x1="380" y1="680" x2="380" y2="722" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
+
+  <!-- 7 PR -->
+  <rect x="230" y="730" width="300" height="56" rx="10" fill="#16a34a"/>
+  <text x="380" y="753" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">PR</text>
+  <text x="380" y="771" font-size="10.5" fill="#dcfce7" text-anchor="middle">one PR + digest, same as /architect</text>
+  <text x="560" y="750" font-size="11" fill="#475569">the tracking issue gets the review verdict and</text>
+  <text x="560" y="764" font-size="11" fill="#475569">diffstat before the PR — no separate docs job</text>
+
+  <!-- legend -->
+  <rect x="45" y="830" width="12" height="12" rx="3" fill="#1f2937"/>
+  <text x="63" y="840" font-size="11" fill="#475569">orchestrator (same session, frontier model)</text>
+  <rect x="300" y="830" width="12" height="12" rx="3" fill="#0d9488"/>
+  <text x="318" y="840" font-size="11" fill="#475569">builders (cheap model)</text>
+  <rect x="480" y="830" width="12" height="12" rx="3" fill="#7c3aed"/>
+  <text x="498" y="840" font-size="11" fill="#475569">fresh subagent (integrate)</text>
+  <rect x="660" y="830" width="12" height="12" rx="3" fill="#d97706"/>
+  <text x="678" y="840" font-size="11" fill="#475569">human</text>
+</svg>
