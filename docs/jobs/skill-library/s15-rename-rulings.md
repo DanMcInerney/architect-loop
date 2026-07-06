@@ -21,3 +21,12 @@ never silently skipped):
   s15 RUN 2–3.
 All other frozen items across the run are unaffected and still graded
 directly.
+
+RULING APPEND (2026-07-06, closing review 2): docs-finish.md README_OK also
+greps the old hyphenated name in README and is superseded by s15 RUN 9
+under the map's stated principle; its non-name clause (to-spec in README)
+was re-verified directly by the reviewer. Recorded residual, deliberately
+frozen: `skills/architect/SKILL.md:6` description still says "judge
+completed jobs" — frontmatter is pinned by s12/s13 intent items and
+load-bearing for trigger-fixture prompt 3; re-baseline belongs to the next
+trigger-eval generation, not this run.
