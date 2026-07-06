@@ -81,7 +81,7 @@ Glossary only. No implementation details, no spec content.
   and continues. Irreversible or destructive silence takes the non-destructive
   path; `docs/STOP` remains absolute.
 - **Check** - a frozen, committed, exact acceptance check
-  (`docs/checks/<issue-slug>.md`). Read-only for everyone once frozen. RUN
+  (`docs/checks/<run>/<slice>.md`). Read-only for everyone once frozen. RUN
   items are graded by machine-readable expectations.
 - **Graded RUN** - a check RUN item with `-> exit:<n>` and optional fixed
   stdout `match:"substring"` expectation. Runner exits are typed: 0 all pass,
@@ -94,7 +94,7 @@ Glossary only. No implementation details, no spec content.
   it is not implementation code.
 - **Freeze commit** - the commit that locks a run's checks; it is pushed before
   any dispatch, and worktrees are verified against it after spawn.
-- **Rulings file** (`docs/jobs/<issue-slug>-rulings.md`) - orchestrator-owned,
+- **Rulings file** (`docs/jobs/<run>/<issue-slug>-rulings.md`) - orchestrator-owned,
   append-only post-freeze intent: PHASE-0 rulings, boundary amendments,
   respawn answers. Read by the closing review instead of thread prose.
 - **Verdict comment** - the grading record posted on the issue at close:

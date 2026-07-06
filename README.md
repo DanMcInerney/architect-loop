@@ -27,8 +27,9 @@ npm i -g @openai/codex@latest            # optional: Codex CLI (>= 0.133)
 
 One installer, both ecosystems: the same skills land in Claude Code and in
 Codex's `.agents/skills`. You need [Claude Code](https://claude.com/claude-code)
-on any paid plan; the Codex CLI on a ChatGPT plan is optional — set
-`builders = codex/best` to route builders there. No API keys.
+on any paid plan; the Codex CLI on a ChatGPT plan powers the default
+builders — without it, builders fall back to Claude (`claude/tier-down`).
+No API keys.
 
 ## Design
 
@@ -172,12 +173,10 @@ git — not left as advice. Full evidence and citations: [DESIGN.md](DESIGN.md).
 - **Dispatch and merge mechanics are scripted.** Worktree
   setup, freeze verification, touch-set audit, merge, and cleanup each
   collapse from 4–5 orchestrator calls into one typed-exit line.
-- **A deterministic check-runner owns every issue's grading.**
-  It executes and grades frozen RUN items with typed exits; a closing
-  review — one fresh orchestrator-tier subagent over the whole run diff —
-  runs read-only before the docs job, decomposing any findings into a fix
-  wave instead of editing the diff itself; zero findings short-circuits to
-  done.
+- **The closing review decomposes findings instead of editing.** One
+  fresh orchestrator-tier subagent reads the whole run diff read-only
+  before the docs job; verified findings become a review spec cut into fix
+  issues for a parallel fix wave; zero findings short-circuits to done.
 - **Reviewed diffs target ≤~400 changed lines per issue.**
   Review effectiveness collapses past a few hundred lines, so bigger specs
   split into more issues.
