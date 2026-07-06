@@ -11,7 +11,8 @@ description: >
 One check file per issue, at `docs/checks/<run>/<slice>.md`. Open it with
 purpose, a spec pointer, and a fix contract stating what a failure means and
 which file to fix — that header is the closing review's entire intent context
-for the issue. Write for a reader with no other memory of this run.
+for the issue. Write for a reader with no other memory of this run, in the
+codebase-design vocabulary (`skills/codebase-design/SKILL.md`).
 
 ## RUN grammar
 

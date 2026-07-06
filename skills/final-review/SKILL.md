@@ -56,6 +56,9 @@ that can go wrong here. Walk the diff hunting for:
 - Inconsistent error handling for the same class of failure across slices.
 - Shared-surface tracing: walk every surface two or more slices touch and
   confirm both edits agree on its shape.
+- Stale or superseded code the run left behind, and any
+  backwards-compatibility shim the spec never asked for — delete both;
+  the factory keeps no unrequested compat code.
 
 ## Spec
 
@@ -97,7 +100,8 @@ every graded RUN item across the run stays green after all test edits.
 
 ## Glossary contract
 
-Use the `codebase-design` glossary exactly: module, interface,
+Use the `codebase-design` glossary (`skills/codebase-design/SKILL.md`)
+exactly: module, interface,
 implementation, seam, adapter, depth, leverage, locality; run, tracking
 issue, issue, slice, frozen check, check-runner, builder, intent judge,
 orchestrator, factory branch, worktree, job report, verdict, ruling, digest,

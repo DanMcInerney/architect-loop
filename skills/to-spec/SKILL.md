@@ -18,7 +18,7 @@ through step 4.
 ## Process
 
 1. Read the run's `docs/runs/<run>/map.md` and the codebase-design
-   vocabulary before writing a line. Reuse its module, interface, seam,
+   vocabulary (`skills/codebase-design/SKILL.md`) before writing a line. Reuse its module, interface, seam,
    adapter, depth, and locality terms exactly; never substitute component,
    service, boundary, or API for module or interface.
 2. Name the seam(s) this run will exercise before drafting any section.

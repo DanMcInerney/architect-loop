@@ -9,6 +9,8 @@ description: Test-driven development for factory builders. Use when a ship job i
 
 TDD is the red -> green loop. This skill is the reference that makes that loop
 produce tests worth keeping. Consult it before and during the loop, not after.
+Name things with the codebase-design vocabulary
+(`skills/codebase-design/SKILL.md`), preloaded beside this skill.
 
 ## Seams are pre-agreed, not interviewed
 
