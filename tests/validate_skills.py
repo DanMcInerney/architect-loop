@@ -67,7 +67,7 @@ LIBRARY_SKILLS = {
     "tdd": ["tests.md", "mocking.md"],
     "adversarial-review": [],
     "final-review": [],
-    "ship": [],
+    "integrate": [],
 }
 # s9 per-skill non-blank-line budgets, caps named in each stage skill's
 # frozen check (docs/checks/skill-library/). The architect entry (SKILL.md
@@ -85,7 +85,7 @@ LIBRARY_LINE_BUDGETS = {
     "tdd": (("SKILL.md", "tests.md", "mocking.md"), 220),
     "adversarial-review": (("SKILL.md",), 110),
     "final-review": (("SKILL.md",), 110),
-    "ship": (("SKILL.md",), 90),
+    "integrate": (("SKILL.md",), 90),
     "architect": (("SKILL.md",), 220),
 }
 # License ruling (docs/spec/skill-library.md `## Open human decisions`):
