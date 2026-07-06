@@ -269,4 +269,6 @@ None at freeze.
 
 ## Approval record
 
-- Pending.
+- In-session explicit authorization, 2026-07-06, quoted verbatim: "approve".
+  Given in direct reply to the spec-approval presentation (spec commit
+  01c9739, tracking issue #141); the 5-minute timer was killed unexpired.
