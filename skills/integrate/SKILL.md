@@ -18,7 +18,7 @@ review.
 
 ## Scope
 
-End-of-run integration only. Merge any remaining green job or review branches
+End-of-run integration only. Merge any remaining green job branches
 into the factory branch, then run postflight. Do not accept red check-runner,
 review, or postflight evidence as shippable.
 
@@ -38,7 +38,7 @@ Before changing integration state, collect command evidence for:
 
 - current branch, HEAD, and remotes;
 - run manifest and tracking issue identifier;
-- remaining green job or review branches to merge;
+- remaining green job branches to merge;
 - shipped issues, skipped issues, rulings, and residual risks;
 - frozen check locations and the closing validator command.
 
@@ -48,7 +48,7 @@ missing or blocked, record the exact command, exit, and output.
 ## Integration
 
 1. Confirm you are on the factory branch for the run.
-2. Merge remaining green job or review branches one at a time.
+2. Merge remaining green job branches one at a time.
 3. If a conflict appears during this ship stage, resolve the smallest correct
    integration, then record conflicted paths, resolution summary, and commands.
 4. After each merge and after any conflict resolution, run postflight.
