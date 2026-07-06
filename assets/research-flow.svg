@@ -17,7 +17,7 @@
   <line x1="380" y1="656" x2="380" y2="698" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
 
   <!-- wave-2 loop: review back to gather -->
-  <path d="M 230 522 H 150 V 310 H 222" fill="none" stroke="#d97706" stroke-width="2.5" marker-end="url(#arrAmber)"/>
+  <path d="M 230 522 H 150 V 310 H 222" fill="none" stroke="#d97706" stroke-width="2.5" stroke-dasharray="6 4" marker-end="url(#arrAmber)"/>
   <text x="190" y="400" font-size="10" font-weight="700" fill="#b45309" text-anchor="middle">gaps send a</text>
   <text x="190" y="414" font-size="10" font-weight="700" fill="#b45309" text-anchor="middle">targeted wave 2</text>
   <text x="190" y="428" font-size="10" fill="#b45309" text-anchor="middle">(max 2 rounds)</text>
@@ -32,9 +32,9 @@
   <text x="560" y="118" font-size="11" fill="#475569">experts disagree; skipped entirely for quick fact-finds</text>
 
   <!-- 2 DESIGN LANES -->
-  <rect x="230" y="176" width="300" height="56" rx="10" fill="#1f2937"/>
+  <rect x="230" y="176" width="300" height="56" rx="10" fill="#7c3aed"/>
   <text x="380" y="199" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">DESIGN LANES</text>
-  <text x="380" y="217" font-size="10.5" fill="#e2e8f0" text-anchor="middle">orchestrator cuts 3–6 research lanes</text>
+  <text x="380" y="217" font-size="10.5" fill="#ede9fe" text-anchor="middle">orchestrator cuts 3–6 research lanes</text>
   <rect x="560" y="178" width="66" height="17" rx="8.5" fill="#16a34a"/>
   <text x="593" y="190" font-size="9.5" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="0.6">QUALITY</text>
   <text x="560" y="210" font-size="11" fill="#475569">lanes follow the topic's own fault lines, never a fixed taxonomy —</text>
@@ -52,9 +52,9 @@
   <text x="560" y="330" font-size="11" fill="#475569">every finding carries URL + date + quote; NOT FOUND is an answer</text>
 
   <!-- 4 DRAFT -->
-  <rect x="230" y="388" width="300" height="56" rx="10" fill="#1f2937"/>
+  <rect x="230" y="388" width="300" height="56" rx="10" fill="#7c3aed"/>
   <text x="380" y="411" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">DRAFT</text>
-  <text x="380" y="429" font-size="10.5" fill="#e2e8f0" text-anchor="middle">skeleton report · SUPPORTED / THIN / EMPTY</text>
+  <text x="380" y="429" font-size="10.5" fill="#ede9fe" text-anchor="middle">skeleton report · SUPPORTED / THIN / EMPTY</text>
   <rect x="560" y="390" width="112" height="17" rx="8.5" fill="#d97706"/>
   <text x="616" y="402" font-size="9.5" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="0.6">TOKEN SAVINGS</text>
   <text x="560" y="422" font-size="11" fill="#475569">the draft is the state: SUPPORTED / THIN / EMPTY marks aim the</text>
@@ -70,28 +70,26 @@
   <text x="560" y="542" font-size="11" fill="#475569">evidence but never recommend — synthesis stays in one place</text>
 
   <!-- 6 VERIFY -->
-  <rect x="230" y="600" width="300" height="56" rx="10" fill="#1f2937"/>
+  <rect x="230" y="600" width="300" height="56" rx="10" fill="#7c3aed"/>
   <text x="380" y="623" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">VERIFY</text>
-  <text x="380" y="641" font-size="10.5" fill="#e2e8f0" text-anchor="middle">claims re-checked against raw sources</text>
+  <text x="380" y="641" font-size="10.5" fill="#ede9fe" text-anchor="middle">claims re-checked against raw sources</text>
   <rect x="560" y="602" width="66" height="17" rx="8.5" fill="#16a34a"/>
   <text x="593" y="614" font-size="9.5" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="0.6">QUALITY</text>
   <text x="560" y="634" font-size="11" fill="#475569">≥2 independent sources per load-bearing claim, plus adversarial</text>
   <text x="560" y="648" font-size="11" fill="#475569">falsification searches; citations only from URLs actually fetched</text>
 
   <!-- 7 REPORT -->
-  <rect x="230" y="706" width="300" height="56" rx="10" fill="#1f2937"/>
+  <rect x="230" y="706" width="300" height="56" rx="10" fill="#7c3aed"/>
   <text x="380" y="729" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">REPORT</text>
-  <text x="380" y="747" font-size="10.5" fill="#e2e8f0" text-anchor="middle">one author writes · answer-first</text>
+  <text x="380" y="747" font-size="10.5" fill="#ede9fe" text-anchor="middle">one author writes · answer-first</text>
   <rect x="560" y="708" width="66" height="17" rx="8.5" fill="#16a34a"/>
   <text x="593" y="720" font-size="9.5" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="0.6">QUALITY</text>
   <text x="560" y="740" font-size="11" fill="#475569">gathering parallelizes, synthesis never does — one author,</text>
   <text x="560" y="754" font-size="11" fill="#475569">answer-first; the committed report feeds /architect specs</text>
 
   <!-- legend -->
-  <rect x="80" y="792" width="12" height="12" rx="3" fill="#1f2937"/>
-  <text x="98" y="802" font-size="11" fill="#475569">orchestrator (frontier model)</text>
-  <rect x="300" y="792" width="12" height="12" rx="3" fill="#7c3aed"/>
-  <text x="318" y="802" font-size="11" fill="#475569">fresh adversarial model</text>
-  <rect x="520" y="792" width="12" height="12" rx="3" fill="#0d9488"/>
-  <text x="538" y="802" font-size="11" fill="#475569">scout / researchers (cheap model)</text>
+  <rect x="80" y="792" width="12" height="12" rx="3" fill="#7c3aed"/>
+  <text x="98" y="802" font-size="11" fill="#475569">orchestrator + its fresh reviewers (frontier model)</text>
+  <rect x="420" y="792" width="12" height="12" rx="3" fill="#0d9488"/>
+  <text x="438" y="802" font-size="11" fill="#475569">scout / researchers (cheap model)</text>
 </svg>

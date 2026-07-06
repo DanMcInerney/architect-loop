@@ -1,9 +1,9 @@
 # Trigger Eval Prompts
 
 Purpose: lightweight fixture for checking whether Claude Code routes prompts to
-the architect, architect-fast, architect-research, and seven stage skills
+the architect, architect-fast, architect-research, and eight stage skills
 (codebase-design, to-spec, to-issues, frozen-checks, tdd, adversarial-review,
-final-review).
+final-review, integrate).
 Run: `skills/architect/trigger-eval.ps1 -Limit 4` or
 `skills/architect/trigger-eval.sh --limit 4`; add `-Bare` or `--bare` if
 local hooks fail in a sandbox.
@@ -166,4 +166,12 @@ local hooks fail in a sandbox.
 
 - PROMPT: Summarize what changed in the last commit.
   SKILL: final-review
+  EXPECT: no-trigger
+
+- PROMPT: The fix wave has merged; run the integrate stage skill to merge remaining green job branches and prep the closing PR.
+  SKILL: integrate
+  EXPECT: trigger
+
+- PROMPT: Merge my feature branch into main and push it.
+  SKILL: integrate
   EXPECT: no-trigger

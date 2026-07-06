@@ -45,7 +45,8 @@ xhigh, Fast mode) does the heavy lifting. Both are overridable — see
 - Each stage is its own small skill, invoked in order: `codebase-design`
   (shared vocabulary), `to-spec`, `adversarial-review`, `to-issues`,
   `frozen-checks`; builders preload `tdd`; `final-review` audits the run
-  read-only and decomposes findings into fix issues for a fix wave.
+  read-only and decomposes findings into fix issues for a fix wave;
+  `integrate` preps the ship.
 - Orchestrator grounds in the vocabulary, then writes a spec doc and asks
   you no more than 5 questions.
 - A fresh orchestrator-tier subagent adversarially reviews the spec.
@@ -69,6 +70,9 @@ xhigh, Fast mode) does the heavy lifting. Both are overridable — see
 - Fix issues build through the fix wave, the same parallel builder
   machinery as any other issue; zero findings short-circuits straight to
   the docs job.
+- A dedicated builder docs job consumes the run's accumulated docs debt,
+  then an `integrate` subagent merges remaining green branches,
+  re-verifies, and preps the ship.
 - The run ends in one PR plus a digest of what shipped.
 
 ### /architect-fast
