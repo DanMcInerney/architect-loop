@@ -209,7 +209,7 @@ function GitTry([string[]]$GitArgs) {
 # --- Freeze: recorded on tracking-issue body, else latest docs/checks/<run>/ commit ---
 $freezeSha = $null
 if ($trackBody) {
-    $m = [regex]::Match($trackBody, '(?i)freeze[^0-9a-fA-F]*([0-9a-fA-F]{7,40})')
+    $m = [regex]::Match($trackBody, '(?i)freeze[^0-9a-zA-Z]*([0-9a-fA-F]{7,40})')
     if ($m.Success) { $freezeSha = $m.Groups[1].Value }
 }
 if (-not $freezeSha) {
@@ -219,9 +219,15 @@ if (-not $freezeSha) {
 if (-not $freezeSha) {
     if (-not $driftReason) { $driftReason = "no freeze commit recorded for docs/checks/$RunSlug/" }
 } else {
-    $freezeDiff = GitTry @("-C", $root, "diff", "--stat", "$freezeSha..HEAD", "--", "docs/checks/$RunSlug/")
-    if ($freezeDiff) {
-        if (-not $driftReason) { $driftReason = "docs/checks/$RunSlug/ changed since freeze $freezeSha" }
+    GitTry @("-C", $root, "cat-file", "-e", "$freezeSha^{commit}") | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        if (-not $driftReason) { $driftReason = "recorded freeze $freezeSha not resolvable to a commit" }
+        $freezeSha = $null
+    } else {
+        $freezeDiff = GitTry @("-C", $root, "diff", "--stat", "$freezeSha..HEAD", "--", "docs/checks/$RunSlug/")
+        if ($freezeDiff) {
+            if (-not $driftReason) { $driftReason = "docs/checks/$RunSlug/ changed since freeze $freezeSha" }
+        }
     }
 }
 
@@ -283,8 +289,8 @@ if ($frontierSorted.Count -gt 0) { $frontierText = " " + ($frontierSorted -join 
 Write-Output "FRONTIER:$frontierText"
 $freezeShort = $null
 if ($freezeSha) {
-    $freezeShort = & git -C $root rev-parse --short $freezeSha 2>$null
-    if ($LASTEXITCODE -ne 0) { $freezeShort = $null }
+    $out = GitTry @("-C", $root, "rev-parse", "--short", $freezeSha)
+    if ($out) { $freezeShort = ($out | Select-Object -First 1) }
 }
 Write-Output "GROUND: OK issues=$closedCount/$total frontier=$($frontierSorted.Count) freeze=$freezeShort"
 exit 0
