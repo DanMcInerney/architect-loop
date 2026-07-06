@@ -33,8 +33,8 @@ on any paid plan; the Codex CLI on a ChatGPT plan is optional — set
 ## Design
 
 A configurable **orchestrator** model (default: Fable, high) designs,
-assigns, and reviews. A configurable **builder** model (default: Sonnet,
-high) does the heavy lifting. Both are overridable — see
+assigns, and reviews. A configurable **builder** model (default: GPT-5.5,
+xhigh, Fast mode) does the heavy lifting. Both are overridable — see
 [Config](#config).
 
 ### /architect
@@ -43,7 +43,8 @@ high) does the heavy lifting. Both are overridable — see
 
 - Each stage is its own small skill, invoked in order: `codebase-design`
   (shared vocabulary), `to-spec`, `adversarial-review`, `to-issues`,
-  `frozen-checks`; builders preload `tdd`; `final-review` closes the run.
+  `frozen-checks`; builders preload `tdd`; `final-review` audits the run
+  read-only and decomposes findings into fix issues for a fix wave.
 - Orchestrator grounds in the vocabulary, then writes a spec doc and asks
   you no more than 5 questions.
 - A fresh orchestrator-tier subagent adversarially reviews the spec.
@@ -61,8 +62,12 @@ high) does the heavy lifting. Both are overridable — see
   - on failure, the orchestrator diagnoses why, updates the issue and its
     requirements, and respawns a fresh builder — otherwise it comments,
     closes, and merges.
-- A closing cohesion review — one fresh orchestrator-tier subagent over the
-  whole run diff — runs immediately before the PR.
+- A closing review — one fresh orchestrator-tier subagent over the whole
+  run diff — is read-only: it verifies findings and writes a review spec
+  cut into fix issues, never editing the diff itself.
+- Fix issues build through the fix wave, the same parallel builder
+  machinery as any other issue; zero findings short-circuits straight to
+  the docs job.
 - The run ends in one PR plus a digest of what shipped.
 
 ### /architect-fast
@@ -169,8 +174,10 @@ git — not left as advice. Full evidence and citations: [DESIGN.md](DESIGN.md).
   collapse from 4–5 orchestrator calls into one typed-exit line.
 - **A deterministic check-runner owns every issue's grading.**
   It executes and grades frozen RUN items with typed exits; a closing
-  cohesion review — one fresh orchestrator-tier subagent over the whole run
-  diff — runs immediately before the PR and is green-or-discard.
+  review — one fresh orchestrator-tier subagent over the whole run diff —
+  runs read-only before the docs job, decomposing any findings into a fix
+  wave instead of editing the diff itself; zero findings short-circuits to
+  done.
 - **Reviewed diffs target ≤~400 changed lines per issue.**
   Review effectiveness collapses past a few hundred lines, so bigger specs
   split into more issues.
@@ -274,8 +281,9 @@ Role strings are `<cli>/<model-spec>[:<effort>]`, with `<cli>` `claude` or
 `codex`. `best` and `tier-down` are per-family aliases (Fable at high /
 GPT-5.5 at xhigh, and Sonnet at high / GPT-5.5 at high); any concrete model
 works too. Unconfigured, the orchestrator is your current session and
-builders are `claude/tier-down`; `codex/best` is the config-selected
-alternative when the Codex CLI is installed. Optional read-only verification
+builders are `codex/best` (Fast mode under ChatGPT auth); `claude/tier-down`
+is the config-selected alternative, and the recorded fallback when the
+Codex CLI is absent. Optional read-only verification
 subagents follow `builders`; adversarial reviewers
 and closing review follow the orchestrator tier; `/architect-research`
 researchers follow `builders`. `when <task

@@ -50,13 +50,15 @@ flags in every command; this table is the source of those pins.
 Role strings are `<cli>/<model-spec>[:<effort>]`, with `<cli>` in `{claude,
 codex}`. Resolution order per role is repo `.architect/config`, then user
 `~/.architect/config`, then defaults: orchestrator = the running session;
-builders = `claude/tier-down` (Sonnet at high) as Claude-native Agent-tool
-jobs — the `architect-builder` def preloads the `tdd` and `codebase-design`
-stage skills via its `skills:` field, and the model is passed per invocation
-from the alias table (config-raisable, e.g. `builders = claude/best`). The
-codex backend (`builders = codex/best`) is the config-selected alternative;
-its dispatch path in the sections below is unchanged. Flat `key = value`
-lines are the supported format for role keys. Unknown keys warn and never fail.
+builders = `codex/best` (gpt-5.5 at xhigh, Fast pins per the Builder speed
+default below) as codex-CLI jobs — Claude Code and Codex orchestrators both
+dispatch builders through the codex command lines in the sections below.
+The Claude-native backend (`builders = claude/tier-down`, Sonnet at high,
+Agent-tool jobs; the `architect-builder` def preloads `tdd` and
+`codebase-design` via its `skills:` field, model per invocation from the
+alias table) is the config-selected alternative and the recorded fallback
+when the codex CLI is absent. Flat `key = value` lines are the supported
+format for role keys. Unknown keys warn and never fail.
 
 A pin is a request, not proof — served-model verification and its resume/env-var caveats: `docs/solutions/served-model-verification.md`.
 
@@ -147,7 +149,8 @@ The worktree pre-creation and dispatch commands in this section are
 Codex-backend only. Claude-backend jobs never pre-create a worktree — see
 the Per-harness delegation table above.
 
-When the orchestrator is Claude Code and the chosen builders backend is Codex, write the
+When the orchestrator is Claude Code and the resolved builders backend is
+Codex (the default), write the
 builder block to a file first, then pass it via stdin (`-`). Big prompt blocks
 contain quotes that shells, especially Windows PowerShell, can mangle.
 
@@ -310,14 +313,21 @@ gh issue comment <n> --body "STATUS: <the report's exact status line>"
 ```
 
 Orchestrator comments on the sub-issue: rulings, blocker answers, and the
-checkrun result + decisive reason at close. The closing review's verdict +
-diffstat and the batched escalation digest go on the tracking issue only.
+checkrun result + decisive reason at close. The final review's verdict plus
+fix-issue list and the batched escalation digest go on the tracking issue
+only. The reviewer's dispatch block cites the installed user-level
+`final-review` skill text by explicit path, never the repo or worktree copy.
+On findings, the orchestrator harvests the review spec, fix-issue drafts, and
+check drafts out of the reviewer worktree before discarding it, commits them
+as the fix-wave freeze, and updates the tracking-issue body's freeze record
+to the latest freeze SHA (prior SHAs stay in comments). Fix-issue dispatch
+reuses the builder block template below — no new machinery.
 
 ```bash
 gh issue comment <n> --body "RULING: <decision> - <one line why>"
 gh issue comment <n> --body "ANSWER: <blocker answer>"
 gh issue comment <n> --body "CHECKRUN: exit <0|2> <CHECKRUN SUMMARY line> | POSTFLIGHT: <line> - <decisive reason>"
-gh issue comment <tracking-issue-n> --body "REVIEW: <closing final-review verdict + diffstat>"
+gh issue comment <tracking-issue-n> --body "REVIEW: GREEN" # or "REVIEW: FINDINGS n=<count> - <fix-issue list>"
 gh issue comment <tracking-issue-n> --body "DIGEST: <batched escalations + run summary>"
 ```
 

@@ -42,6 +42,9 @@ Glossary only. No implementation details, no spec content.
 - **Issue** - one vertical-slice unit of work, one GitHub issue, one builder
   job. Body carries what-to-build, acceptance criteria, boundaries (disjoint
   file sets), a change-skeleton, and interface handoff blocks.
+- **Fix issue** - one issue cut from a review spec: same body shape,
+  boundaries, and frozen check as a build issue, dispatched at the builders
+  tier in the fix wave.
 - **Slice** - the vertical cut an issue implements: narrow but complete
   end-to-end. Slice names the cut, issue names its tracker record - same
   unit, two angles (`skills/codebase-design/SKILL.md` glossary). Live
@@ -52,6 +55,9 @@ Glossary only. No implementation details, no spec content.
 - **Plan** - the issue set plus native blocked-by links. The schedulable set is
   always the ready issues, dispatched up to five jobs at once.
 - **Wave** - one ready-issue dispatch: its jobs plus one watchdog.
+- **Fix wave** - the parallel builder dispatch that implements a review spec;
+  the run's final wave, graded by the check-runner like any other.
+- **Review cycle** - one final review plus its fix wave; exactly one per run.
 - **Factory run** - everything between spec approval and the closing PR; runs
   unattended on the factory branch (`factory/<run>`), with an optional
   human-gated closing review before docs-finish.
@@ -103,9 +109,15 @@ Glossary only. No implementation details, no spec content.
   fresh. The orchestrator never authors a missing result.
 - **Close-out** - stopping or closing a consumed subagent or background shell
   task in the same turn its result or typed exit was consumed.
-- **Closing review** - the human-gated review-and-fix pass after build issues
-  close and before docs-finish. It uses the orchestrator tier and is
-  green-or-discard.
+- **Review spec** - the reviewer-authored spec at the finish boundary:
+  verified findings as requirements, each carrying severity and its
+  verification. Input to fix-issue decomposition; a run artifact, not
+  human-approved.
+- **Closing review** - the human-gated review-and-decompose pass after build
+  issues close and before docs-finish. It uses the orchestrator tier, is
+  read-only over product code and tests, and on findings writes a review spec
+  cut into fix issues for the fix wave; zero findings short-circuits to a
+  GREEN verdict.
 - **Canary** - the preflight spawn that proves a builder backend actually has
   working tools before the decomposition records it.
 - **Change-context digest** - the shipped-issues, diffstat, rulings,
@@ -115,7 +127,7 @@ Glossary only. No implementation details, no spec content.
   `tracker = github | markdown`, `orchestrator = cli/model`,
   `builders = cli/model:effort`, and optional
   `when -> cli/model:effort - why` dispatch rules. Absent `tracker =` means
-  GitHub mode; absent builder routing means tier-down default.
+  GitHub mode; absent builder routing means the `codex/best` default.
 - **Post-flight** - the orchestrator's mechanical checks on a completed job
   (boundaries, check-file integrity, raw-only report, status-line form) before
   integration. Distinct from judgment.
@@ -153,3 +165,9 @@ Glossary only. No implementation details, no spec content.
   in v4. The loop is the orchestrator conversation itself.
 - **PRD** - renamed to **spec** (2026-07-02). "PRD" is retired; "spec" is the
   current term everywhere the loop refers to a specification document.
+- **green-or-discard** -> per-issue isolation via the fix wave (review-fanout
+  run, 2026-07-06, issue #137). The closing reviewer no longer edits the run
+  diff or discards its whole pass on one red change; verified findings become
+  fix issues, and a failed fix is isolated to its own issue.
+- **review branch** - retired the same run; the closing review works in its
+  own worktree and never opens a branch of its own.

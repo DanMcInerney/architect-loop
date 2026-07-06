@@ -5,8 +5,9 @@
 decomposes it into a GitHub issue plan, dispatches parallel fresh builder jobs
 into worktrees that work test-first and run their own tests, answers blockers,
 grades every issue's frozen checks through a deterministic check-runner, closes
-with one fresh cohesion review over the whole run diff immediately before the
-PR, and merges — with exactly one human step, spec approval. This document is the
+with one fresh, read-only review over the whole run diff that decomposes any
+findings into fix issues built by a parallel fix wave before the docs job and
+the PR, and merges — with exactly one human step, spec approval. This document is the
 "why", with citations; the skill files in `skills/architect/` are the "how";
 [CONTEXT.md](CONTEXT.md) is the vocabulary.
 
@@ -73,7 +74,7 @@ wiring them into two installable skills with the failure modes closed.
 | **Judge** *(retired — see note)* | fresh builders-model agent, read-only | checks-integrity review, diff-vs-intent, one graded-check spot-check |
 | **Watchdog** | deterministic script per wave; "monitor" informally | mechanical stall evidence only — never kills, never decides |
 | **Adversarial reviewer** | fresh reviewer, pre-freeze | the stress-test pass (called the *grill* in earlier runs) falsifies the decomposition before it's authorized |
-| **Cohesion reviewer** | fresh orchestrator-model subagent, once per run | closing review over the whole run diff, immediately before the PR |
+| **Cohesion reviewer** | fresh orchestrator-model subagent, once per run | read-only closing review over the whole run diff; verified findings become a review spec cut into fix issues for the fix wave, never a direct edit |
 | **Human** | you | spec approval, hard stops, taste |
 
 Note (human-directed, 2026-07): the per-issue Judge role was retired in
@@ -502,12 +503,20 @@ runner's first live use finished 7/7.
   while the reverse hurt; the skill prefers Claude-reviews-Codex and records
   the direction in the verdict comment
   ([cross-provider review](https://www.mindstudio.ai/blog/openai-codex-plugin-claude-code-cross-provider-review)).
-- **Closing review is human-gated and green-or-discard.** After the last build
-  issue closes and before the docs-finish job, the orchestrator asks through
-  the timed-ruling protocol whether to run a comprehensive review. The default
-  is yes; if it runs, the reviewer is at the resolved orchestrator model, reads
-  spec -> scout map -> diff, may make final fixes, and must keep every graded
-  RUN item green. Red review changes are discarded whole.
+- **Closing review is human-gated and read-only (review-fanout, 2026-07-06,
+  issue #137).** After the last build issue closes and before the docs-finish
+  job, the orchestrator asks through the timed-ruling protocol whether to run
+  a comprehensive review. The default is yes; if it runs, the reviewer is at
+  the resolved orchestrator model, reads spec -> scout map -> diff, and edits
+  no product code and no tests. Zero verified findings return a GREEN verdict
+  and the run proceeds straight to the docs job. One or more findings become a
+  review spec — the findings as requirements — cut into fix issues with draft
+  graded checks; the orchestrator freezes the checks, files the issues, and
+  dispatches a fix wave through the normal wave machinery, same as any other
+  issue. A fix issue closes by merge or by recorded ruling; a failed fix is
+  isolated to its own issue instead of discarding every other fix. This
+  replaces the earlier green-or-discard rule, under which the reviewer edited
+  the run diff directly and any red review change discarded the whole pass.
 - **Post-freeze rulings live in an append-only file (v5.1 D4).**
   `docs/jobs/<run>/<issue-slug>-rulings.md`, orchestrator-owned, committed before
   judge dispatch and mirrored to the issue — so judges read rulings from a
@@ -571,13 +580,15 @@ runner's first live use finished 7/7.
   spot-check, and optional read-only verification dispatches keep that tier.
   The closing review uses the orchestrator model, and cross-family judgment
   remains an explicit high-stakes route.
-- **Default builders are Claude-native** since the skill-library run (spec
-  assumption 2, 2026-07-05): `claude/tier-down` (Sonnet, high) as Agent-tool
-  jobs with preloaded stage skills; `codex/best` (gpt-5.5, xhigh) is the
-  config-selected alternative whenever the Codex CLI is on PATH — its
-  economics case (typing hours on the flat-rate subscription with verified
-  `.git` sandbox protection; §2 economics, PR #28) is why the option stays
-  first-class.
+- **Default builders are codex-frontier** (human ruling 2026-07-06,
+  flipping the skill-library-era Claude-native default): `codex/best`
+  (gpt-5.5, xhigh, Fast pins under ChatGPT auth) via the codex CLI from
+  either orchestrator harness — the economics case (typing hours on the
+  flat-rate subscription with verified `.git` sandbox protection; §2
+  economics, PR #28) now backs the default, not just the option.
+  `claude/tier-down` (Sonnet, high) as Agent-tool jobs with preloaded
+  stage skills is the config-selected alternative and the recorded
+  fallback when the codex CLI is absent.
 - **xhigh for unattended builders.** Effort-curve data shows xhigh winning
   the metrics that matter unattended — semantic equivalence to the human PR
   (88% vs 69%) and review-pass rate (69% vs 38%) at ~2.2× the cost of high
@@ -1008,6 +1019,30 @@ cleanup. Both namespaces are load-bearing in shipped text.)
     `docs/jobs/skill-library/s15-rename-rulings.md`). Post-run 2026-07-06
     the skill was renamed once more to `final-review`, dissolving the
     shadowing; this entry keeps the names of its time.
+- **Review-fanout run (2026-07-06, tracking issue #137).** Spec
+  `docs/spec/review-fanout.md` reworked the closing reviewer from a
+  fix-in-place editor into a review-and-decompose stage: #138 rewrote
+  `skills/final-review/**` to a read-only contract (`REVIEW: GREEN` or
+  `REVIEW: FINDINGS n=<count>`, review spec plus draft fix issues and draft
+  graded checks, test stewardship as diagnosis only); #139 updated
+  `skills/architect/SKILL.md`/`loop.md`/`dispatch.md` with Hard Rule 3
+  ("reports and decomposes, never edits"), the GREEN-short-circuit-or-harvest
+  finish sequence, the fix-wave freeze with a latest-freeze tracking-issue
+  record, and a fix-wave third-strike hard stop; #140 updated
+  `skills/integrate/SKILL.md`'s dispatch gate to fire after the fix wave has
+  merged, after a GREEN verdict, or after a recorded ruling skips the review.
+  This run's own closing review (run under the pre-run installed direct-edit
+  flow, per the spec's own assumption) came back GREEN after fixing 3
+  findings: a freeze-destination split (P1), verdict-posting attribution — the
+  orchestrator posts verdicts, never the reviewer (P2), and dead "review
+  branch" vocabulary (P2). Every slice shipped with a green checkrun and the
+  validator passing: r1 (`docs/checks/review-fanout/r1-final-review.md`)
+  7/7 RUN items, r2 (`docs/checks/review-fanout/r2-architect-core.md`) 8/8,
+  r3 (`docs/checks/review-fanout/r3-integrate-gate.md`) 3/3, all at freeze
+  `b700b6a` (`docs/jobs/review-fanout/r1-final-review-checkrun.md`,
+  `r2-architect-core-checkrun.md`, `r3-integrate-gate-checkrun.md`). Dissolved:
+  green-or-discard (replaced by per-issue isolation under the fix wave), the
+  direct-edit closing review, and "review branch" as a concept.
 - **Dogfood runs.** v5 was built *by* the factory as a real issue plan (tracking issue
   #12, issues #13–#18): 1 judge FAIL, 3 respawns, all jobs fresh-judged.
   The v5.1 hardening run (tracking issue #20, issues #21–#25, on `factory/v5.1`)
