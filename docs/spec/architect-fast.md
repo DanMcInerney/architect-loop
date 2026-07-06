@@ -83,10 +83,13 @@ and what replaces it (the substitution table in Implementation decisions).
 ## Non-goals
 
 - No changes to `/architect`, `/architect-research`, the scripts, the agent
-  defs, or any stage skill — with one scoped exception: the one-line
+  defs, or any stage skill — with two scoped exceptions: the one-line
   orchestrator-glossary amendments in the shared vocabulary skill and the
   repo glossary that record the fast lane's relaxation (see Implementation
-  decisions), without which the shipped glossary would be false.
+  decisions), without which the shipped glossary would be false; and the
+  one-word skill-name additions to the two trigger-eval scripts' hard-coded
+  whitelists, without which the new fixture cases break the eval parse over
+  the entire fixture (pre-freeze stress finding, 2026-07-06).
 - No new grading machinery, no new scripts, no new tracker mode; github
   default + markdown mode both work through the existing tracker mechanics.
 - No changes to multi-run isolation, STOP semantics, timed-ruling protocol,
@@ -170,7 +173,9 @@ and what replaces it (the substitution table in Implementation decisions).
 - **Registration adapters:** one entry each in the validator's per-skill
   sibling map (which auto-enrolls the skill in the glossary lint) and
   line-budget map; should-fire and near-miss cases in the trigger-eval
-  fixture, whose header enumeration is updated; README usage line plus
+  fixture, whose header enumeration is updated, plus the one-word
+  skill-name addition to each trigger-eval script's hard-coded whitelist
+  (the scoped Non-goals exception); README usage line plus
   design/details subsections mirroring the existing two loops; DESIGN.md
   rationale following the research-skill template (why a sibling loop rather
   than a mode flag on `/architect`); one flow SVG in the existing style.
