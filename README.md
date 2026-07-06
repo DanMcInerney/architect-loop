@@ -37,22 +37,28 @@ GPT-5.5, xhigh) does the heavy lifting. Both are overridable — see
 
 ![architect flow](assets/architect-flow.svg)
 
-- Orchestrator writes a spec doc and asks you no more than 5 questions.
-- A fresh orchestrator-tier model adversarially reviews the spec.
-- Orchestrator breaks the work into parallelizable GitHub issues.
+- Each stage is its own small skill, invoked in order: `codebase-design`
+  (shared vocabulary), `to-spec`, `adversarial-review`, `to-issues`,
+  `frozen-checks`; builders preload `tdd`; `cohesion-review` closes the run.
+- Orchestrator grounds in the vocabulary, then writes a spec doc and asks
+  you no more than 5 questions.
+- A fresh orchestrator-tier subagent adversarially reviews the spec.
+- Orchestrator breaks the work into parallelizable, vertical-slice GitHub
+  issues.
 - Orchestrator freezes the acceptance checks in git.
 - A run manifest in `docs/runs/<run>/manifest.md` pins the tracking issue,
   factory branch, tracker, and spec; status commands take the run slug and
   read that pin instead of scanning every issue.
 - Orchestrator loops through the issues, assigning builders until every
   issue is fully complete:
-  - progress lands on the GitHub issue as builders work;
-  - frozen checks run deterministically and grade their expected results;
-  - a fresh builders-model judge reviews integrity and intent, with one
-    spot-check of the runner;
+  - builders work test-first and run their own tests, with progress landing
+    on the GitHub issue;
+  - a deterministic check-runner grades each issue's frozen checks;
   - on failure, the orchestrator diagnoses why, updates the issue and its
     requirements, and respawns a fresh builder — otherwise it comments,
     closes, and merges.
+- A closing cohesion review — one fresh orchestrator-tier subagent over the
+  whole run diff — runs immediately before the PR.
 - The run ends in one PR plus a digest of what shipped.
 
 ### /architect-research
@@ -135,15 +141,16 @@ git — not left as advice. Full evidence and citations: [DESIGN.md](DESIGN.md).
 - **Dispatch and merge mechanics are scripted.** *token savings* — Worktree
   setup, freeze verification, touch-set audit, merge, and cleanup each
   collapse from 4–5 orchestrator calls into one typed-exit line.
-- **A fresh intent judge owns every merge.** *quality* — It checks
-  integrity, reads the diff against intent, and spot-checks one graded RUN
-  item; the orchestrator cannot overrule a FAIL.
-- **Judged diffs target ≤~400 changed lines.** *quality* — Review
-  effectiveness collapses past a few hundred lines, so bigger specs split
-  into more issues.
+- **A deterministic check-runner owns every issue's grading.** *quality* —
+  It executes and grades frozen RUN items with typed exits; a closing
+  cohesion review — one fresh orchestrator-tier subagent over the whole run
+  diff — runs immediately before the PR and is green-or-discard.
+- **Reviewed diffs target ≤~400 changed lines per issue.** *quality* —
+  Review effectiveness collapses past a few hundred lines, so bigger specs
+  split into more issues.
 - **Failures fix inputs, not models.** *quality* — First FAIL: diagnose from
-  the judge's evidence, amend the issue, respawn fresh at the same tier. A
-  failure is a spec or context problem, not a retry knob.
+  the check-runner's evidence, amend the issue, respawn fresh at the same
+  tier. A failure is a spec or context problem, not a retry knob.
 - **BLOCKED is a completion event.** *quality* — A stuck builder posts the
   blocker and stops; the orchestrator answers durably on the issue and
   respawns fresh, because resuming a polluted context is the documented

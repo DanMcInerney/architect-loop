@@ -16,6 +16,12 @@ Glossary only. No implementation details, no spec content.
 - **Judge** - a fresh-context, read-only intent reviewer for one issue. The
   deterministic check-runner grades frozen RUN items first; the judge checks
   integrity, diff-vs-intent, and one graded RUN spot-check. Not a config key.
+  Human-directed 2026-07 ruling: per-issue judging is being retired in favor
+  of the closing cohesion review alone; a follow-up slice removes it from
+  `skills/architect/**`. Current-flow descriptions in product docs read
+  builders run own tests -> check-runner grades frozen checks -> closing
+  cohesion review before the PR; do not present the per-issue judge as a
+  current-flow step.
 - **Watchdog** - a deterministic script that sweeps in-flight jobs and exits
   with typed evidence (`ALL_DONE`, `INTEGRATED`, `STALL`, `REPEAT`). It never
   kills, nudges, or decides; the orchestrator rules on the evidence. A job is
@@ -23,8 +29,10 @@ Glossary only. No implementation details, no spec content.
 - **Monitor** - informal name for the watchdog. Historically an LLM subagent;
   now only a fallback template for harnesses without background-exit
   notifications.
-- **Stress-test** - a fresh adversarial reviewer of the decomposition before
-  the freeze: attacks check commands, issue bodies, and repo reality.
+- **Stress-test** - Target 2 of `/adversarial-review`: a fresh reviewer
+  attacks the frozen-but-not-yet-dispatched decomposition (check commands,
+  issue bodies, repo reality) before the freeze is authorized. Target 1 of
+  the same skill is the pre-decomposition spec review.
 - **Scout** - a researcher-shaped investigator: reads, researches, reports;
   may not modify code. Build runs commit a scout map before decomposition.
 
@@ -33,6 +41,11 @@ Glossary only. No implementation details, no spec content.
 - **Issue** - one vertical-slice unit of work, one GitHub issue, one builder
   job. Body carries what-to-build, acceptance criteria, boundaries (disjoint
   file sets), a change-skeleton, and interface handoff blocks.
+- **Slice** - the vertical cut an issue implements: narrow but complete
+  end-to-end. Slice names the cut, issue names its tracker record - same
+  unit, two angles (`skills/codebase-design/SKILL.md` glossary). Live
+  vocabulary again as of the skill-library run; see Retired terms for the
+  earlier "v4 unit name" framing this reconciles.
 - **Tracking issue** - the run's parent issue: dashboard, digest, and
   preflight record. Sub-issues hang off it with native blocked-by edges.
 - **Plan** - the issue set plus native blocked-by links. The schedulable set is
@@ -116,7 +129,7 @@ Glossary only. No implementation details, no spec content.
 - **brain** -> **orchestrator**.
 - **brawn** -> **builders**.
 - **lane** -> **job**.
-- **grill** -> **stress-test**.
+- **grill** -> **adversarial-review** (Target 1: spec review, pre-decomposition).
 - **frontier** -> **ready issues**.
 - **stop rail** -> **hard stop**.
 - **Handoff / `docs/HANDOFF.md`** - v3/v4 repo-memory diary; retired in v5.
@@ -126,8 +139,10 @@ Glossary only. No implementation details, no spec content.
 - **Heartbeat** - the v4 orchestrator stall-check; replaced by the watchdog.
 - **LLM monitor sweep** - replaced by the watchdog script. The fallback
   template remains in `dispatch.md`.
-- **Slice / block** - v4's unit and iteration names; v5 says issue and
-  factory-loop event.
+- **Block** - v4's iteration name; v5 says factory-loop event. (**Slice** is
+  no longer retired: the skill-library run's codebase-design glossary
+  reinstated it as the vertical cut an issue implements - see Units of work,
+  Issue entry.)
 - **Sentinel / `LOOP:` line** - v3 driver-control protocol; deleted in v4.
 - **Driver** - the v3 external loop script (`bin/architect-loop.*`); deleted
   in v4. The loop is the orchestrator conversation itself.

@@ -33,7 +33,7 @@ MAX_DESC = 1024
 # loader limit) AND `description` + `when_to_use` combined <= 1536 (Claude
 # skill-listing cap).
 MAX_DESC_PLUS_WHEN_TO_USE = 1536
-ARCHITECT_SKILL_TEXT_MAX_NON_BLANK = 1100
+ARCHITECT_SKILL_TEXT_MAX_NON_BLANK = 989
 ARCHITECT_RESEARCH_TEXT_MAX_NON_BLANK = 500
 SKILL_BODY_TOKEN_PROXY_MAX = 5_000
 SKILL_BODY_TOKEN_PROXY_FACTOR = 1.33
@@ -71,10 +71,11 @@ LIBRARY_SKILLS = {
 # s9 per-skill non-blank-line budgets, caps named in each stage skill's
 # frozen check (docs/checks/skill-library/). The architect entry (SKILL.md
 # <= 220) is the post-s8 re-baseline; the pre-existing five-file combined
-# guard (ARCHITECT_SKILL_TEXT_MAX_NON_BLANK) is retained unchanged because
-# check_design_guard_cap pins its cap to the number stated in DESIGN.md,
-# which the s9 slice must not touch - post-s8 reality (982 non-blank lines
-# across the five files) still sits under it.
+# guard (ARCHITECT_SKILL_TEXT_MAX_NON_BLANK) was left unchanged through s9-s12
+# because check_design_guard_cap pins its cap to the number stated in
+# DESIGN.md, and no build slice was scoped to touch that doc sentence.
+# docs-finish (issue #116) re-baselined both together to the measured
+# post-s12 combined total (989 non-blank lines across the five files).
 LIBRARY_LINE_BUDGETS = {
     "codebase-design": (("SKILL.md", "DEEPENING.md", "DESIGN-IT-TWICE.md"), 240),
     "to-spec": (("SKILL.md",), 100),

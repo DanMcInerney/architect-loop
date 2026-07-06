@@ -1,6 +1,7 @@
 .DS_Store
 Thumbs.db
 *.swp
+__pycache__/
 # Loop memory files are tracked; everything else under docs/ stays local.
 # docs/STOP is the loop kill switch — never commit it.
 /docs/*
