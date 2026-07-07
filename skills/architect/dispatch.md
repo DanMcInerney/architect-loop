@@ -336,7 +336,7 @@ The watchdog never kills, nudges, or judges. It exits with typed evidence:
 | 3 | `WATCHDOG: STALL` | wrapper heartbeat is fresh but event/report growth stopped beyond `stall_after_min` plus any duration hint |
 | 4 | `WATCHDOG: REPEAT` | the last four parsed command events were identical and need an intentional-vs-stuck ruling |
 | 5 | `WATCHDOG: ERROR` | watchdog config is missing or unreadable |
-| 6 | `WATCHDOG: REPORT_READY` | terminal `STATUS:` exists but `job.exit.json` did not arrive after one sweep |
+| 6 | `WATCHDOG: REPORT_READY` | terminal `STATUS:` exists, `job.exit.json` is absent, and the wrapper heartbeat is stale |
 | 7 | `WATCHDOG: ORPHANED` | wrapper heartbeat is stale but event/report output still grows |
 | 8 | `WATCHDOG: DEAD` | wrapper heartbeat is stale and no event/report output is growing |
 | 9 | `WATCHDOG: DONE_FAILED` | child exited nonzero, or exited 0 without terminal `STATUS:` |
@@ -424,8 +424,7 @@ enumeration. On Windows under Claude Code, launch long-lived CLI jobs through
 its Bash wrapper when available; the PowerShell wrapper exists for harnesses
 where Bash is stripped.
 
-- `DONE_OK` requires `job.exit.json` exit 0 AND a report whose final nonblank
-  line starts with `STATUS:`; every other child exit is `DONE_FAILED`.
+- `DONE_OK` requires `job.exit.json` exit 0 AND a report whose final nonblank line starts with `STATUS:`; every other child exit is `DONE_FAILED`; terminal-looking report text never outranks a fresh wrapper heartbeat.
 - `job.state.json` persists growth clocks across watchdog re-arms.
 - A job repeatedly issuing the same command or query with identical
   arguments is stalled even while its event/report file is still growing
@@ -513,6 +512,7 @@ Boundaries remain:
 - MAY TOUCH: <files>
 - MUST NOT TOUCH: <files>
 - Report path: docs/jobs/<run>/<issue-slug>-01.md
+- The literal string `STATUS:` must not appear anywhere until the job is fully complete; never initialize a placeholder STATUS line.
 - End with exactly one STATUS line.
 ```
 
@@ -583,7 +583,7 @@ results only - tables, numbers, command output - no interpretation, no
 run. Keep the report compact. Mirror your final STATUS line as a comment on
 your issue when tracker posting is available; when it is not, write
 "MIRROR: ORCHESTRATOR" in the report instead and continue. End the report
-with exactly one status line:
+with exactly one status line. The literal string `STATUS:` must not appear anywhere in the report until the job is fully complete; never initialize a placeholder STATUS line.
 STATUS: COMPLETE | COMPLETE_WITH_CONCERNS (list them) | BLOCKED (exact blocker + what you tried).
 Verdicts belong to the architect and the human. Persist until your job is
 fully handled end-to-end.

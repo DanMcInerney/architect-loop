@@ -62,9 +62,7 @@ Ruling options:
 - Exit 4 `WATCHDOG: REPEAT` -> rule intentional-vs-stuck before action; the
   OpenHands false-positive caveat applies to deliberate polling loops.
 - Exit 5 `WATCHDOG: ERROR` -> fix the watchdog config; no partial verdict.
-- Exit 6 `WATCHDOG: REPORT_READY` -> report is terminal but exit truth is
-  missing after one sweep; proceed to check-runner grading only with the
-  missing-exit-truth caveat recorded on the issue.
+- Exit 6 `WATCHDOG: REPORT_READY` -> report is terminal, exit truth is missing, and the wrapper heartbeat is stale; proceed to check-runner grading only with the missing-exit-truth caveat recorded on the issue.
 - Exit 7 `WATCHDOG: ORPHANED` -> wrapper died while output still grows; let it
   finish only with a recorded ruling.
 - Exit 8 `WATCHDOG: DEAD` -> no wrapper heartbeat, no terminal report, no

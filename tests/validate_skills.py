@@ -809,13 +809,16 @@ def write_watchdog_config(
     workdir: Path,
     report: Path,
     sweep: int = 1,
+    stall_after_min: float = 0.01,
+    heartbeat_stale_sec: int = 5,
+    report_ready_grace_sec: int = 1,
     path_for_config=lambda p: str(p),
 ) -> None:
     cfg = {
         "sweep_sec": sweep,
-        "stall_after_min": 0.01,
-        "heartbeat_stale_sec": 5,
-        "report_ready_grace_sec": 1,
+        "stall_after_min": stall_after_min,
+        "heartbeat_stale_sec": heartbeat_stale_sec,
+        "report_ready_grace_sec": report_ready_grace_sec,
         "jobs": [
             {
                 "id": job_dir.name,
@@ -961,6 +964,13 @@ def check_watchdog_determinism_fixture() -> None:
                 "    emit({'command':'ok'})",
                 "    open(report, 'w', encoding='utf-8').write('done\\nSTATUS: COMPLETE\\n')",
                 "    sys.exit(0)",
+                "if behavior == 'misreport':",
+                "    open(report, 'w', encoding='utf-8').write('initialized\\nSTATUS: BLOCKED (report initialized)\\n')",
+                "    for i in range(4):",
+                "        emit({'command':f'working-{i}'})",
+                "        time.sleep(0.8)",
+                "    open(report, 'w', encoding='utf-8').write('done\\nSTATUS: COMPLETE\\n')",
+                "    sys.exit(0)",
                 "if behavior == 'orphan-live':",
                 "    for i in range(20):",
                 "        emit({'command':f'still-writing-{i}'})",
@@ -1010,6 +1020,17 @@ def check_watchdog_determinism_fixture() -> None:
                 "    printf 'done\\nSTATUS: COMPLETE\\n' > \"$report\"",
                 "    exit 0",
                 "    ;;",
+                "  misreport)",
+                "    printf 'initialized\\nSTATUS: BLOCKED (report initialized)\\n' > \"$report\"",
+                "    i=0",
+                "    while [ \"$i\" -lt 4 ]; do",
+                "      printf '{\"command\":\"working-%s\"}\\n' \"$i\"",
+                "      sleep 0.8",
+                "      i=$((i+1))",
+                "    done",
+                "    printf 'done\\nSTATUS: COMPLETE\\n' > \"$report\"",
+                "    exit 0",
+                "    ;;",
                 "  orphan-live)",
                 "    i=0",
                 "    while [ \"$i\" -lt 20 ]; do",
@@ -1053,6 +1074,30 @@ def check_watchdog_determinism_fixture() -> None:
             if behavior == "die" and "exit_code=9" not in output:
                 errors.append(f"watchdog fixture {runner} die: missing exit_code=9\nstdout:\n{output}")
 
+        job_dir = base / f"{runner}-misreport"
+        workdir = job_dir / "work"
+        report = job_dir / "report.md"
+        workdir.mkdir(parents=True)
+        proc = run_wrapped_fake(kind, job_dir, workdir, report, fake, "misreport")
+        config = job_dir / "watchdog.json"
+        write_watchdog_config(
+            config,
+            job_dir,
+            workdir,
+            report,
+            stall_after_min=1,
+            path_for_config=path_for_config,
+        )
+        deadline = time.time() + 5
+        while time.time() < deadline and not (job_dir / "job.meta.json").exists():
+            time.sleep(0.05)
+        output = watchdog_run(watchdog_prefix, config, f"{runner} misreport", 0, "WATCHDOG: ALL_DONE")
+        finish_wrapped_fake(proc, f"{runner} misreport")
+        if "early_status_sec=" not in output:
+            errors.append(f"watchdog fixture {runner} misreport: missing early_status_sec evidence\nstdout:\n{output}")
+        if "WATCHDOG: REPORT_READY" in output:
+            errors.append(f"watchdog fixture {runner} misreport: early STATUS was treated as report-ready\nstdout:\n{output}")
+
         for behavior, expected_exit, needle in (
             ("hang", 3, "WATCHDOG: STALL"),
             ("loop", 4, "WATCHDOG: REPEAT"),
@@ -1085,10 +1130,11 @@ def check_watchdog_determinism_fixture() -> None:
         report = job_dir / "report.md"
         workdir.mkdir(parents=True)
         write_fixture_file(job_dir / "job.meta.json", "{}")
-        write_fixture_file(job_dir / "job.heartbeat", "fresh\n")
+        write_fixture_file(job_dir / "job.heartbeat", "old\n")
         write_fixture_file(job_dir / "events.jsonl", "")
         write_fixture_file(report, "done\nSTATUS: COMPLETE\n")
         write_fixture_file(job_dir / "job.state.json", '{"last_size":0,"last_growth_epoch":1,"report_ready_epoch":1}\n')
+        os.utime(job_dir / "job.heartbeat", (1, 1))
         config = job_dir / "watchdog.json"
         write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
         watchdog_run(watchdog_prefix, config, f"{runner} report-ready", 6, "WATCHDOG: REPORT_READY")

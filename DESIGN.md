@@ -1066,7 +1066,19 @@ cleanup. Both namespaces are load-bearing in shipped text.)
 
 ---
 
-## 8. Sources
+## 8. Contract-enforcement migration (2026-07-07)
+
+- **Exit truth outranks report text.** The pair-fairness-webui incident showed
+  that a placeholder `STATUS:` line could trick the watchdog into exit 6 while
+  the wrapper heartbeat was still fresh. The watchdog now treats early terminal
+  report text as running-state evidence, records the first terminal observation,
+  and emits `early_status_sec=` only after wrapper exit truth resolves. The
+  builder and respawn templates now ban any literal `STATUS:` before completion.
+  Evidence: validator fixture `misreport` in `tests/validate_skills.py`.
+
+---
+
+## 9. Sources
 
 **Anthropic (official):**
 [Building Effective Agents](https://www.anthropic.com/engineering/building-effective-agents) ·
