@@ -9,12 +9,13 @@ Glossary only. No implementation details, no spec content.
   freezes, arbitrates, diagnoses, integrates. It is whatever model the loop
   started in, never a config role. Never writes implementation code, never
   reads large diffs, never judges checks. In the fast lane (`/architect-fast`)
-  it additionally performs the closing review and its fixes - the recorded
-  Hard-Rule 3/4 relaxation.
+  it additionally writes the spec and issues itself and runs the closing
+  test pass that feeds the builder review - the recorded Hard-Rule 3/4
+  relaxation.
 - **Strategist** - a fresh high-judgment subagent, defaulting to Fable
   (`claude/best`), that handles `/architect` design work: spec drafting,
-  issue decomposition, frozen-check drafting, adversarial review, and the
-  closing final review. Not used for `/architect-fast`'s closing review.
+  the harden dispatch (adversarial attack, revised spec, issue and check
+  drafting), and the closing final review. Not used in `/architect-fast`.
 - **Builder** - a fresh-context worker agent that implements exactly one issue
   in an isolated worktree. Cannot commit. The builder tier is typically
   cheaper than the strategist tier and never changes because a job failed.
@@ -33,10 +34,11 @@ Glossary only. No implementation details, no spec content.
 - **Monitor** - informal name for the watchdog. Historically an LLM subagent;
   now only a fallback template for harnesses without background-exit
   notifications.
-- **Stress-test** - Target 2 of `/adversarial-review`: a fresh reviewer
-  attacks the frozen-but-not-yet-dispatched decomposition (check commands,
-  issue bodies, repo reality) before the freeze is authorized. Target 1 of
-  the same skill is the pre-decomposition spec review.
+- **Stress-test** - stage 3 of `/adversarial-review`: the harden strategist
+  executes its own not-yet-frozen decomposition against repo reality (check
+  commands, issue bodies, pointers) before returning drafts. Stage 1 is the
+  spec attack; stage 2 folds surviving findings into the revised spec and
+  decomposes it.
 
 ## Units of work
 
@@ -59,9 +61,9 @@ Glossary only. No implementation details, no spec content.
 - **Fix wave** - the parallel builder dispatch that implements a review spec;
   the run's final wave, graded by the check-runner like any other.
 - **Review cycle** - one final review plus its fix wave; exactly one per run.
-- **Factory run** - everything between spec approval and the closing PR; runs
-  unattended on the factory branch (`factory/<run>`), with an optional
-  human-gated closing review before integrate.
+- **Factory run** - everything between intake and the closing PR; runs
+  unattended on the factory branch (`factory/<run>`), closing with an
+  unconditional final review before integrate.
 - **Fast lane** - the `/architect-fast` loop as a whole; `/architect` is the
   full factory. Both are loop skills over the same stage-skill library.
 
@@ -74,13 +76,13 @@ Glossary only. No implementation details, no spec content.
   mutations are orchestrator-executed. "Not in the tracker = didn't happen."
 - **Status tree** - a read-only render over run artifacts and the tracker;
   never a new state store.
-- **Spec approval** - the one human step: review one spec document, edit or
-  veto its recorded assumptions, approve in-session or by commenting
-  `APPROVE` on the tracking issue. Verbatim pre-approval can authorize a run
-  at invocation; otherwise the factory waits about 5 minutes, rules with the
-  orchestrator's best judgment, records the ruling for after-the-fact veto,
-  and continues. Irreversible or destructive silence takes the non-destructive
-  path; `docs/STOP` remains absolute.
+- **Timed ruling** - how every human question resolves; there is no approval
+  gate anywhere. The factory prints the question and its recommended
+  default, mirrors it on the tracker, waits about 5 minutes, applies the
+  default on silence, and records the ruling for after-the-fact veto.
+  Irreversible or destructive silence takes the non-destructive path;
+  `docs/STOP` remains absolute. The human steers by editing the spec,
+  commenting rulings, or vetoing digests.
 - **Check** - a frozen, committed, exact acceptance check
   (`docs/checks/<run>/<slice>.md`). Read-only for everyone once frozen. RUN
   items are graded by machine-readable expectations.
@@ -110,13 +112,12 @@ Glossary only. No implementation details, no spec content.
   task in the same turn its result or typed exit was consumed.
 - **Review spec** - the reviewer-authored spec at the finish boundary:
   verified findings as requirements, each carrying severity and its
-  verification. Input to fix-issue decomposition; a run artifact, not
-  human-approved.
-- **Closing review** - the human-gated review-and-decompose pass after build
-  issues close and before integrate. It uses the strategist role, is
-  read-only over product code and tests, and on findings writes a review spec
-  cut into fix issues for the fix wave; zero findings short-circuits to a
-  GREEN verdict.
+  verification. Input to fix-issue decomposition; a run artifact.
+- **Closing review** - the unconditional review-and-decompose pass after
+  build issues close and before integrate, fed the orchestrator's closing
+  test-pass output. It uses the strategist role, is read-only over product
+  code and tests, and on findings writes a review spec cut into fix issues
+  for the fix wave; zero findings short-circuits to a GREEN verdict.
 - **Canary** - the preflight spawn that proves a builder backend actually has
   working tools before the decomposition records it.
 - **Change-context digest** - the shipped-issues, diffstat, rulings,

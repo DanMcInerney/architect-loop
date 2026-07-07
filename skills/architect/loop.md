@@ -10,15 +10,15 @@
 - Hard Stops
 - Context discipline
 
-The loop is one orchestrator session that runs the factory to completion after
-the spec approval approves the issue plan. Tracker issues carry coordination
+The loop is one orchestrator session that runs the factory to completion once
+the hardened plan is published and frozen. Tracker issues carry coordination
 state; git carries specs and frozen checks. The orchestrator dispatches the
 ready issues, sleeps, and wakes only on an event.
-Parallel rules: CLI-launched builders (`codex exec -o <file>` or equivalent) cap at 10 concurrent jobs; harness-native result-bearing subagents (Claude Agent tool, Codex `spawn_agent`) use the harness cap, currently 5, and Claude Agent-tool verification still dispatches synchronously with `run_in_background: false`; a job END (DONE or BLOCKED) is a dispatch event that recomputes the full ready frontier and dispatches every ready issue into a free slot before grading (Factory block procedure step 3); merges recompute the frontier too, since a merge can unblock issues no END could; independent orchestrator bookkeeping batches into parallel calls; merges, synthesis, and the pre-freeze `adversarial-review` stress pass stay serial by design.
+Parallel rules: CLI-launched builders (`codex exec -o <file>` or equivalent) cap at 10 concurrent jobs; harness-native result-bearing subagents (Claude Agent tool, Codex `spawn_agent`) use the harness cap, currently 5, and Claude Agent-tool verification still dispatches synchronously with `run_in_background: false`; a job END (DONE or BLOCKED) is a dispatch event that recomputes the full ready frontier and dispatches every ready issue into a free slot before grading (Factory block procedure step 3); merges recompute the frontier too, since a merge can unblock issues no END could; independent orchestrator bookkeeping batches into parallel calls; merges and synthesis stay serial by design.
 
 ## Factory block procedure
 
-1. **Dispatch the ready issues.** Compute the ready issues of the approved
+1. **Dispatch the ready issues.** Compute the ready issues of the frozen
    plan: up to 10 CLI-launched builder jobs, or 5 harness-native builder
    subagents (see Monitor protocol, and `dispatch.md` "## Monitor dispatch"). Check `docs/STOP` and
    `docs/runs/<run>/STOP` before every wave. Re-arm one watchdog over all
@@ -38,12 +38,12 @@ Parallel rules: CLI-launched builders (`codex exec -o <file>` or equivalent) cap
      from the frozen check with a route-around).
    - **Ruling timer expiry.** A pending timed ruling's timer exit is a wake:
      if the ruling is still unanswered in-session and on the tracker, apply
-     the recommended default and record the auto-ruling (timed-ruling
-     protocol, SKILL.md "### 2. Spec Approval"); already resolved is a no-op.
+     the recommended default and record the auto-ruling (SKILL.md
+     "## Timed-ruling protocol"); already resolved is a no-op.
 4. **Recompute the ready issues.** Closing an issue may unblock others; rerun
    `ground.ps1|.sh <run>`, read its `FRONTIER:` line, and dispatch the next
    wave from it.
-5. **Finish boundary.** When build issues close, run the SKILL.md `### 5. Finish` timed-ruling closing review before integrate: default YES, 5-minute silence applies; YES dispatches one fresh resolved-strategist MEDIUM subagent from the factory branch head running the `final-review` stage skill, cited by its installed user-level skill path — review basis spec -> run diff -> published interface contract blocks — read-only over product code, reporting and decomposing rather than editing. A GREEN verdict short-circuits straight to integrate. A `REVIEW: FINDINGS n=<count>` verdict names a review spec, fix-issue drafts, and check drafts; the orchestrator harvests the three draft sets, discards the reviewer worktree, runs the frozen-checks freeze gate over every draft RUN command, commits the fix-wave freeze with the tracking-issue body's freeze record updated to the latest freeze SHA, files the fix issues, posts the verdict plus fix-issue list as the digest, and dispatches the fix wave through the existing wave machinery at the builders tier. Integrate fires after the fix wave has merged, after a GREEN verdict, or after a recorded ruling skips the review; its first step is the docs pass (SKILL.md `### 5. Finish`).
+5. **Finish boundary.** When build issues close, run the SKILL.md `### 5. Finish` closing sequence before integrate: the orchestrator executes the closing test pass (builder-built suites plus every frozen RUN item at the factory branch head, raw output captured), then always dispatches one fresh resolved-strategist MEDIUM subagent from the factory branch head running the `final-review` stage skill, cited by its installed user-level skill path, with the test-pass output in its dispatch block — review basis spec -> run diff -> published interface contract blocks -> test-pass output — read-only over product code, reporting and decomposing rather than editing. A GREEN verdict short-circuits straight to integrate. A `REVIEW: FINDINGS n=<count>` verdict names a review spec, fix-issue drafts, and check drafts; the orchestrator harvests the three draft sets, discards the reviewer worktree, runs the frozen-checks freeze gate over every draft RUN command, commits the fix-wave freeze with the tracking-issue body's freeze record updated to the latest freeze SHA, files the fix issues, posts the verdict plus fix-issue list as the digest, and dispatches the fix wave through the existing wave machinery at the builders tier. Integrate fires after the fix wave has merged, after a GREEN verdict, or after a recorded ruling skips the review; its first step is the docs pass (SKILL.md `### 5. Finish`).
 Run `sweep-deferred.ps1|.sh <run>` before final close to clear deferred worktree cleanup paths.
 6. **Repeat** until no issues remain open, the closing review/integrate finish boundary is handled, then post the escalation digest's end-of-run summary on the tracking issue.
 
@@ -138,7 +138,7 @@ Batched on the tracking issue instead of interleaved per-job noise:
 
 - completed and failed jobs, with checkrun results
 - open blockers and the answers given
-- decisions the approved spec genuinely does not answer
+- decisions the hardened spec genuinely does not answer
 - foreign sub-issues under the run parent with wrong author or missing run marker
 
 Ask-the-human items are batched here unless a hard stop below requires an
@@ -157,9 +157,9 @@ immediate stop.
 | Third strike inside the fix wave | A third strike inside the fix wave is a hard stop — the closing review is already spent. |
 | Two consecutive KILLs | Stop the factory and ask the human. |
 | Monitor reports an anomaly | Orchestrator rules before any further dispatch on that job. |
-| Blocker collides with a recorded assumption | Ask the human; it is a spec approval decision surfacing late. |
+| Blocker collides with a recorded assumption | Ask the human; it is a spec-level decision surfacing late. |
 | Session context degrades | End the session; the next session grounds from the issue tracker and git. |
-| Scope grows beyond the approved spec | Stop the factory. |
+| Scope grows beyond the hardened spec | Stop the factory. |
 | High-stakes issue | Add cross-model review before CONTINUE. |
 
 ## Context discipline

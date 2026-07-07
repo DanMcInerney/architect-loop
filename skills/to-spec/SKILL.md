@@ -35,24 +35,22 @@ through step 4.
 4. Never run the timed-ruling protocol yourself or wait on the human:
    return every open question to the orchestrator, one line each —
    `RULING NEEDED: <question> | options: <a | b> | default: <option> — <why>`
-   — and it runs the protocol (`skills/architect/SKILL.md` `### 2. Spec
-   Approval`). Rulings already present in your dispatch context are decided;
+   — and it runs the protocol (`skills/architect/SKILL.md` `## Timed-ruling
+   protocol`). Rulings already present in your dispatch context are decided;
    record each as an `## Assumptions` entry. (Direct orchestrator invocation
    only — `/architect-fast`: run the protocol yourself as that lane records.)
 5. Shape the spec on the template below and write it to
    `docs/spec/<run>.md` in your working tree. Do NOT commit it and do NOT
    create or update the tracking issue — the spec commit and the
-   tracking-issue update (spec pointer, assumptions digest, the three
-   approve-by-comment forms `APPROVE`, `APPROVE with edits: <text>`,
-   `REJECT <reason>`, or the markdown-mode equivalent in
-   `skills/architect/tracker.md` `## Command mapping`) are orchestrator
-   actions after you return. End your reply with `SPEC DRAFT: <path>` plus
-   any `RULING NEEDED:` lines.
+   tracking-issue update (spec pointer, assumptions digest, or the
+   markdown-mode equivalent in `skills/architect/tracker.md`
+   `## Command mapping`) are orchestrator actions after you return. End
+   your reply with `SPEC DRAFT: <path>` plus any `RULING NEEDED:` lines.
 
 ## Template
 
 Write the sections below in this order; the names are load-bearing for
-approval and decomposition, so keep them exact.
+hardening and decomposition, so keep them exact.
 
 - `## Goal` — what the run adds and why, from the reader's side.
 - `## Target flow` (optional) — a short numbered sequence, only when the run
@@ -75,5 +73,3 @@ approval and decomposition, so keep them exact.
   source, date fetched, fact supported.
 - `## Preflight evidence` — tool, auth, and repo-state evidence gathered
   before decomposition.
-- `## Approval record` — the exact authorization form, quoted; the three
-  forms are defined in `skills/architect/SKILL.md` `### 2. Spec Approval`.

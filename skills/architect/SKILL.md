@@ -2,7 +2,7 @@
 name: architect
 description: >
   Use when the user asks to architect, run or continue the autonomous software
-  factory, turn a goal into a spec-approved tracker issue plan, dispatch builder
+  factory, turn a goal into a hardened tracker issue plan, dispatch builder
   jobs, grade finished work, diagnose blockers, or finish a factory run.
 effort: high
 ---
@@ -50,6 +50,23 @@ preload) — a stage skill returns here and never invokes a peer. Mechanics:
 9. **No silent fallback.** Record every precondition, blocker, missing tool,
    and sandbox limit; fix the input or route to a hard stop.
 
+## Timed-ruling protocol
+
+There is no approval gate anywhere in the loop; the human steers by editing
+the spec, commenting rulings, vetoing digests, or `docs/STOP`. Every human
+question routes through this protocol, human present or not. Never a
+blocking question UI (nothing times it out; an absent human hangs the
+factory):
+
+1. Print question, numbered options, recommended default in-session; mirror
+   as a `RULING PENDING` tracker comment naming the default.
+2. Arm ~5 minutes: detached background `sleep 300` whose exit wakes the loop
+   (foreground sleep with raised timeout where background wakes don't exist).
+3. Answer first: apply and kill the timer. Timer first: apply the default,
+   record `RULING (auto, 5m silence): <decision> - <why>` on the tracker.
+   Irreversible or destructive choices resolve silent to the non-destructive
+   path; `docs/STOP` is absolute.
+
 ## Procedure
 
 ### 0. Ground
@@ -73,10 +90,9 @@ glossary exactly — substitution is a defect.
 
 ### 1. Intake
 
-Explore, then ask at most ~5 questions in one batch — only where the answer
-changes implementation or validation. Ask via the timed-ruling protocol;
-timer-expired questions become recorded `## Assumptions` on the recommended
-option.
+Feed the user's goal straight into the pipeline — no intake question batch;
+anything genuinely open becomes a timed ruling that auto-defaults and lands
+as a recorded `## Assumptions` entry.
 
 Preflight per tracker mode (`tracker.md` `## Preflight per mode`). Canary
 each candidate backend once — list tools, `git log -1 --oneline`, reply
@@ -85,68 +101,46 @@ record the substitution with evidence. Never switch backend mid-wave.
 
 Dispatch a fresh strategist subagent to write the spec with `to-spec`; it
 returns the spec draft (`SPEC DRAFT: <path>`) and any `RULING NEEDED:`
-questions. Rule them via the timed-ruling protocol, fold the outcomes into
-the draft as `## Assumptions`, and commit the spec — the strategist never
-commits or touches the tracker. Then one fresh strategist subagent runs
-`adversarial-review` against the draft; apply surviving findings before
-approval. Create the tracking issue — spec pointer, assumptions digest,
-approve-by-comment instructions (`APPROVE`, `APPROVE with edits: <text>`,
-`REJECT <reason>`), run marker, manifest path — then write the manifest, a
-local gitignored run artifact like all of `docs/runs/` and `docs/jobs/`.
+questions. Rule them via the timed-ruling protocol and fold the outcomes
+into the draft as `## Assumptions` — the strategist never commits or
+touches the tracker. Cut `factory/<run>` and commit the spec there; every
+run commit lands on that branch and main stays untouched until the closing
+PR. One run per checkout — concurrent runs each get their own worktree
+(`.architect/runs/<slug>`, machine-local). Create the tracking issue — spec
+pointer, assumptions digest, run marker, manifest path — then write the
+manifest, a local gitignored run artifact like all of `docs/runs/` and
+`docs/jobs/`.
 
-### 2. Spec Approval
+### 2. Harden
 
-The one human step: the human edits or vetoes assumptions and approves or
-rejects. Approval authorizes the whole issue plan; afterward, contact the
-human only through tracking-issue digests or hard stops. Exactly three
-forms, recorded verbatim in the spec, never inferred:
-
-- In-session: explicit authorization, quoted.
-- Tracking-issue: repo-owner comment `APPROVE` / `APPROVE with edits:` /
-  `REJECT`.
-- Timer: timed-ruling protocol expired silent → `APPROVE (auto, 5m silence)`
-  plus reasoning, veto-able after the fact.
-
-Timed-ruling protocol — every human question in the loop, present or not.
-Never a blocking question UI (nothing times it out; an absent human hangs
-the factory):
-
-1. Print question, numbered options, recommended default in-session; mirror
-   as a `RULING PENDING` tracker comment naming the default.
-2. Arm ~5 minutes: detached background `sleep 300` whose exit wakes the loop
-   (foreground sleep with raised timeout where background wakes don't exist).
-3. Answer first: apply and kill the timer. Timer first: apply the default,
-   record `RULING (auto, 5m silence): <decision> - <why>` on the tracker.
-   Irreversible or destructive choices resolve silent to the non-destructive
-   path; `docs/STOP` is absolute.
-
-On approval, cut `factory/<run>`; every run commit lands there and main
-stays untouched until the closing PR. One run per checkout — concurrent runs
-each get their own worktree (`.architect/runs/<slug>`, machine-local).
-
-### 3. Decompose
-
-Dispatch a fresh strategist subagent to compile the spec into dispatch-ready
-issue drafts with `to-issues` (publish-ordered files under
+Dispatch one fresh strategist subagent over the committed draft; this one
+dispatch replaces the old review-approve-decompose chain. It runs
+`adversarial-review` against the spec and folds the surviving findings into
+a revised spec itself, then compiles that spec into dispatch-ready issue
+drafts with `to-issues` (publish-ordered files under
 `docs/runs/<run>/issues/`): structural before behavioral with blocking
 edges, tracer-bullet vertical slices, a file-disjoint parallel frontier,
 interface contracts from producers, one compact change-skeleton per issue
-(a contract, not a line mandate — PHASE 0 is the disagreement channel).
+(a contract, not a line mandate — PHASE 0 is the disagreement channel). It
+drafts per-issue graded checks with `frozen-checks` under
+`docs/checks/<run>/` — each issue links its check — and closes by
+stress-testing its own decomposition with `adversarial-review`'s
+decomposition discipline, executing every draft RUN item and resolving
+every pointer before returning. It returns the revised spec, issue drafts,
+check drafts, and its findings ledger; it never commits or touches the
+tracker.
 
-The strategist drafts per-issue graded checks with `frozen-checks` under
-`docs/checks/<run>/`;
-each issue links its check. The orchestrator publishes the sub-issues from
-the drafts with native edges (`dispatch.md` `## Issue conventions`) and owns
-the freeze commit. Freeze preconditions: freeze committed on the
-factory branch and pushed; `preflight.ps1`/`.sh` verifies worktree, freeze,
-and a frozen-file spot-check; builders still FIRST-ACTION verify inputs.
+### 3. Publish and freeze
 
-Before the freeze commit, one fresh strategist `adversarial-review` stress pass attacks
-the whole decomposition — issues plus draft checks — and its surviving
-findings land. Record freeze SHA, stress result, and plan on the tracking
-issue. Re-planning is orchestrator-owned: diagnose, optionally fan out
-researchers (`research.md`), amend spec/issue/checks in git and tracker,
-respawn fresh. Builders never re-plan.
+The orchestrator rules on the returned drafts, commits the revised spec,
+publishes the sub-issues from the drafts with native edges (`dispatch.md`
+`## Issue conventions`), and owns the freeze commit. Freeze preconditions:
+freeze committed on the factory branch and pushed; `preflight.ps1`/`.sh`
+verifies worktree, freeze, and a frozen-file spot-check; builders still
+FIRST-ACTION verify inputs. Record the freeze SHA, stress result, and plan
+on the tracking issue. Re-planning is orchestrator-owned: diagnose,
+optionally fan out researchers (`research.md`), amend spec/issue/checks in
+git and tracker, respawn fresh. Builders never re-plan.
 
 ### 4. Factory Loop
 
@@ -186,11 +180,14 @@ Event loop: loop.md `## Factory block procedure`.
 
 ### 5. Finish
 
-Open with a timed-ruling question: run the final review? Default YES. On
-YES, one fresh strategist subagent (MEDIUM effort, worktree from the
-factory branch head) runs the `final-review` stage skill, dispatched by
-citing the installed user-level skill text by explicit path. It reports and
-decomposes, never edits, and returns one verdict. `REVIEW: GREEN` is a
+When every build issue has closed, run the closing test pass: execute the
+run's builder-built test suites plus every frozen RUN item at the factory
+branch head and capture the raw output. Then one fresh strategist subagent
+(MEDIUM effort, worktree from the factory branch head) runs the
+`final-review` stage skill — always, never gated on a ruling to enter it —
+dispatched by citing the installed user-level skill text by explicit path,
+with the test-pass output and every rulings file in its dispatch block. It
+reports and decomposes, never edits, and returns one verdict. `REVIEW: GREEN` is a
 short-circuit: post the GREEN verdict on the tracking issue and go straight
 to integrate. `REVIEW: FINDINGS n=<count>` names a review spec, fix-issue
 drafts, and check drafts; the orchestrator harvests those three draft sets,
@@ -227,7 +224,7 @@ Stop and ask the human when:
 - An irreversible or destructive action is needed.
 - Two consecutive KILL decisions occur.
 - A blocker collides with a recorded assumption.
-- Scope grows beyond the approved spec.
+- Scope grows beyond the hardened spec.
 - Required tracker preflight cannot be satisfied.
 
 ## Maintenance

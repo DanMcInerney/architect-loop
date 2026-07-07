@@ -38,7 +38,7 @@ file for frozen check. Consistent language is the whole point.
 
 **Factory (one line each; matches `docs/spec/skill-library.md` Target flow):**
 
-- **Run** - one factory build from spec approval to the closing PR, on its own factory branch.
+- **Run** - one factory build from intake to the closing PR, on its own factory branch.
 - **Tracking issue** - the run's parent issue: dashboard, digest, preflight record.
 - **Issue** - one vertical-slice unit of work: one builder job, one disjoint file set, one change-skeleton.
 - **Slice** - the vertical cut an issue implements; slice names the cut, issue names its tracker record - same unit, two angles.
@@ -46,7 +46,7 @@ file for frozen check. Consistent language is the whole point.
 - **Check-runner** - the deterministic script that grades a frozen check's RUN items and exits typed (0/2/5).
 - **Strategist** - the fresh high-judgment subagent that drafts specs, cuts issues, stress-tests plans, and runs full-lane reviews.
 - **Builder** - the fresh, worktree-isolated agent that implements one issue and never commits.
-- **Orchestrator** - the one session that grounds, dispatches strategist and builder work, freezes, and integrates; never writes implementation code; in the fast lane (/architect-fast) it also performs the closing review and its fixes - a recorded relaxation.
+- **Orchestrator** - the one session that grounds, dispatches strategist and builder work, freezes, and integrates; never writes implementation code; in the fast lane (/architect-fast) it also runs the closing test pass whose output feeds the builder review - a recorded relaxation.
 - **Factory branch** - the run's integration branch (`factory/<run>`) that job branches merge into.
 - **Worktree** - the isolated git checkout a builder or reviewer works in, verified against the freeze commit.
 - **Job report** - a builder's raw-evidence artifact, ending in one STATUS line.

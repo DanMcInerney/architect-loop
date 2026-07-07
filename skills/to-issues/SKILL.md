@@ -1,23 +1,23 @@
 ---
 name: to-issues
 description: >
-  Use when decomposing an approved spec into tracker issues: cutting
+  Use when decomposing a hardened spec into tracker issues: cutting
   tracer-bullet vertical slices through every layer, ordering structural work
   first with blocking edges, maximizing the disjoint parallel frontier,
   publishing producer/consumer interface contracts, and attaching a compact
   change-skeleton to each issue. Invoked only from an explicit architect
-  dispatch — by the strategist subagent in `/architect`, or directly by the
-  orchestrator in `/architect-fast` — after spec approval; never left to
-  description-trigger discovery.
+  dispatch — by the harden strategist subagent in `/architect`, or directly
+  by the orchestrator in `/architect-fast` — after the spec is written;
+  never left to description-trigger discovery.
 ---
 
 <!-- Adapted from mattpocock/skills (MIT). -->
 
 # To Issues
 
-Turn the approved spec into dispatch-ready issues under the tracking issue.
-Approval already covers the whole plan — this stage does not re-quiz the
-human; a hard stop or an oddity escalation is the only thing that reopens a
+Turn the hardened spec into dispatch-ready issues under the tracking issue.
+The spec already settles the whole plan — this stage does not quiz the
+human; a hard stop or an oddity escalation is the only thing that opens a
 question here.
 
 ## 1. Read before you cut

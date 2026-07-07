@@ -3,9 +3,9 @@ name: architect-fast
 description: >
   Use when the user asks to architect-fast a change, run the light factory
   lane, or factory-build a small goal — a few files, roughly one sitting, at
-  most ~3 parallel issues — into a spec-approved plan with parallel
-  builders, one orchestrator-performed closing review, and a single PR. Same
-  loop shape as /architect with the per-issue grading machinery removed; for
+  most ~3 parallel issues — into a specced plan with parallel builders, one
+  builder-performed closing review-and-fix, and a single PR. Same loop
+  shape as /architect with the per-issue grading machinery removed; for
   larger, riskier, or many-issue work use /architect instead.
 effort: high
 ---
@@ -34,25 +34,26 @@ run.
 Unchanged from `/architect`: the tracking issue is the coordination log;
 builders are fresh, worktree-isolated, and never commit; the orchestrator
 owns commits, merges, and closure; tier is set at decomposition, never moved
-by a failure; the timed-ruling protocol times every human question; the one
-human step is spec approval; disagreement is mandatory at PHASE 0; no
+by a failure; the timed-ruling protocol times every human question and no
+approval gate exists anywhere; disagreement is mandatory at PHASE 0; no
 silent fallback — every precondition, blocker, and substitution is recorded.
 
 ## Relaxed by design
 
 - No strategist subagents — no adversarial spec, decomposition, or final
-  review. Intake is at most ~3 questions and `to-issues` runs straight off
-  the approved spec.
+  review. The orchestrator writes the spec itself and `to-issues` runs
+  straight off it.
 - The fast lane's gates: no frozen check files, no check-runner —
   issue-body acceptance criteria, builder-run tests, and the orchestrator
   review carry the weight instead.
 - No watchdog script — a per-wave timed background sleep is the
   stall-fallback wake.
 - The review doctrine ("nobody grades their own work") is deliberately
-  relaxed alongside Hard Rules 3 and 4: the orchestrator itself reads the
-  whole run diff, does the code, cohesion, and test review, and writes the
-  fixes directly. The closing PR is the later eyes on that work. Product
-  docs land in integrate's docs pass, same as `/architect`.
+  relaxed alongside Hard Rules 3 and 4: the closing review is one fresh
+  builder subagent that both reviews and fixes, with no check-runner over
+  its work — the orchestrator's merge through postflight and the closing
+  PR are the later eyes. Product docs land in integrate's docs pass, same
+  as `/architect`.
 
 ## Procedure
 
@@ -65,27 +66,23 @@ silent fallback — every precondition, blocker, and substitution is recorded.
    wake; read the (≤3-issue) frontier directly from tracker state instead.
    `skills/architect/status.ps1|.sh` works unchanged for status requests.
 
-2. **Intake.** At most ~3 materiality-tested questions via the timed-ruling
-   protocol (`skills/architect/SKILL.md` `### 2. Spec Approval`). No
-   adversarial spec review. Write the spec with `to-spec` on its exact
-   template, one named substitution: the `## Validation strategy` section
-   names the fast lane's actual gates — builder-run tests plus the
-   orchestrator review — instead of the check-runner and closing review.
-   Create the tracking issue and manifest; cut the factory branch on
-   approval.
+2. **Intake.** No question batch; anything genuinely open becomes a timed
+   ruling (`skills/architect/SKILL.md` `## Timed-ruling protocol`) that
+   auto-defaults into a recorded assumption. No adversarial spec review.
+   Write the spec with `to-spec` on its exact template, one named
+   substitution: the `## Validation strategy` section names the fast
+   lane's actual gates — builder-run tests plus the closing builder
+   review-and-fix — instead of the check-runner and closing review.
+   Create the tracking issue and manifest; cut the factory branch.
 
-3. **Spec approval.** Identical to `/architect`: the one human step, three
-   recorded forms — in-session, tracking-issue comment, or the timed
-   5-minute auto-APPROVE on silence.
-
-4. **Decompose.** `to-issues` cuts at most 3 tracer-bullet vertical-slice
+3. **Decompose.** `to-issues` cuts at most 3 tracer-bullet vertical-slice
    issues with a file-disjoint parallel frontier and producer interface
    contracts, two named substitutions: each issue body carries an
    acceptance-criteria section in place of a check path, and the
    change-skeleton is optional. Above the size ceiling, stop and recommend
    `/architect` instead of absorbing the extra issues.
 
-5. **Factory loop.** Dispatch every ready issue as a fresh worktree-isolated
+4. **Factory loop.** Dispatch every ready issue as a fresh worktree-isolated
    builder — same agent def, preloads, model resolution, never-commit rule,
    PHASE-0 disagreements, raw-evidence reports
    (`skills/architect/dispatch.md` `## Builder block template`), one named
@@ -102,21 +99,28 @@ silent fallback — every precondition, blocker, and substitution is recorded.
    dispatch cap remains 10 CLI-launched jobs or 5 harness-native subagents.
    On BLOCKED, answer durably and respawn fresh, unchanged.
 
-6. **Orchestrator review.** After all issues merge, the orchestrator itself
-   reviews the entire run diff — code correctness, cross-slice cohesion,
-   and test stewardship — using the same calibration wording as
-   `/architect`: "Flag only gaps that affect correctness, the stated
-   requirements, or documented project invariants -- cite file:line
-   evidence for every finding. Do not report stylistic preferences." It
-   makes the fixes directly, runs the named test suites, and commits its
-   own work. This is the fast lane's only review — fast-lane-only
-   vocabulary, never part of `/architect`'s flow. The verdict plus
-   diffstat is posted on the tracking issue.
+5. **Closing test pass.** After all issues merge, the orchestrator runs the
+   full test suite over the merged factory branch and captures the raw
+   output for the reviewer.
+
+6. **Builder review.** Dispatch one fresh worktree-isolated builder
+   subagent with the run diff scope, the test-pass output, and the same
+   calibration wording as `/architect`: "Flag only gaps that affect
+   correctness, the stated requirements, or documented project invariants
+   -- cite file:line evidence for every finding. Do not report stylistic
+   preferences." It does the complete review — code correctness,
+   cross-slice cohesion, test stewardship — records its findings as one
+   fix issue (orchestrator-filed where the job sandbox has no tracker
+   access), then fixes them in its worktree. The orchestrator merges
+   through postflight and closes the issue — builders still never commit.
+   This is the fast lane's only review — fast-lane-only vocabulary, never
+   part of `/architect`'s flow. The verdict plus diffstat is posted on the
+   tracking issue.
 
 7. **Integrate.** Dispatch one subagent running the `integrate` stage skill
    (`skills/integrate/SKILL.md`) with the change-context digest in its
    dispatch block; its first step is the docs pass, same as `/architect`.
-   Standing fast-lane ruling: the orchestrator-review verdict is the
+   Standing fast-lane ruling: the builder-review verdict is the
    recorded final-review substitute — the "skipped by a recorded ruling"
    arm of integrate's precondition — and integrate's graded-RUN
    verification set is empty by design; its validator-suite verification
@@ -132,14 +136,14 @@ this lane, to prevent description-trigger drift.
 
 | Reused contract | Fast-lane substitution |
 |---|---|
-| `to-spec`'s validation-strategy naming instruction | Names builder-run tests + the orchestrator review, never the check-runner or closing review |
+| `to-spec`'s validation-strategy naming instruction | Names builder-run tests + the closing builder review-and-fix, never the check-runner or `/architect`'s closing review |
 | `to-issues`' per-issue check path | An acceptance-criteria section quoted in the issue body |
 | `to-issues`' mandatory change-skeleton | Optional (the size-ceiling carve-out) |
 | The builder dispatch template's frozen-checks section | Acceptance criteria quoted from the issue body |
 | Postflight's `freeze_sha` diff base | The job's recorded dispatch-head SHA |
 | The ground script's frontier line | Read directly from tracker state; no ground script mid-run |
 | The watchdog's typed stall detection | One per-wave timed background sleep as the stall-fallback wake |
-| Final review | The orchestrator review — code, cohesion, and test axes, fixes made directly |
+| Final review | One fresh builder review-and-fix subagent fed the closing test-pass output — code, cohesion, and test axes; fixes merge through postflight |
 | Integrate's graded-RUN verification set | Empty by design; its validator-suite verification still runs |
 
 ## Maintenance
