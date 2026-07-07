@@ -380,15 +380,14 @@ final text; the harness then emitted a contentless idle notification and dropped
 that final text. Agents that delivered used the message channel by luck, not by
 contract.
 
-The 2026-07-04 canary confirmed the backend risk and the dispatch fix at the
-same time: the Claude judge spawn returned `CANARY: DEGRADED` with only
-Glob/Read/Grep, bringing the dev-machine total to 7/7 shell-stripped Claude
-spawns, while synchronous Agent-tool dispatch returned the verdict as the tool
-result. The human ruling on 2026-07-04 chose synchronous-by-default for
-harness-native judges: Claude Agent-tool judges run with
-`run_in_background: false`; codex-backend judges keep the background
-`codex exec -o <file>`
-typed-exit path, whose process exit wakes the loop.
+The 2026-07-04 canary confirmed the backend risk and the first dispatch fix:
+the Claude judge spawn returned `CANARY: DEGRADED` with only Glob/Read/Grep,
+bringing the dev-machine total to 7/7 shell-stripped Claude spawns. The human
+ruling chose `run_in_background: false` for harness-native judges, but the
+2026-07-07 pair-fairness-webui run later showed synchronous Agent-tool jobs can
+still idle without delivering final text. Current dispatch is therefore
+artifact-first: every result-bearing Agent-tool job names a report file and
+greppable verdict; any final message is only an optimization.
 
 Judge templates also batch independent reads - frozen check file, spec, job
 report, rulings file, and checkrun evidence - into one parallel read step, then
@@ -1100,6 +1099,10 @@ cleanup. Both namespaces are load-bearing in shipped text.)
   flag now redirects TEMP/TMP/TMPDIR and `UV_CACHE_DIR` under
   `.architect/tmp/` for the child only. Evidence: validator fixture
   `sandbox-env`.
+- **Claude-native results are artifact-first.** Two result-bearing Agent-tool
+  jobs on 2026-07-07 completed with bare idle notifications, so every
+  Claude-native dispatch now requires a report path plus greppable verdict; a
+  delivered final message is only an optimization.
 
 ---
 
