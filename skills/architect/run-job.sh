@@ -75,29 +75,65 @@ fi
 
 wait_file="$job_dir/job.wait"
 wait_tmp="$job_dir/job.wait.tmp"
-rm -f "$wait_file" "$wait_tmp"
+child_pid_file="$job_dir/job.child"
+child_pid_tmp="$job_dir/job.child.tmp"
+kill_request="$job_dir/job.kill"
+rm -f "$wait_file" "$wait_tmp" "$child_pid_file" "$child_pid_tmp" "$kill_request"
+use_setsid=false
+command -v setsid >/dev/null 2>&1 && use_setsid=true
 (
-  if [ -n "$stdin_file" ]; then
-    "$@" < "$stdin_file" > "$events_file" 2>&1
+  if [ "$use_setsid" = true ]; then
+    launcher=$(command -v bash 2>/dev/null || printf bash)
+    if [ -n "$stdin_file" ]; then
+      setsid "$launcher" -c 'printf "%s\n" "$$" > "$1"; mv "$1" "$2"; shift 2; exec "$@"' architect-scope "$child_pid_tmp" "$child_pid_file" "$@" < "$stdin_file" > "$events_file" 2>&1 &
+    else
+      setsid "$launcher" -c 'printf "%s\n" "$$" > "$1"; mv "$1" "$2"; shift 2; exec "$@"' architect-scope "$child_pid_tmp" "$child_pid_file" "$@" > "$events_file" 2>&1 &
+    fi
+    inner=$!
+    wait "$inner" 2>/dev/null
+    child_code=$?
   else
-    "$@" > "$events_file" 2>&1
+    if [ -n "$stdin_file" ]; then
+      "$@" < "$stdin_file" > "$events_file" 2>&1
+    else
+      "$@" > "$events_file" 2>&1
+    fi
+    child_code=$?
   fi
-  child_code=$?
   printf '%s\n' "$child_code" > "$wait_tmp"
   mv "$wait_tmp" "$wait_file"
   exit "$child_code"
 ) &
 child=$!
+child_meta=$child
+pgid_json=null
+scope=plain
+if [ "$use_setsid" = true ]; then
+  deadline=$(( $(date +%s) + 5 ))
+  while [ ! -f "$child_pid_file" ] && [ "$(date +%s)" -lt "$deadline" ]; do sleep 0.05; done
+  child_meta=$(cat "$child_pid_file" 2>/dev/null || printf '%s' "$child")
+  pgid_json=$child_meta
+  scope=setsid
+fi
 tmp_meta="$job_dir/job.meta.json.tmp"
-sed "s/\"started_at\"/\"child_pid\":$child,\"started_at\"/" "$job_dir/job.meta.json" > "$tmp_meta" && mv "$tmp_meta" "$job_dir/job.meta.json"
+sed "s/\"started_at\"/\"child_pid\":$child_meta,\"pgid\":$pgid_json,\"spawn_scope\":\"$scope\",\"started_at\"/" "$job_dir/job.meta.json" > "$tmp_meta" && mv "$tmp_meta" "$job_dir/job.meta.json"
 
 trap 'exit 143' INT TERM HUP
 
 write_heartbeat
 last_heartbeat=$(date +%s)
+kill_sent=false
+kill_at=0
 while [ ! -f "$wait_file" ]; do
   sleep 1
   now_epoch=$(date +%s)
+  if [ -f "$kill_request" ] && [ "$kill_sent" = false ]; then
+    if [ "$pgid_json" != null ]; then kill -TERM -- "-$pgid_json" 2>/dev/null || :; else kill -TERM "$child_meta" 2>/dev/null || :; fi
+    kill_sent=true
+    kill_at=$now_epoch
+  elif [ "$kill_sent" = true ] && [ $((now_epoch - kill_at)) -ge 5 ]; then
+    if [ "$pgid_json" != null ]; then kill -KILL -- "-$pgid_json" 2>/dev/null || :; else kill -KILL "$child_meta" 2>/dev/null || :; fi
+  fi
   if [ $((now_epoch - last_heartbeat)) -ge "$heartbeat_sec" ]; then
     write_heartbeat
     last_heartbeat=$now_epoch
@@ -105,7 +141,7 @@ while [ ! -f "$wait_file" ]; do
 done
 wait "$child" 2>/dev/null || true
 code=$(cat "$wait_file" 2>/dev/null || printf 127)
-rm -f "$wait_file" "$wait_tmp"
+rm -f "$wait_file" "$wait_tmp" "$child_pid_file" "$child_pid_tmp" "$kill_request"
 trap - INT TERM HUP
 write_heartbeat
 write_exit "$code"

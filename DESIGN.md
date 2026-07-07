@@ -1083,6 +1083,13 @@ cleanup. Both namespaces are load-bearing in shipped text.)
   `~/.codex/sessions/YYYY/MM/DD/rollout-*<thread_id>.jsonl`. The watchdog now
   caches that path and exits 11 `BLOCKED_ON_TOOL` when the freshest stream ends
   at a started tool/function call. Evidence: validator fixture `blocked-tool`.
+- **Reaping is an action, not monitor behavior.** The wrapper now records a
+  kill scope (`pgid` on POSIX, named Windows Job Object on PowerShell), while
+  `kill-job.ps1|.sh` is the orchestrator action that terminates stuck children.
+  Windows uses `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, so wrapper death also ends
+  the assigned child tree; POSIX tries the process group first and falls back to
+  a wrapper-owned `job.kill` request when the host PID layer cannot signal it.
+  Evidence: validator fixture `kill-job`.
 
 ---
 

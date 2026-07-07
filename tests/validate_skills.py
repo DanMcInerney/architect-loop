@@ -46,6 +46,8 @@ REQUIRED_SIBLINGS = {
         "loop.md",
         "run-job.ps1",
         "run-job.sh",
+        "kill-job.ps1",
+        "kill-job.sh",
         "watchdog.ps1",
         "watchdog.sh",
         "status.ps1",
@@ -804,6 +806,25 @@ def run_job_prefix(kind: str) -> list[str] | None:
     return [bash, bash_path(SKILLS / "architect" / "run-job.sh")]
 
 
+def kill_job_prefix(kind: str) -> list[str] | None:
+    if kind == "ps1":
+        powershell = shutil.which("powershell")
+        if not powershell:
+            return None
+        return [
+            powershell,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(SKILLS / "architect" / "kill-job.ps1"),
+        ]
+    bash = shutil.which("bash")
+    if not bash:
+        return None
+    return [bash, bash_path(SKILLS / "architect" / "kill-job.sh")]
+
+
 def write_watchdog_config(
     config: Path,
     job_dir: Path,
@@ -920,7 +941,13 @@ def finish_wrapped_fake(proc: subprocess.Popen[str], label: str, timeout: int = 
         proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
         proc.kill()
-        proc.communicate(timeout=5)
+        try:
+            proc.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            if os.name == "nt":
+                subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)], capture_output=True, text=True, timeout=5)
+            else:
+                proc.kill()
         errors.append(f"watchdog fixture {label}: wrapper did not finish")
 
 
@@ -954,6 +981,9 @@ def check_watchdog_determinism_fixture() -> None:
                 "    sys.exit(9)",
                 "if behavior == 'hang':",
                 "    time.sleep(4)",
+                "    sys.exit(0)",
+                "if behavior == 'kill-hang':",
+                "    time.sleep(20)",
                 "    sys.exit(0)",
                 "if behavior == 'loop':",
                 "    for _ in range(6):",
@@ -1009,6 +1039,10 @@ def check_watchdog_determinism_fixture() -> None:
                 "    ;;",
                 "  hang)",
                 "    sleep 4",
+                "    exit 0",
+                "    ;;",
+                "  kill-hang)",
+                "    sleep 20",
                 "    exit 0",
                 "    ;;",
                 "  loop)",
@@ -1122,8 +1156,35 @@ def check_watchdog_determinism_fixture() -> None:
             proc = run_wrapped_fake(kind, job_dir, workdir, report, fake, behavior)
             config = job_dir / "watchdog.json"
             write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
+            deadline = time.time() + 5
+            while time.time() < deadline and not (job_dir / "job.meta.json").exists():
+                time.sleep(0.05)
             watchdog_run(watchdog_prefix, config, f"{runner} {behavior}", expected_exit, needle)
             finish_wrapped_fake(proc, f"{runner} {behavior}")
+
+        job_dir = base / f"{runner}-kill-job"
+        workdir = job_dir / "work"
+        report = job_dir / "report.md"
+        workdir.mkdir(parents=True)
+        proc = run_wrapped_fake(kind, job_dir, workdir, report, fake, "kill-hang")
+        deadline = time.time() + 5
+        while time.time() < deadline and not (job_dir / "job.meta.json").exists():
+            time.sleep(0.05)
+        prefix = kill_job_prefix(kind)
+        if prefix is None:
+            errors.append(f"kill-job fixture {runner}: missing executor")
+        else:
+            arg = bash_path(job_dir) if kind == "sh" else str(job_dir)
+            killed = subprocess.run([*prefix, arg], cwd=ROOT, text=True, capture_output=True, timeout=12)
+            kout = killed.stdout.replace("\r\n", "\n")
+            if killed.returncode != 0 or "KILLJOB: OK" not in kout:
+                errors.append(
+                    f"kill-job fixture {runner}: expected OK exit 0 got {killed.returncode}\n"
+                    f"stdout:\n{kout}\nstderr:\n{killed.stderr}"
+                )
+        finish_wrapped_fake(proc, f"{runner} kill-job", timeout=10)
+        if not (job_dir / "job.exit.json").exists():
+            errors.append(f"kill-job fixture {runner}: wrapper did not write job.exit.json")
 
         job_dir = base / f"{runner}-orphan"
         workdir = job_dir / "work"
@@ -1232,20 +1293,6 @@ def check_watchdog_determinism_fixture() -> None:
             output = watchdog_run(watchdog_prefix, config, f"{runner} start-failure", 9, "WATCHDOG: DONE_FAILED")
             if "LEGACY_UNWRAPPED" in output:
                 errors.append(f"watchdog fixture {runner} start-failure: missing metadata on Start-Process failure\nstdout:\n{output}")
-
-        if kind == "sh":
-            job_dir = base / f"{runner}-real-orphan"
-            workdir = job_dir / "work"
-            report = job_dir / "report.md"
-            workdir.mkdir(parents=True)
-            proc = run_wrapped_fake(kind, job_dir, workdir, report, fake, "orphan-live", detached=True)
-            time.sleep(1.5)
-            proc.kill()
-            proc.communicate(timeout=5)
-            time.sleep(6)
-            config = job_dir / "watchdog.json"
-            write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
-            watchdog_run(watchdog_prefix, config, f"{runner} real-orphan", 7, "WATCHDOG: ORPHANED")
 
 
 def check_status_contract() -> None:

@@ -123,7 +123,7 @@ Launch pattern: write the runner config JSON — fields `check_file`, `workdir`,
 
 Worktree pre-creation and `codex exec` are Codex-backend builder jobs even under Claude Code; Claude-backend harness jobs use the Per-harness delegation table.
 
-All long-lived CLI subagents — builders, cross-family strategists, verification jobs — run through `run-job.ps1|.sh`; the wrapper writes `job.meta.json`, `job.heartbeat`, `job.exit.json`, and `events.jsonl`. It accepts an opaque command, so the child can be `codex exec`, `claude -p`, or a long check-runner under a Claude Code or Codex orchestrator. Never pipe live stdout through display filters such as `tail`; the wrapper owns redirection. Every dispatch event re-arms the watchdog over all in-flight CLI jobs.
+All long-lived CLI subagents — builders, cross-family strategists, verification jobs — run through `run-job.ps1|.sh`; the wrapper writes `job.meta.json`, `job.heartbeat`, `job.exit.json`, and `events.jsonl`, including `pgid` on POSIX or `job_object` on Windows for `kill-job.ps1|.sh`. It accepts an opaque command, so the child can be `codex exec`, `claude -p`, or a long check-runner under a Claude Code or Codex orchestrator. Never pipe live stdout through display filters such as `tail`; the wrapper owns redirection. Every dispatch event re-arms the watchdog over all in-flight CLI jobs.
 
 Single Codex-backed job:
 
@@ -472,10 +472,7 @@ The respawn spawn block is built from four pieces:
 For a sandbox hang specifically (a wedged job that never gets to post a
 blocker comment), this rescue ladder finds the root cause before respawn:
 
-1. Kill stuck children first. On Windows, direct child lists can lie because
-   wrappers die while grandchildren hold pipes. Search system-wide by command
-   signature: executable path, test path, basetemp/cache directory, or another
-   unique fragment from the in-flight command.
+1. Kill stuck wrapped jobs first with `kill-job.ps1|.sh <job-dir>`; it reads `job.meta.json`, terminates the recorded `pgid`/`job_object`, and waits for wrapper exit truth.
 2. If a native background subagent repeats the same hang, stop that job and
    discard the worktree. Re-dispatch only after the issue text forbids the
    failing path or command.

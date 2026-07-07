@@ -99,9 +99,9 @@ Close-out: after processing a subagent's final result — verdict, report, or
 fix — release or stop its session in the same turn, batching independent
 close-outs into parallel calls; a lingering idle session is bookkeeping debt
 and can shadow names, so never leave one open once its result is consumed. No
-polling and no per-close commentary. Before postflight, kill lingering codex
-children of any consumed exec; kill any lingering job processes when a job is
-discarded.
+polling and no per-close commentary. Before postflight or discard, run
+`kill-job.ps1|.sh <job-dir>` for any consumed wrapped job with lingering
+children.
 
 ## Failure ladder
 
