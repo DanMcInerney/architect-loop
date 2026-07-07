@@ -191,9 +191,14 @@ binaries (Git-for-Windows bash/grep/sed) die at startup
 (`CreateFileMapping` Win32 error 5; openai/codex#12000, #21715); (2)
 pytest's cacheprovider hangs forever in `pytest_sessionfinish ->
 tempfile.mkdtemp()` (py-spy-verified stack; TEMP/TMP/TMPDIR + `--basetemp`
-+ `-o cache_dir` redirects verified insufficient); (3) asyncio
-subprocess/network I/O blocks in `select()` (live-provider tests that pass
-in an unsandboxed shell). Researchers stay `--sandbox read-only`
++ `-o cache_dir` redirects verified insufficient); (3) network I/O under
+the token blocks or is rejected — asyncio `select()` hangs on
+live-provider calls, a spawned web server never comes up so the builder's
+readiness poll waits forever, and network-shaped commands can be
+`rejected: blocked by policy` outright. `Start-Process` itself is not a
+trigger (controlled repro 2026-07-07: detached spawn returns promptly
+under both modes; server spawn + local HTTP round trip returns 200 only
+under full access). Researchers stay `--sandbox read-only`
 (`research.md`); they write nothing.
 
 The constraints that matter are enforced downstream, not by the OS
