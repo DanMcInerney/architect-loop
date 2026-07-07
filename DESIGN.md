@@ -1075,6 +1075,14 @@ cleanup. Both namespaces are load-bearing in shipped text.)
   and emits `early_status_sec=` only after wrapper exit truth resolves. The
   builder and respawn templates now ban any literal `STATUS:` before completion.
   Evidence: validator fixture `misreport` in `tests/validate_skills.py`.
+- **Wedged tool calls are typed evidence.** Codex CLI 0.139.0 was probed on
+  2026-07-07: `codex exec --json` begins with `{"type":"thread.started",
+  "thread_id":"..."}`, and tool calls stream as `item.started` /
+  `item.completed` records whose `item.type` is `command_execution` and whose
+  `item.command` carries the shell command. The persisted rollout lives at
+  `~/.codex/sessions/YYYY/MM/DD/rollout-*<thread_id>.jsonl`. The watchdog now
+  caches that path and exits 11 `BLOCKED_ON_TOOL` when the freshest stream ends
+  at a started tool/function call. Evidence: validator fixture `blocked-tool`.
 
 ---
 

@@ -91,9 +91,10 @@ function ReadState($Path, $Size, $Now, $EvidenceUtc) {
             last_evidence_ticks = [int64](Prop $raw "last_evidence_ticks" $EvidenceUtc.Ticks)
             report_ready_utc = [string](Prop $raw "report_ready_utc" "")
             first_terminal_utc = [string](Prop $raw "first_terminal_utc" "")
+            rollout_path = [string](Prop $raw "rollout_path" "")
         }
     }
-    return [ordered]@{ last_size = [int64]$Size; last_growth_utc = $seed.ToString("o"); last_evidence_ticks = [int64]$EvidenceUtc.Ticks; report_ready_utc = ""; first_terminal_utc = "" }
+    return [ordered]@{ last_size = [int64]$Size; last_growth_utc = $seed.ToString("o"); last_evidence_ticks = [int64]$EvidenceUtc.Ticks; report_ready_utc = ""; first_terminal_utc = ""; rollout_path = "" }
 }
 
 function SaveState($Path, $State) {
@@ -104,6 +105,83 @@ function LastCommands($Path) {
     $cmds = @()
     foreach ($m in [regex]::Matches((TailText $Path), '"command"\s*:\s*"((?:\\.|[^"\\])*)"')) { $cmds += $m.Groups[1].Value }
     return $cmds
+}
+
+function JsonString($Text) {
+    if ($null -eq $Text) { return "" }
+    return ([string]$Text).Replace('\', '\\').Replace('"', '\"')
+}
+
+function LastNonBlankLine($Path) {
+    $lines = @((TailText $Path) -split "`r?`n")
+    for ($i = $lines.Count - 1; $i -ge 0; $i--) {
+        $t = [string]$lines[$i]
+        if ($t.Trim().Length -gt 0) { return $t }
+    }
+    return ""
+}
+
+function TailLines($Path, $Count) {
+    return @((TailText $Path) -split "`r?`n" | Where-Object { $_ -ne "" } | Select-Object -Last $Count)
+}
+
+function ResolveRolloutPath($Events, $State, $RolloutGlob) {
+    if ($State.rollout_path -and (Test-Path -LiteralPath $State.rollout_path -PathType Leaf)) { return $State.rollout_path }
+    $head = ReadText $Events
+    $m = [regex]::Match($head, '"type"\s*:\s*"thread\.started"[\s\S]*?"thread_id"\s*:\s*"([^"]+)"')
+    if (-not $m.Success) { return "" }
+    $threadId = $m.Groups[1].Value
+    $pattern = $RolloutGlob
+    if (-not $pattern) {
+        $home = [Environment]::GetFolderPath("UserProfile")
+        $pattern = Join-Path $home ".codex\sessions\*\*\*\rollout-*$threadId*.jsonl"
+    } else {
+        $pattern = $pattern.Replace("{thread_id}", "*$threadId*")
+    }
+    try {
+        $hit = @(Get-ChildItem -Path $pattern -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1)
+        if ($hit.Count -gt 0) {
+            $State.rollout_path = $hit[0].FullName
+            return $State.rollout_path
+        }
+    } catch {}
+    return ""
+}
+
+function CommandFromStartedRecord($Line) {
+    if (-not $Line) { return "" }
+    try { $obj = $Line | ConvertFrom-Json } catch { $obj = $null }
+    if ($obj -and (Prop $obj "type" "") -eq "item.started") {
+        $item = Prop $obj "item" $null
+        $itemType = [string](Prop $item "type" "")
+        if ($itemType -in @("command_execution", "function_call", "tool_call", "tool_use")) {
+            $cmd = [string](Prop $item "command" "")
+            if (-not $cmd) { $cmd = [string](Prop $item "name" "") }
+            if (-not $cmd) { $cmd = [string](Prop $item "arguments" "") }
+            if ($cmd) { return $cmd }
+        }
+    }
+    if ($Line -match '"type"\s*:\s*"(tool_use|function_call|tool_call)"') {
+        $m = [regex]::Match($Line, '"command"\s*:\s*"((?:\\.|[^"\\])*)"')
+        if ($m.Success) { return $m.Groups[1].Value }
+        $m = [regex]::Match($Line, '"name"\s*:\s*"((?:\\.|[^"\\])*)"')
+        if ($m.Success) { return $m.Groups[1].Value }
+    }
+    return ""
+}
+
+function BlockedToolInfo($Events, $State, $Job, $MetaObj) {
+    $backend = [string](Prop $MetaObj "backend" "")
+    $stream = $Events
+    if ($backend -like "*codex*") {
+        $rollout = ResolveRolloutPath $Events $State ([string](Prop $Job "rollout_glob" ""))
+        if (-not $rollout) { return $null }
+        $stream = $rollout
+    }
+    $last = LastNonBlankLine $stream
+    $cmd = CommandFromStartedRecord $last
+    if (-not $cmd) { return $null }
+    return [pscustomobject]@{ Command = $cmd; Stream = $stream; Tail = @(TailLines $stream 5) }
 }
 
 function OutputAndExit($Code, $Line, $Extra = @()) {
@@ -154,6 +232,7 @@ while ($true) {
         if (-not $jobDir -or -not (Test-Path -LiteralPath $meta -PathType Leaf)) {
             OutputAndExit 10 "WATCHDOG: LEGACY_UNWRAPPED $id deterministic_exit=false terminal_status=$terminal"
         }
+        $metaObj = ReadJson $meta
         $exitObj = ReadJson $exitFile
         if (-not $exitObj -and (($events -and -not (Test-Path -LiteralPath $events)) -or ($worktree -and -not (Test-Path -LiteralPath $worktree)))) {
             OutputAndExit 2 "WATCHDOG: INTEGRATED $id"
@@ -224,6 +303,11 @@ while ($true) {
             OutputAndExit 8 "WATCHDOG: DEAD $id heartbeat_age_sec=$([Math]::Round($hbAge, 3)) last_growth_age_sec=$([Math]::Round($growthAge, 3))"
         }
         if ($growthAge -gt $quietGrace) {
+            $blocked = BlockedToolInfo $events $state $j $metaObj
+            if ($blocked) {
+                SaveState $stateFile $state
+                OutputAndExit 11 "WATCHDOG: BLOCKED_ON_TOOL $id seconds_since_growth=$([Math]::Round($growthAge, 3)) heartbeat_age_sec=$([Math]::Round($hbAge, 3)) command=`"$(JsonString $blocked.Command)`"" $blocked.Tail
+            }
             $tail = @((TailText $events) -split "`r?`n" | Select-Object -Last 5)
             OutputAndExit 3 "WATCHDOG: STALL $id seconds_since_growth=$([Math]::Round($growthAge, 3)) heartbeat_age_sec=$([Math]::Round($hbAge, 3))" $tail
         }

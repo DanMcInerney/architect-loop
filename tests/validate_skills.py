@@ -699,6 +699,7 @@ def check_watchdog_contract() -> None:
             "WATCHDOG: REPORT_READY",
             "WATCHDOG: ORPHANED",
             "WATCHDOG: DEAD",
+            "WATCHDOG: BLOCKED_ON_TOOL",
         ):
             if marker not in text:
                 errors.append(f"{path.relative_to(ROOT)}: missing {marker}")
@@ -971,6 +972,11 @@ def check_watchdog_determinism_fixture() -> None:
                 "        time.sleep(0.8)",
                 "    open(report, 'w', encoding='utf-8').write('done\\nSTATUS: COMPLETE\\n')",
                 "    sys.exit(0)",
+                "if behavior == 'blocked-tool':",
+                "    emit({'type':'item.completed','item':{'id':'msg_0','type':'agent_message','text':'before'}})",
+                "    emit({'type':'item.started','item':{'id':'call_1','type':'command_execution','command':'pytest -q','status':'in_progress'}})",
+                "    time.sleep(6)",
+                "    sys.exit(0)",
                 "if behavior == 'orphan-live':",
                 "    for i in range(20):",
                 "        emit({'command':f'still-writing-{i}'})",
@@ -1018,6 +1024,12 @@ def check_watchdog_determinism_fixture() -> None:
                 "  happy)",
                 "    emit '{\"command\":\"ok\"}'",
                 "    printf 'done\\nSTATUS: COMPLETE\\n' > \"$report\"",
+                "    exit 0",
+                "    ;;",
+                "  blocked-tool)",
+                "    emit '{\"type\":\"item.completed\",\"item\":{\"id\":\"msg_0\",\"type\":\"agent_message\",\"text\":\"before\"}}'",
+                "    emit '{\"type\":\"item.started\",\"item\":{\"id\":\"call_1\",\"type\":\"command_execution\",\"command\":\"pytest -q\",\"status\":\"in_progress\"}}'",
+                "    sleep 6",
                 "    exit 0",
                 "    ;;",
                 "  misreport)",
@@ -1101,6 +1113,7 @@ def check_watchdog_determinism_fixture() -> None:
         for behavior, expected_exit, needle in (
             ("hang", 3, "WATCHDOG: STALL"),
             ("loop", 4, "WATCHDOG: REPEAT"),
+            ("blocked-tool", 11, "command="),
         ):
             job_dir = base / f"{runner}-{behavior}"
             workdir = job_dir / "work"

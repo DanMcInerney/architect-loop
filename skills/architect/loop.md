@@ -71,6 +71,7 @@ Ruling options:
   wrapper; never accept it as done.
 - Exit 10 `WATCHDOG: LEGACY_UNWRAPPED` -> respawn under the wrapper unless a
   recorded ruling accepts legacy evidence for diagnosis only.
+- Exit 11 `WATCHDOG: BLOCKED_ON_TOOL` -> kill or route around the named command, then respawn with that command form recorded as forbidden or bounded.
 
 Backends without background-exit notifications use the LLM fallback template
 in `dispatch.md` "## Monitor dispatch". The fallback keeps the same

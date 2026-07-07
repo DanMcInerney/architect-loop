@@ -325,6 +325,7 @@ Interface contract:
   ]
 }
 ```
+Codex jobs may set `rollout_glob` to override the default `~/.codex/sessions/*/*/*/rollout-*<thread_id>*.jsonl` derivation.
 
 The watchdog detects mechanically; the orchestrator supplies the reasoning.
 The watchdog never kills, nudges, or judges. It exits with typed evidence:
@@ -341,6 +342,7 @@ The watchdog never kills, nudges, or judges. It exits with typed evidence:
 | 8 | `WATCHDOG: DEAD` | wrapper heartbeat is stale and no event/report output is growing |
 | 9 | `WATCHDOG: DONE_FAILED` | child exited nonzero, or exited 0 without terminal `STATUS:` |
 | 10 | `WATCHDOG: LEGACY_UNWRAPPED` | job lacks wrapper metadata and cannot provide deterministic exit truth |
+| 11 | `WATCHDOG: BLOCKED_ON_TOOL` | heartbeat is fresh, output is stalled, and the freshest stream ends at a started tool/function call with no result |
 
 Use the LLM fallback only for backends where the orchestrator cannot launch or
 wait on a long-lived Bash task whose exit wakes the loop.
@@ -375,9 +377,7 @@ orchestrator integrated the job mid-sweep, exit `INTEGRATED_BY_ORCHESTRATOR`
 and list the vanished path. If you cannot verify something from this sandbox,
 state what you cannot verify instead of assuming the job is done.
 
-Any stall or repeat concern exits immediately with the job id, minutes since
-last file activity, byte/mtime evidence, repeated command if present, and tail
-excerpt. Do not wait for other jobs to finish before reporting it.
+Any stall, wedged tool call, or repeat concern exits immediately with the job id, minutes since last file activity, byte/mtime evidence, repeated or wedged command if present, and tail excerpt. Do not wait for other jobs to finish before reporting it.
 ```
 <!-- architect-monitor-fallback-template:end -->
 
