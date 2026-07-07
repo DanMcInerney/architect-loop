@@ -254,6 +254,11 @@ if [ -d "$jobs_dir" ]; then
     slug=$(printf '%s' "$base" | sed 's/-[0-9][0-9]$//')
     checkrun="$jobs_dir/${slug}-checkrun.md"
     if [ ! -f "$checkrun" ]; then
+      rulings="$jobs_dir/${slug}-rulings.md"
+      if [ -f "$rulings" ] && grep -q '^GRADED-BY-RULING:' "$rulings"; then
+        printf 'GRADED: %s graded_by_ruling=%s\n' "$slug" "$slug"
+        continue
+      fi
       printf 'UNGRADED: %s\n' "$slug"
       ungraded_found=1
     fi

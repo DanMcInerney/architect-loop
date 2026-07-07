@@ -3,6 +3,11 @@ param([Parameter(Mandatory=$true)][string]$Config)
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 $evidenceOut = $null
 $tmpEvidence = $null
+$progressOut = $null
+
+function Utf8NoBom {
+    return New-Object System.Text.UTF8Encoding($false)
+}
 
 function DecodeBytes($Bytes) {
     if ($Bytes.Length -ge 3 -and $Bytes[0] -eq 239 -and $Bytes[1] -eq 187 -and $Bytes[2] -eq 191) { return [System.Text.Encoding]::UTF8.GetString($Bytes, 3, $Bytes.Length - 3) }
@@ -18,10 +23,18 @@ function ReadText($Path) {
 }
 
 function StopRun($Reason) {
+    AppendProgress ("RUNNER_ERROR $((Get-Date).ToUniversalTime().ToString("o")) $Reason")
     if ($evidenceOut) { Remove-Item -LiteralPath $evidenceOut -Force -ErrorAction SilentlyContinue }
     if ($tmpEvidence) { Remove-Item -LiteralPath $tmpEvidence -Force -ErrorAction SilentlyContinue }
     Write-Output "CHECKRUN: ERROR $Reason"
     exit 5
+}
+
+function AppendProgress($Text) {
+    if (-not $progressOut) { return }
+    $dir = Split-Path -Parent $progressOut
+    if ($dir -and -not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    [System.IO.File]::AppendAllText($progressOut, $Text + [Environment]::NewLine, (Utf8NoBom))
 }
 
 function QuoteArg($Text) {
@@ -157,7 +170,36 @@ function OutputSlice($Text, $MaxLines) {
     $cut = $false
     if ($all.Count -gt $MaxLines) {
         $cut = $true
-        $all = @($all | Select-Object -First $MaxLines)
+        $headCount = [int][Math]::Ceiling($MaxLines * 0.4)
+        $tailCount = [int][Math]::Floor($MaxLines * 0.6)
+        if ($headCount -lt 1) { $headCount = 1 }
+        if ($tailCount -lt 1) { $tailCount = 1 }
+        $head = @($all | Select-Object -First $headCount)
+        $tail = @($all | Select-Object -Last $tailCount)
+        $summary = @()
+        for ($i = 0; $i -lt $all.Count; $i++) {
+            if ($all[$i] -match '^=+\s*short test summary info\s*=+') {
+                for ($j = $i; $j -lt $all.Count; $j++) {
+                    $summary += $all[$j]
+                    if ($j -gt $i -and $all[$j] -match '^=+.*=+\s*$') { break }
+                }
+                break
+            }
+        }
+        $kept = New-Object System.Collections.Generic.HashSet[int]
+        for ($i = 0; $i -lt $headCount -and $i -lt $all.Count; $i++) { [void]$kept.Add($i) }
+        for ($i = [Math]::Max(0, $all.Count - $tailCount); $i -lt $all.Count; $i++) { [void]$kept.Add($i) }
+        if ($summary.Count -gt 0) {
+            $start = [Array]::IndexOf($all, $summary[0])
+            for ($i = $start; $i -lt ($start + $summary.Count); $i++) { [void]$kept.Add($i) }
+        }
+        $elided = [Math]::Max(0, $all.Count - $kept.Count)
+        $next = @()
+        $next += $head
+        $next += "[... $elided lines elided ...]"
+        foreach ($line in $summary) { if ($next -notcontains $line) { $next += $line } }
+        foreach ($line in $tail) { $next += $line }
+        $all = @($next)
     }
     return [pscustomobject]@{ Lines = $all; Truncated = $cut }
 }
@@ -176,6 +218,7 @@ $evidenceOut = [string]$cfg.evidence_out
 $executor = [string]$cfg.executor
 $maxOutputLines = 60
 if ($cfg.PSObject.Properties.Name -contains "max_output_lines") { $maxOutputLines = [int]$cfg.max_output_lines }
+if ($cfg.PSObject.Properties.Name -contains "progress_out") { $progressOut = [string]$cfg.progress_out }
 
 if (-not (Test-Path -LiteralPath $checkFile)) { StopRun "missing check file" }
 try { & git --version > $null 2> $null } catch { StopRun "git unavailable" }
@@ -226,8 +269,12 @@ if ($executorHeader) { [void]$e.Add($executorHeader) }
 
 $passCount = 0
 $failCount = 0
+$runIndex = 0
 foreach ($run in $runs) {
+    $runIndex += 1
+    AppendProgress ("RUN_START $runIndex $((Get-Date).ToUniversalTime().ToString("o")) $($run.Command)")
     $result = CaptureCommand $executor $executorResolved $run.Command $workdir
+    AppendProgress ("RUN_END $runIndex $((Get-Date).ToUniversalTime().ToString("o")) exit=$($result.ExitCode)")
     $verdict = "PASS"
     if ($result.ExitCode -ne $run.Expected.ExitCode) { $verdict = "FAIL" }
     if ($run.Expected.Match -ne $null -and $result.Stdout.IndexOf($run.Expected.Match, [System.StringComparison]::Ordinal) -lt 0) { $verdict = "FAIL" }
@@ -253,7 +300,7 @@ foreach ($path in $changed) { [void]$e.Add($path) }
 $dir = Split-Path -Parent $evidenceOut
 if ($dir -and -not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
 $tmpEvidence = $evidenceOut + ".tmp." + ([System.Guid]::NewGuid().ToString("N"))
-Set-Content -LiteralPath $tmpEvidence -Value $e -Encoding utf8
+[System.IO.File]::WriteAllLines($tmpEvidence, $e, (Utf8NoBom))
 Move-Item -LiteralPath $tmpEvidence -Destination $evidenceOut -Force
 if ($failCount -gt 0) { exit 2 }
 exit 0

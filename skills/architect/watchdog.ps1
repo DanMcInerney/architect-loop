@@ -90,9 +90,11 @@ function ReadState($Path, $Size, $Now, $EvidenceUtc) {
             last_growth_utc = [string](Prop $raw "last_growth_utc" $seed.ToString("o"))
             last_evidence_ticks = [int64](Prop $raw "last_evidence_ticks" $EvidenceUtc.Ticks)
             report_ready_utc = [string](Prop $raw "report_ready_utc" "")
+            first_terminal_utc = [string](Prop $raw "first_terminal_utc" "")
+            rollout_path = [string](Prop $raw "rollout_path" "")
         }
     }
-    return [ordered]@{ last_size = [int64]$Size; last_growth_utc = $seed.ToString("o"); last_evidence_ticks = [int64]$EvidenceUtc.Ticks; report_ready_utc = "" }
+    return [ordered]@{ last_size = [int64]$Size; last_growth_utc = $seed.ToString("o"); last_evidence_ticks = [int64]$EvidenceUtc.Ticks; report_ready_utc = ""; first_terminal_utc = ""; rollout_path = "" }
 }
 
 function SaveState($Path, $State) {
@@ -105,10 +107,97 @@ function LastCommands($Path) {
     return $cmds
 }
 
+function JsonString($Text) {
+    if ($null -eq $Text) { return "" }
+    return ([string]$Text).Replace('\', '\\').Replace('"', '\"')
+}
+
+function LastNonBlankLine($Path) {
+    $lines = @((TailText $Path) -split "`r?`n")
+    for ($i = $lines.Count - 1; $i -ge 0; $i--) {
+        $t = [string]$lines[$i]
+        if ($t.Trim().Length -gt 0) { return $t }
+    }
+    return ""
+}
+
+function TailLines($Path, $Count) {
+    return @((TailText $Path) -split "`r?`n" | Where-Object { $_ -ne "" } | Select-Object -Last $Count)
+}
+
+function ResolveRolloutPath($Events, $State, $RolloutGlob) {
+    if ($State.rollout_path -and (Test-Path -LiteralPath $State.rollout_path -PathType Leaf)) { return $State.rollout_path }
+    $head = ReadText $Events
+    $m = [regex]::Match($head, '"type"\s*:\s*"thread\.started"[\s\S]*?"thread_id"\s*:\s*"([^"]+)"')
+    if (-not $m.Success) { return "" }
+    $threadId = $m.Groups[1].Value
+    $pattern = $RolloutGlob
+    if (-not $pattern) {
+        $home = [Environment]::GetFolderPath("UserProfile")
+        $pattern = Join-Path $home ".codex\sessions\*\*\*\rollout-*$threadId*.jsonl"
+    } else {
+        $pattern = $pattern.Replace("{thread_id}", "*$threadId*")
+    }
+    try {
+        $hit = @(Get-ChildItem -Path $pattern -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1)
+        if ($hit.Count -gt 0) {
+            $State.rollout_path = $hit[0].FullName
+            return $State.rollout_path
+        }
+    } catch {}
+    return ""
+}
+
+function CommandFromStartedRecord($Line) {
+    if (-not $Line) { return "" }
+    try { $obj = $Line | ConvertFrom-Json } catch { $obj = $null }
+    if ($obj -and (Prop $obj "type" "") -eq "item.started") {
+        $item = Prop $obj "item" $null
+        $itemType = [string](Prop $item "type" "")
+        if ($itemType -in @("command_execution", "function_call", "tool_call", "tool_use")) {
+            $cmd = [string](Prop $item "command" "")
+            if (-not $cmd) { $cmd = [string](Prop $item "name" "") }
+            if (-not $cmd) { $cmd = [string](Prop $item "arguments" "") }
+            if ($cmd) { return $cmd }
+        }
+    }
+    if ($Line -match '"type"\s*:\s*"(tool_use|function_call|tool_call)"') {
+        $m = [regex]::Match($Line, '"command"\s*:\s*"((?:\\.|[^"\\])*)"')
+        if ($m.Success) { return $m.Groups[1].Value }
+        $m = [regex]::Match($Line, '"name"\s*:\s*"((?:\\.|[^"\\])*)"')
+        if ($m.Success) { return $m.Groups[1].Value }
+    }
+    return ""
+}
+
+function BlockedToolInfo($Events, $State, $Job, $MetaObj) {
+    $backend = [string](Prop $MetaObj "backend" "")
+    $stream = $Events
+    if ($backend -like "*codex*") {
+        $rollout = ResolveRolloutPath $Events $State ([string](Prop $Job "rollout_glob" ""))
+        if (-not $rollout) { return $null }
+        $stream = $rollout
+    }
+    $last = LastNonBlankLine $stream
+    $cmd = CommandFromStartedRecord $last
+    if (-not $cmd) { return $null }
+    return [pscustomobject]@{ Command = $cmd; Stream = $stream; Tail = @(TailLines $stream 5) }
+}
+
 function OutputAndExit($Code, $Line, $Extra = @()) {
     Write-Output $Line
     foreach ($x in $Extra) { if ($x -ne $null -and "$x" -ne "") { Write-Output $x } }
     exit $Code
+}
+
+function EarlyStatusSuffix($State, $ExitObj, $GraceSec) {
+    if (-not $State.first_terminal_utc) { return "" }
+    $first = ParseUtc $State.first_terminal_utc ([datetime]::MinValue)
+    $ended = ParseUtc ([string](Prop $ExitObj "ended_at" "")) ([datetime]::MinValue)
+    if ($first -le [datetime]::MinValue -or $ended -le [datetime]::MinValue -or $ended -le $first) { return "" }
+    $seconds = ($ended - $first).TotalSeconds
+    if ($seconds -le $GraceSec) { return "" }
+    return " early_status_sec=$([Math]::Round($seconds, 3))"
 }
 
 if (-not (Test-Path -LiteralPath $Config -PathType Leaf)) {
@@ -143,13 +232,17 @@ while ($true) {
         if (-not $jobDir -or -not (Test-Path -LiteralPath $meta -PathType Leaf)) {
             OutputAndExit 10 "WATCHDOG: LEGACY_UNWRAPPED $id deterministic_exit=false terminal_status=$terminal"
         }
+        $metaObj = ReadJson $meta
+        $stderr = [string](Prop $j "stderr_file" "")
+        if (-not $stderr -and $metaObj) { $stderr = [string](Prop $metaObj "stderr_file" "") }
+        if (-not $stderr -and $jobDir) { $stderr = Join-Path $jobDir "stderr.log" }
         $exitObj = ReadJson $exitFile
         if (-not $exitObj -and (($events -and -not (Test-Path -LiteralPath $events)) -or ($worktree -and -not (Test-Path -LiteralPath $worktree)))) {
             OutputAndExit 2 "WATCHDOG: INTEGRATED $id"
         }
 
-        $size = (FileSize $events) + (FileSize $report)
-        $evidence = EvidenceUtc @($events, $report)
+        $size = (FileSize $events) + (FileSize $report) + (FileSize $stderr)
+        $evidence = EvidenceUtc @($events, $report, $stderr)
         $state = ReadState $stateFile $size $now $evidence
         $grew = $false
         if ($size -ne [int64]$state.last_size -or $evidence.Ticks -gt [int64]$state.last_evidence_ticks) {
@@ -158,43 +251,10 @@ while ($true) {
             $state.last_growth_utc = $now.ToString("o")
             $grew = $true
         }
+        if ($terminal -and -not $state.first_terminal_utc) {
+            $state.first_terminal_utc = $now.ToString("o")
+        }
         $lastGrowth = ParseUtc $state.last_growth_utc $now
-
-        if ($exitObj) {
-            $code = [int](Prop $exitObj "exit_code" 127)
-            if ($code -eq 0 -and $terminal) {
-                SaveState $stateFile $state
-                $doneLines += "DONE_OK $id $report $(FileSize $report) bytes exit_code=0"
-                continue
-            }
-            SaveState $stateFile $state
-            OutputAndExit 9 "WATCHDOG: DONE_FAILED $id exit_code=$code terminal_status=$terminal report=$report"
-        }
-
-        $allDone = $false
-        if ($terminal) {
-            if (-not $state.report_ready_utc) {
-                $state.report_ready_utc = $now.ToString("o")
-                SaveState $stateFile $state
-                continue
-            }
-            $readyAt = ParseUtc $state.report_ready_utc $now
-            SaveState $stateFile $state
-            if (($now - $readyAt).TotalSeconds -ge $reportReadyGraceSec) {
-                OutputAndExit 6 "WATCHDOG: REPORT_READY $id terminal_status=true exit_file=false age_sec=$([Math]::Round(($now - $readyAt).TotalSeconds, 3))"
-            }
-            continue
-        }
-        $state.report_ready_utc = ""
-
-        $cmds = @(LastCommands $events)
-        if ($cmds.Count -ge 4) {
-            $last = @($cmds | Select-Object -Last 4)
-            if (($last | Select-Object -Unique).Count -eq 1) {
-                SaveState $stateFile $state
-                OutputAndExit 4 "WATCHDOG: REPEAT $id command=$($last[0]) count=4"
-            }
-        }
 
         $hbAge = [double]::PositiveInfinity
         if ($heartbeat -and (Test-Path -LiteralPath $heartbeat -PathType Leaf)) {
@@ -205,6 +265,38 @@ while ($true) {
         $growthAge = ($now - $lastGrowth).TotalSeconds
         $hintMin = [double](Prop $j "duration_hint_min" 0)
         $quietGrace = [Math]::Max(0, ($stallMin + $hintMin) * 60)
+
+        if ($exitObj) {
+            $code = [int](Prop $exitObj "exit_code" 127)
+            $early = EarlyStatusSuffix $state $exitObj $reportReadyGraceSec
+            if ($code -eq 0 -and $terminal) {
+                SaveState $stateFile $state
+                $doneLines += "DONE_OK $id $report $(FileSize $report) bytes exit_code=0$early"
+                continue
+            }
+            SaveState $stateFile $state
+            OutputAndExit 9 "WATCHDOG: DONE_FAILED $id exit_code=$code terminal_status=$terminal report=$report$early"
+        }
+
+        $allDone = $false
+        if ($terminal -and $hbAge -gt $heartbeatStaleSec) {
+            if (-not $state.report_ready_utc) { $state.report_ready_utc = $now.ToString("o") }
+            SaveState $stateFile $state
+            OutputAndExit 6 "WATCHDOG: REPORT_READY $id terminal_status=true exit_file=false heartbeat_age_sec=$([Math]::Round($hbAge, 3))"
+        }
+        if (-not $terminal) {
+            $state.report_ready_utc = ""
+        }
+
+        $cmds = @(LastCommands $events)
+        if ($cmds.Count -ge 4) {
+            $last = @($cmds | Select-Object -Last 4)
+            if (($last | Select-Object -Unique).Count -eq 1) {
+                SaveState $stateFile $state
+                OutputAndExit 4 "WATCHDOG: REPEAT $id command=$($last[0]) count=4"
+            }
+        }
+
         SaveState $stateFile $state
 
         if ($hbAge -gt $heartbeatStaleSec) {
@@ -214,6 +306,11 @@ while ($true) {
             OutputAndExit 8 "WATCHDOG: DEAD $id heartbeat_age_sec=$([Math]::Round($hbAge, 3)) last_growth_age_sec=$([Math]::Round($growthAge, 3))"
         }
         if ($growthAge -gt $quietGrace) {
+            $blocked = BlockedToolInfo $events $state $j $metaObj
+            if ($blocked) {
+                SaveState $stateFile $state
+                OutputAndExit 11 "WATCHDOG: BLOCKED_ON_TOOL $id seconds_since_growth=$([Math]::Round($growthAge, 3)) heartbeat_age_sec=$([Math]::Round($hbAge, 3)) command=`"$(JsonString $blocked.Command)`"" $blocked.Tail
+            }
             $tail = @((TailText $events) -split "`r?`n" | Select-Object -Last 5)
             OutputAndExit 3 "WATCHDOG: STALL $id seconds_since_growth=$([Math]::Round($growthAge, 3)) heartbeat_age_sec=$([Math]::Round($hbAge, 3))" $tail
         }

@@ -380,15 +380,14 @@ final text; the harness then emitted a contentless idle notification and dropped
 that final text. Agents that delivered used the message channel by luck, not by
 contract.
 
-The 2026-07-04 canary confirmed the backend risk and the dispatch fix at the
-same time: the Claude judge spawn returned `CANARY: DEGRADED` with only
-Glob/Read/Grep, bringing the dev-machine total to 7/7 shell-stripped Claude
-spawns, while synchronous Agent-tool dispatch returned the verdict as the tool
-result. The human ruling on 2026-07-04 chose synchronous-by-default for
-harness-native judges: Claude Agent-tool judges run with
-`run_in_background: false`; codex-backend judges keep the background
-`codex exec -o <file>`
-typed-exit path, whose process exit wakes the loop.
+The 2026-07-04 canary confirmed the backend risk and the first dispatch fix:
+the Claude judge spawn returned `CANARY: DEGRADED` with only Glob/Read/Grep,
+bringing the dev-machine total to 7/7 shell-stripped Claude spawns. The human
+ruling chose `run_in_background: false` for harness-native judges, but the
+2026-07-07 pair-fairness-webui run later showed synchronous Agent-tool jobs can
+still idle without delivering final text. Current dispatch is therefore
+artifact-first: every result-bearing Agent-tool job names a report file and
+greppable verdict; any final message is only an optimization.
 
 Judge templates also batch independent reads - frozen check file, spec, job
 report, rulings file, and checkrun evidence - into one parallel read step, then
@@ -1066,7 +1065,60 @@ cleanup. Both namespaces are load-bearing in shipped text.)
 
 ---
 
-## 8. Sources
+## 8. Contract-enforcement migration (2026-07-07)
+
+- **Exit truth outranks report text.** The pair-fairness-webui incident showed
+  that a placeholder `STATUS:` line could trick the watchdog into exit 6 while
+  the wrapper heartbeat was still fresh. The watchdog now treats early terminal
+  report text as running-state evidence, records the first terminal observation,
+  and emits `early_status_sec=` only after wrapper exit truth resolves. The
+  builder and respawn templates now ban any literal `STATUS:` before completion.
+  Evidence: validator fixture `misreport` in `tests/validate_skills.py`.
+- **Wedged tool calls are typed evidence.** Codex CLI 0.139.0 was probed on
+  2026-07-07: `codex exec --json` begins with `{"type":"thread.started",
+  "thread_id":"..."}`, and tool calls stream as `item.started` /
+  `item.completed` records whose `item.type` is `command_execution` and whose
+  `item.command` carries the shell command. The persisted rollout lives at
+  `~/.codex/sessions/YYYY/MM/DD/rollout-*<thread_id>.jsonl`. The watchdog now
+  caches that path and exits 11 `BLOCKED_ON_TOOL` when the freshest stream ends
+  at a started tool/function call. Evidence: validator fixture `blocked-tool`.
+- **Reaping is an action, not monitor behavior.** The wrapper now records a
+  kill scope (`pgid` on POSIX, named Windows Job Object on PowerShell), while
+  `kill-job.ps1|.sh` is the orchestrator action that terminates stuck children.
+  Windows uses `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, so wrapper death also ends
+  the assigned child tree; POSIX tries the process group first and falls back to
+  a wrapper-owned `job.kill` request when the host PID layer cannot signal it.
+  Evidence: validator fixture `kill-job`.
+- **Check evidence preserves the verdict lines.** Check-runner truncation now
+  keeps head, tail, and pytest short-summary blocks instead of first-N lines,
+  and `progress_out` gives killed runners a flushed sidecar naming the in-flight
+  RUN item. Evidence: validator fixtures `truncation` and `progress`.
+- **Sandbox environment is wrapper-owned.** The pair-fairness-webui run found
+  pytest's tmpdir `mkdir(mode=0o700)` denied with WinError 5 under the Codex
+  Windows sandbox, even for in-workspace basetemp. The wrapper `--sandbox-env`
+  flag now redirects TEMP/TMP/TMPDIR and `UV_CACHE_DIR` under
+  `.architect/tmp/` for the child only. Evidence: validator fixture
+  `sandbox-env`.
+- **Child stderr is separate evidence.** Wrappers write stdout event streams to
+  `events.jsonl` and stderr to `stderr.log`; watchdog growth counts events,
+  reports, and stderr, while repeat-command detection stays on stdout. Evidence:
+  validator fixtures `stderr-line` and `stderr-orphan`.
+- **Claude-native results are artifact-first.** Two result-bearing Agent-tool
+  jobs on 2026-07-07 completed with bare idle notifications, so every
+  Claude-native dispatch now requires a report path plus greppable verdict; a
+  delivered final message is only an optimization.
+- **Grounding knows ruling-graded work.** Reports closed by standing gates or
+  recorded rulings now carry `GRADED-BY-RULING:` in their rulings file, and
+  ground emits `graded_by_ruling=<slug>` instead of DRIFT. Evidence: ground
+  fixture `graded-by-ruling`.
+- **Deferred cleanup is sweepable state.** Postflight now appends deferred
+  worktree cleanup paths to `docs/runs/<run>/deferred-cleanup.txt`, and
+  `sweep-deferred.ps1|.sh` removes run-scoped debris with typed OK/PARTIAL/ERROR
+  output. Evidence: validator fixture `sweep-deferred`.
+
+---
+
+## 9. Sources
 
 **Anthropic (official):**
 [Building Effective Agents](https://www.anthropic.com/engineering/building-effective-agents) ·

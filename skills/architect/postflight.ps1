@@ -13,6 +13,11 @@ function ReadText($Path) {
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "missing config" }
     return DecodeBytes ([System.IO.File]::ReadAllBytes((Resolve-Path -LiteralPath $Path).Path))
 }
+function AppendUtf8($Path, $Text) {
+    $dir = Split-Path -Parent $Path
+    if ($dir -and -not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    [System.IO.File]::AppendAllText($Path, $Text, (New-Object System.Text.UTF8Encoding($false)))
+}
 function GitRun {
     param([Parameter(ValueFromRemainingArguments=$true)][string[]]$GitArgs)
     $out = @(& git @GitArgs 2>&1)
@@ -147,6 +152,8 @@ if ($worktree) {
         if ($wr.Code -ne 0) {
             $cleanupDeferred = $true
             $cleanupPath = $wt
+            $runSlug = Split-Path -Leaf (Split-Path -Parent $wt)
+            if ($runSlug) { AppendUtf8 (Join-Path (Join-Path (Join-Path $script:RepoRoot "docs") "runs") (Join-Path $runSlug "deferred-cleanup.txt")) ($cleanupPath + [Environment]::NewLine) }
         }
     }
 }

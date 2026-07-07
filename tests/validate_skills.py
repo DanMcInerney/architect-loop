@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
 import os
 import shutil
 import subprocess
@@ -46,6 +47,8 @@ REQUIRED_SIBLINGS = {
         "loop.md",
         "run-job.ps1",
         "run-job.sh",
+        "kill-job.ps1",
+        "kill-job.sh",
         "watchdog.ps1",
         "watchdog.sh",
         "status.ps1",
@@ -56,6 +59,8 @@ REQUIRED_SIBLINGS = {
         "preflight.sh",
         "postflight.ps1",
         "postflight.sh",
+        "sweep-deferred.ps1",
+        "sweep-deferred.sh",
         "tracker.md",
     ],
     "architect-research": ["tactics.md"],
@@ -699,6 +704,7 @@ def check_watchdog_contract() -> None:
             "WATCHDOG: REPORT_READY",
             "WATCHDOG: ORPHANED",
             "WATCHDOG: DEAD",
+            "WATCHDOG: BLOCKED_ON_TOOL",
         ):
             if marker not in text:
                 errors.append(f"{path.relative_to(ROOT)}: missing {marker}")
@@ -803,19 +809,41 @@ def run_job_prefix(kind: str) -> list[str] | None:
     return [bash, bash_path(SKILLS / "architect" / "run-job.sh")]
 
 
+def kill_job_prefix(kind: str) -> list[str] | None:
+    if kind == "ps1":
+        powershell = shutil.which("powershell")
+        if not powershell:
+            return None
+        return [
+            powershell,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(SKILLS / "architect" / "kill-job.ps1"),
+        ]
+    bash = shutil.which("bash")
+    if not bash:
+        return None
+    return [bash, bash_path(SKILLS / "architect" / "kill-job.sh")]
+
+
 def write_watchdog_config(
     config: Path,
     job_dir: Path,
     workdir: Path,
     report: Path,
     sweep: int = 1,
+    stall_after_min: float = 0.01,
+    heartbeat_stale_sec: int = 5,
+    report_ready_grace_sec: int = 1,
     path_for_config=lambda p: str(p),
 ) -> None:
     cfg = {
         "sweep_sec": sweep,
-        "stall_after_min": 0.01,
-        "heartbeat_stale_sec": 5,
-        "report_ready_grace_sec": 1,
+        "stall_after_min": stall_after_min,
+        "heartbeat_stale_sec": heartbeat_stale_sec,
+        "report_ready_grace_sec": report_ready_grace_sec,
         "jobs": [
             {
                 "id": job_dir.name,
@@ -859,6 +887,8 @@ def run_wrapped_fake(
     fake: Path,
     behavior: str,
     detached: bool = False,
+    sandbox_env: bool = False,
+    force_plain: bool = False,
 ) -> subprocess.Popen[str]:
     prefix = run_job_prefix(kind)
     if prefix is None:
@@ -877,9 +907,10 @@ def run_wrapped_fake(
             str(report),
             "-HeartbeatSec",
             "1",
-            "-ArgvJson",
-            json.dumps(child),
         ]
+        if sandbox_env:
+            command.append("-SandboxEnv")
+        command += ["-ArgvJson", json.dumps(child)]
     else:
         bash = shutil.which("bash")
         if not bash:
@@ -902,9 +933,13 @@ def run_wrapped_fake(
             bash_path(report),
             "--heartbeat-sec",
             "1",
-            "--",
-            *child,
         ]
+        if sandbox_env:
+            command.append("--sandbox-env")
+        command += ["--", *child]
+    if kind == "sh" and force_plain:
+        inner = [bash_inner_executable(), *command[1:]]
+        command = [bash, "-c", "ARCHITECT_RUN_JOB_DISABLE_SETSID=1 exec " + " ".join(shlex.quote(arg) for arg in inner)]
     # Detached children survive the wrapper and would hold PIPE handles open,
     # deadlocking communicate() (the documented grandchild-holds-pipes class).
     stdio = subprocess.DEVNULL if detached else subprocess.PIPE
@@ -916,8 +951,34 @@ def finish_wrapped_fake(proc: subprocess.Popen[str], label: str, timeout: int = 
         proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
         proc.kill()
-        proc.communicate(timeout=5)
+        try:
+            proc.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            if os.name == "nt":
+                subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)], capture_output=True, text=True, timeout=5)
+            else:
+                proc.kill()
         errors.append(f"watchdog fixture {label}: wrapper did not finish")
+
+
+def bash_pid_alive(pid_text: str) -> bool:
+    pid_text = pid_text.strip()
+    if not pid_text.isdigit():
+        return False
+    bash = shutil.which("bash")
+    if not bash:
+        return False
+    result = subprocess.run([bash, "-lc", f"kill -0 {int(pid_text)}"], cwd=ROOT, text=True, capture_output=True, timeout=5)
+    return result.returncode == 0
+
+
+def bash_kill_pid(pid_text: str) -> None:
+    pid_text = pid_text.strip()
+    if not pid_text.isdigit():
+        return
+    bash = shutil.which("bash")
+    if bash:
+        subprocess.run([bash, "-lc", f"kill -TERM {int(pid_text)} 2>/dev/null || true"], cwd=ROOT, text=True, capture_output=True, timeout=5)
 
 
 def check_watchdog_determinism_fixture() -> None:
@@ -936,7 +997,7 @@ def check_watchdog_determinism_fixture() -> None:
         fake_py,
         "\n".join(
             [
-                "import json, sys, time",
+                "import json, os, sys, time",
                 "behavior, report = sys.argv[1], sys.argv[2]",
                 "def emit(obj):",
                 "    print(json.dumps(obj), flush=True)",
@@ -951,6 +1012,18 @@ def check_watchdog_determinism_fixture() -> None:
                 "if behavior == 'hang':",
                 "    time.sleep(4)",
                 "    sys.exit(0)",
+                "if behavior == 'kill-hang':",
+                "    open(os.path.join(os.path.dirname(report), 'workload.pid'), 'w', encoding='utf-8').write(str(os.getpid()))",
+                "    time.sleep(20)",
+                "    sys.exit(0)",
+                "if behavior == 'env-check':",
+                "    emit({'TEMP':os.environ.get('TEMP'),'TMP':os.environ.get('TMP'),'TMPDIR':os.environ.get('TMPDIR'),'UV_CACHE_DIR':os.environ.get('UV_CACHE_DIR')})",
+                "    sys.exit(0)",
+                "if behavior == 'stderr-line':",
+                "    sys.stderr.write('ERR-LINE\\\\n')",
+                "    sys.stderr.flush()",
+                "    emit({'command':'stdout-only'})",
+                "    sys.exit(0)",
                 "if behavior == 'loop':",
                 "    for _ in range(6):",
                 "        emit({'command':'same-command'})",
@@ -960,6 +1033,18 @@ def check_watchdog_determinism_fixture() -> None:
                 "if behavior == 'happy':",
                 "    emit({'command':'ok'})",
                 "    open(report, 'w', encoding='utf-8').write('done\\nSTATUS: COMPLETE\\n')",
+                "    sys.exit(0)",
+                "if behavior == 'misreport':",
+                "    open(report, 'w', encoding='utf-8').write('initialized\\nSTATUS: BLOCKED (report initialized)\\n')",
+                "    for i in range(4):",
+                "        emit({'command':f'working-{i}'})",
+                "        time.sleep(0.8)",
+                "    open(report, 'w', encoding='utf-8').write('done\\nSTATUS: COMPLETE\\n')",
+                "    sys.exit(0)",
+                "if behavior == 'blocked-tool':",
+                "    emit({'type':'item.completed','item':{'id':'msg_0','type':'agent_message','text':'before'}})",
+                "    emit({'type':'item.started','item':{'id':'call_1','type':'command_execution','command':'pytest -q','status':'in_progress'}})",
+                "    time.sleep(6)",
                 "    sys.exit(0)",
                 "if behavior == 'orphan-live':",
                 "    for i in range(20):",
@@ -995,6 +1080,24 @@ def check_watchdog_determinism_fixture() -> None:
                 "    sleep 4",
                 "    exit 0",
                 "    ;;",
+                "  kill-hang)",
+                "    printf '%s\\n' \"$$\" > \"$(dirname \"$report\")/workload.pid\"",
+                "    sleep 20 &",
+                "    sleep_pid=$!",
+                "    printf '%s\\n' \"$sleep_pid\" > \"$(dirname \"$report\")/sleep.pid\"",
+                "    trap 'kill \"$sleep_pid\" 2>/dev/null || :; exit 143' TERM INT HUP",
+                "    wait \"$sleep_pid\"",
+                "    exit $?",
+                "    ;;",
+                "  env-check)",
+                "    printf '{\"TEMP\":\"%s\",\"TMP\":\"%s\",\"TMPDIR\":\"%s\",\"UV_CACHE_DIR\":\"%s\"}\\n' \"${TEMP:-}\" \"${TMP:-}\" \"${TMPDIR:-}\" \"${UV_CACHE_DIR:-}\"",
+                "    exit 0",
+                "    ;;",
+                "  stderr-line)",
+                "    printf 'ERR-LINE\\n' >&2",
+                "    emit '{\"command\":\"stdout-only\"}'",
+                "    exit 0",
+                "    ;;",
                 "  loop)",
                 "    i=0",
                 "    while [ \"$i\" -lt 6 ]; do",
@@ -1007,6 +1110,23 @@ def check_watchdog_determinism_fixture() -> None:
                 "    ;;",
                 "  happy)",
                 "    emit '{\"command\":\"ok\"}'",
+                "    printf 'done\\nSTATUS: COMPLETE\\n' > \"$report\"",
+                "    exit 0",
+                "    ;;",
+                "  blocked-tool)",
+                "    emit '{\"type\":\"item.completed\",\"item\":{\"id\":\"msg_0\",\"type\":\"agent_message\",\"text\":\"before\"}}'",
+                "    emit '{\"type\":\"item.started\",\"item\":{\"id\":\"call_1\",\"type\":\"command_execution\",\"command\":\"pytest -q\",\"status\":\"in_progress\"}}'",
+                "    sleep 6",
+                "    exit 0",
+                "    ;;",
+                "  misreport)",
+                "    printf 'initialized\\nSTATUS: BLOCKED (report initialized)\\n' > \"$report\"",
+                "    i=0",
+                "    while [ \"$i\" -lt 4 ]; do",
+                "      printf '{\"command\":\"working-%s\"}\\n' \"$i\"",
+                "      sleep 0.8",
+                "      i=$((i+1))",
+                "    done",
                 "    printf 'done\\nSTATUS: COMPLETE\\n' > \"$report\"",
                 "    exit 0",
                 "    ;;",
@@ -1053,9 +1173,75 @@ def check_watchdog_determinism_fixture() -> None:
             if behavior == "die" and "exit_code=9" not in output:
                 errors.append(f"watchdog fixture {runner} die: missing exit_code=9\nstdout:\n{output}")
 
+        job_dir = base / f"{runner}-sandbox-env"
+        workdir = job_dir / "work"
+        report = job_dir / "report.md"
+        workdir.mkdir(parents=True)
+        proc = run_wrapped_fake(kind, job_dir, workdir, report, fake, "env-check", sandbox_env=True)
+        finish_wrapped_fake(proc, f"{runner} sandbox-env")
+        meta_path = job_dir / "job.meta.json"
+        events_text = read_text(job_dir / "events.jsonl") if (job_dir / "events.jsonl").exists() else ""
+        if meta_path.exists():
+            try:
+                meta = json.loads(read_text(meta_path))
+                if meta.get("sandbox_env") is not True:
+                    errors.append(f"watchdog fixture {runner} sandbox-env: metadata missing sandbox_env=true")
+            except Exception as exc:
+                errors.append(f"watchdog fixture {runner} sandbox-env: unreadable metadata {exc!r}")
+        else:
+            errors.append(f"watchdog fixture {runner} sandbox-env: missing metadata")
+        for needle in (".architect", "tmp", "uv-cache"):
+            if needle not in events_text:
+                errors.append(f"watchdog fixture {runner} sandbox-env: missing {needle!r} in child env\nstdout:\n{events_text}")
+
+        job_dir = base / f"{runner}-stderr-line"
+        workdir = job_dir / "work"
+        report = job_dir / "report.md"
+        workdir.mkdir(parents=True)
+        proc = run_wrapped_fake(kind, job_dir, workdir, report, fake, "stderr-line")
+        finish_wrapped_fake(proc, f"{runner} stderr-line")
+        events_text = read_text(job_dir / "events.jsonl") if (job_dir / "events.jsonl").exists() else ""
+        stderr_path = job_dir / "stderr.log"
+        stderr_text = read_text(stderr_path) if stderr_path.exists() else ""
+        if "ERR-LINE" in events_text:
+            errors.append(f"watchdog fixture {runner} stderr-line: stderr polluted events\nstdout:\n{events_text}")
+        if "ERR-LINE" not in stderr_text:
+            errors.append(f"watchdog fixture {runner} stderr-line: missing stderr.log content\nstderr:\n{stderr_text}")
+        try:
+            meta = json.loads(read_text(job_dir / "job.meta.json"))
+            if Path(meta.get("stderr_file", "")).name != "stderr.log":
+                errors.append(f"watchdog fixture {runner} stderr-line: metadata missing stderr_file=stderr.log")
+        except Exception as exc:
+            errors.append(f"watchdog fixture {runner} stderr-line: unreadable metadata {exc!r}")
+
+        job_dir = base / f"{runner}-misreport"
+        workdir = job_dir / "work"
+        report = job_dir / "report.md"
+        workdir.mkdir(parents=True)
+        proc = run_wrapped_fake(kind, job_dir, workdir, report, fake, "misreport")
+        config = job_dir / "watchdog.json"
+        write_watchdog_config(
+            config,
+            job_dir,
+            workdir,
+            report,
+            stall_after_min=1,
+            path_for_config=path_for_config,
+        )
+        deadline = time.time() + 5
+        while time.time() < deadline and not (job_dir / "job.meta.json").exists():
+            time.sleep(0.05)
+        output = watchdog_run(watchdog_prefix, config, f"{runner} misreport", 0, "WATCHDOG: ALL_DONE")
+        finish_wrapped_fake(proc, f"{runner} misreport")
+        if "early_status_sec=" not in output:
+            errors.append(f"watchdog fixture {runner} misreport: missing early_status_sec evidence\nstdout:\n{output}")
+        if "WATCHDOG: REPORT_READY" in output:
+            errors.append(f"watchdog fixture {runner} misreport: early STATUS was treated as report-ready\nstdout:\n{output}")
+
         for behavior, expected_exit, needle in (
             ("hang", 3, "WATCHDOG: STALL"),
             ("loop", 4, "WATCHDOG: REPEAT"),
+            ("blocked-tool", 11, "command="),
         ):
             job_dir = base / f"{runner}-{behavior}"
             workdir = job_dir / "work"
@@ -1064,8 +1250,78 @@ def check_watchdog_determinism_fixture() -> None:
             proc = run_wrapped_fake(kind, job_dir, workdir, report, fake, behavior)
             config = job_dir / "watchdog.json"
             write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
+            deadline = time.time() + 5
+            while time.time() < deadline and not (job_dir / "job.meta.json").exists():
+                time.sleep(0.05)
             watchdog_run(watchdog_prefix, config, f"{runner} {behavior}", expected_exit, needle)
             finish_wrapped_fake(proc, f"{runner} {behavior}")
+
+        job_dir = base / f"{runner}-kill-job"
+        workdir = job_dir / "work"
+        report = job_dir / "report.md"
+        workdir.mkdir(parents=True)
+        proc = run_wrapped_fake(kind, job_dir, workdir, report, fake, "kill-hang")
+        deadline = time.time() + 5
+        while time.time() < deadline and not (job_dir / "job.meta.json").exists():
+            time.sleep(0.05)
+        prefix = kill_job_prefix(kind)
+        if prefix is None:
+            errors.append(f"kill-job fixture {runner}: missing executor")
+        else:
+            arg = bash_path(job_dir) if kind == "sh" else str(job_dir)
+            killed = subprocess.run([*prefix, arg], cwd=ROOT, text=True, capture_output=True, timeout=12)
+            kout = killed.stdout.replace("\r\n", "\n")
+            if killed.returncode != 0 or "KILLJOB: OK" not in kout:
+                errors.append(
+                    f"kill-job fixture {runner}: expected OK exit 0 got {killed.returncode}\n"
+                    f"stdout:\n{kout}\nstderr:\n{killed.stderr}"
+                )
+        finish_wrapped_fake(proc, f"{runner} kill-job", timeout=10)
+        if not (job_dir / "job.exit.json").exists():
+            errors.append(f"kill-job fixture {runner}: wrapper did not write job.exit.json")
+
+        if kind == "sh":
+            job_dir = base / f"{runner}-kill-job-plain"
+            workdir = job_dir / "work"
+            report = job_dir / "report.md"
+            workdir.mkdir(parents=True)
+            proc = run_wrapped_fake(kind, job_dir, workdir, report, fake, "kill-hang", force_plain=True)
+            deadline = time.time() + 5
+            while time.time() < deadline and not (job_dir / "workload.pid").exists():
+                time.sleep(0.05)
+            prefix = kill_job_prefix(kind)
+            if prefix is None:
+                errors.append(f"kill-job fixture {runner} plain: missing executor")
+            else:
+                killed = subprocess.run([*prefix, bash_path(job_dir)], cwd=ROOT, text=True, capture_output=True, timeout=12)
+                kout = killed.stdout.replace("\r\n", "\n")
+                if killed.returncode != 0 or "KILLJOB: OK" not in kout:
+                    errors.append(
+                        f"kill-job fixture {runner} plain: expected OK exit 0 got {killed.returncode}\n"
+                        f"stdout:\n{kout}\nstderr:\n{killed.stderr}"
+                    )
+            finish_wrapped_fake(proc, f"{runner} kill-job plain", timeout=10)
+            if not (job_dir / "job.exit.json").exists():
+                errors.append(f"kill-job fixture {runner} plain: wrapper did not write job.exit.json")
+            try:
+                meta = json.loads(read_text(job_dir / "job.meta.json"))
+                workload_pid = read_text(job_dir / "workload.pid").strip()
+                if str(meta.get("child_pid", "")).strip() != workload_pid:
+                    errors.append(
+                        f"kill-job fixture {runner} plain: metadata child_pid did not name workload "
+                        f"child_pid={meta.get('child_pid')} workload_pid={workload_pid}"
+                    )
+            except Exception as exc:
+                errors.append(f"kill-job fixture {runner} plain: unreadable metadata/workload pid {exc!r}")
+            sleep_pid_path = job_dir / "sleep.pid"
+            if sleep_pid_path.exists():
+                sleep_pid = read_text(sleep_pid_path)
+                if bash_pid_alive(sleep_pid):
+                    errors.append(f"kill-job fixture {runner} plain: workload sleep survived kill-job")
+                    bash_kill_pid(sleep_pid)
+            workload_pid_path = job_dir / "workload.pid"
+            if workload_pid_path.exists():
+                bash_kill_pid(read_text(workload_pid_path))
 
         job_dir = base / f"{runner}-orphan"
         workdir = job_dir / "work"
@@ -1080,15 +1336,30 @@ def check_watchdog_determinism_fixture() -> None:
         write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
         watchdog_run(watchdog_prefix, config, f"{runner} orphan", 7, "WATCHDOG: ORPHANED")
 
+        job_dir = base / f"{runner}-stderr-orphan"
+        workdir = job_dir / "work"
+        report = job_dir / "report.md"
+        workdir.mkdir(parents=True)
+        write_fixture_file(job_dir / "job.meta.json", json.dumps({"backend": "fixture", "stderr_file": str(job_dir / "stderr.log")}))
+        write_fixture_file(job_dir / "job.heartbeat", "old\n")
+        write_fixture_file(job_dir / "events.jsonl", "")
+        write_fixture_file(job_dir / "stderr.log", "still-growing-stderr\n")
+        write_fixture_file(job_dir / "job.state.json", '{"last_size":0,"last_growth_epoch":1,"last_evidence_epoch":1}\n')
+        os.utime(job_dir / "job.heartbeat", (1, 1))
+        config = job_dir / "watchdog.json"
+        write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
+        watchdog_run(watchdog_prefix, config, f"{runner} stderr-orphan", 7, "WATCHDOG: ORPHANED")
+
         job_dir = base / f"{runner}-report-ready"
         workdir = job_dir / "work"
         report = job_dir / "report.md"
         workdir.mkdir(parents=True)
         write_fixture_file(job_dir / "job.meta.json", "{}")
-        write_fixture_file(job_dir / "job.heartbeat", "fresh\n")
+        write_fixture_file(job_dir / "job.heartbeat", "old\n")
         write_fixture_file(job_dir / "events.jsonl", "")
         write_fixture_file(report, "done\nSTATUS: COMPLETE\n")
         write_fixture_file(job_dir / "job.state.json", '{"last_size":0,"last_growth_epoch":1,"report_ready_epoch":1}\n')
+        os.utime(job_dir / "job.heartbeat", (1, 1))
         config = job_dir / "watchdog.json"
         write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
         watchdog_run(watchdog_prefix, config, f"{runner} report-ready", 6, "WATCHDOG: REPORT_READY")
@@ -1173,20 +1444,6 @@ def check_watchdog_determinism_fixture() -> None:
             output = watchdog_run(watchdog_prefix, config, f"{runner} start-failure", 9, "WATCHDOG: DONE_FAILED")
             if "LEGACY_UNWRAPPED" in output:
                 errors.append(f"watchdog fixture {runner} start-failure: missing metadata on Start-Process failure\nstdout:\n{output}")
-
-        if kind == "sh":
-            job_dir = base / f"{runner}-real-orphan"
-            workdir = job_dir / "work"
-            report = job_dir / "report.md"
-            workdir.mkdir(parents=True)
-            proc = run_wrapped_fake(kind, job_dir, workdir, report, fake, "orphan-live", detached=True)
-            time.sleep(1.5)
-            proc.kill()
-            proc.communicate(timeout=5)
-            time.sleep(6)
-            config = job_dir / "watchdog.json"
-            write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
-            watchdog_run(watchdog_prefix, config, f"{runner} real-orphan", 7, "WATCHDOG: ORPHANED")
 
 
 def check_status_contract() -> None:
@@ -1353,6 +1610,60 @@ def run_postflight_fixture(config: Path, cwd: Path) -> subprocess.CompletedProce
     except Exception as exc:
         errors.append(f"postflight fixture: {' '.join(command)} raised {exc!r}")
         return None
+
+
+def sweep_deferred_cases() -> list[tuple[str, list[str], str]]:
+    cases: list[tuple[str, list[str], str]] = []
+    powershell = shutil.which("powershell")
+    if powershell:
+        cases.append(
+            (
+                "powershell",
+                [
+                    powershell,
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    str(SKILLS / "architect" / "sweep-deferred.ps1"),
+                ],
+                "-RepoRoot",
+            )
+        )
+    bash = shutil.which("bash")
+    if bash and os.name != "nt":
+        cases.append(("bash", [bash, str(SKILLS / "architect" / "sweep-deferred.sh")], "--repo-root"))
+    return cases
+
+
+def check_sweep_deferred_fixture() -> None:
+    cases = sweep_deferred_cases()
+    if not cases:
+        errors.append("sweep-deferred fixture: no runnable executor found")
+        return
+    base = ROOT / ".architect" / "tmp" / "sweep-deferred-fixture"
+    if base.exists():
+        rmtree_with_writable_retry(base)
+    repo = base / "repo"
+    debris = repo / ".architect" / "wt" / "sweeprun" / "slice-a"
+    sibling = repo / ".architect" / "wt" / "sweeprun-extra" / "slice-b"
+    debris.mkdir(parents=True)
+    sibling.mkdir(parents=True)
+    write_fixture_file(debris / "file.txt", "debris\n")
+    write_fixture_file(sibling / "file.txt", "must-stay\n")
+    write_fixture_file(repo / "docs" / "runs" / "sweeprun" / "deferred-cleanup.txt", f"{debris}\n{sibling}\n")
+    git_fixture(repo, "init")
+    for label, prefix, flag in cases:
+        result = subprocess.run([*prefix, "sweeprun", flag, str(repo)], cwd=ROOT, text=True, capture_output=True, timeout=30)
+        stdout = result.stdout.replace("\r\n", "\n")
+        if result.returncode != 0:
+            errors.append(f"sweep-deferred fixture {label}: expected exit 0 got {result.returncode}\nstdout:\n{stdout}\nstderr:\n{result.stderr}")
+        if "SWEEP: OK" not in stdout:
+            errors.append(f"sweep-deferred fixture {label}: missing OK\nstdout:\n{stdout}")
+        if debris.exists():
+            errors.append(f"sweep-deferred fixture {label}: debris still exists")
+        if not sibling.exists():
+            errors.append(f"sweep-deferred fixture {label}: sibling run debris was removed")
 
 
 def write_postflight_config(
@@ -1576,6 +1887,94 @@ def check_check_runner_fixture() -> None:
                     f"check-runner fixture {runner} missing: missing grammar error\nstdout:\n{stdout}"
                 )
 
+        base = ROOT / ".architect" / "tmp" / f"checkrun-w5-{runner}"
+        base.mkdir(parents=True, exist_ok=True)
+        trunc_check = base / "trunc.md"
+        trunc_config = base / "trunc.json"
+        trunc_evidence = base / "trunc-evidence.md"
+        if runner == "powershell":
+            trunc_command = (
+                "\"HEAD1\"; "
+                "\"===== short test summary info =====\"; "
+                "\"FAILED tests/test_sample.py::test_x - boom\"; "
+                "\"===== 1 failed in 0.01s =====\"; "
+                "2..12 | ForEach-Object { \"HEAD$_\" }; "
+                "1..20 | ForEach-Object { \"TAIL$_\" }"
+            )
+        else:
+            trunc_command = (
+                "echo HEAD1; "
+                "echo '===== short test summary info ====='; "
+                "echo 'FAILED tests/test_sample.py::test_x - boom'; "
+                "echo '===== 1 failed in 0.01s ====='; "
+                "for i in $(seq 2 12); do echo HEAD$i; done; "
+                "for i in $(seq 1 20); do echo TAIL$i; done"
+            )
+        write_fixture_file(trunc_check, f"# Truncation\n\n- RUN: `{trunc_command}` -> exit:0\n")
+        write_fixture_file(
+            trunc_config,
+            json.dumps(
+                {
+                    "check_file": str(trunc_check.relative_to(ROOT)),
+                    "workdir": str(ROOT),
+                    "freeze_sha": "HEAD",
+                    "evidence_out": str(trunc_evidence),
+                    "executor": "powershell" if runner == "powershell" else "bash",
+                    "max_output_lines": 10,
+                }
+            ),
+        )
+        _, trunc_text = run_check_runner_case(f"{runner} truncation", command_prefix, trunc_config, 0)
+        if trunc_text:
+            for needle in ("HEAD1", "[...", "short test summary info", "FAILED tests/test_sample.py::test_x", "TAIL20"):
+                require_checkrun_evidence(f"{runner} truncation", trunc_text, needle)
+            summary_lines = [line for line in trunc_text.splitlines() if line.strip() == "===== short test summary info ====="]
+            if len(summary_lines) != 1:
+                errors.append(f"check-runner fixture {runner} truncation: duplicated pytest summary\nevidence:\n{trunc_text}")
+
+        progress_check = base / "progress.md"
+        progress_config = base / "progress.json"
+        progress_evidence = base / "progress-evidence.md"
+        progress_sidecar = base / "progress.log"
+        sleep_command = "Start-Sleep -Seconds 20" if runner == "powershell" else "sleep 20"
+        write_fixture_file(progress_check, f"# Progress\n\n- RUN: `{sleep_command}` -> exit:0\n")
+        write_fixture_file(
+            progress_config,
+            json.dumps(
+                {
+                    "check_file": str(progress_check.relative_to(ROOT)),
+                    "workdir": str(ROOT),
+                    "freeze_sha": "HEAD",
+                    "evidence_out": str(progress_evidence),
+                    "progress_out": str(progress_sidecar),
+                    "executor": "powershell" if runner == "powershell" else "bash",
+                }
+            ),
+        )
+        progress_sidecar.unlink(missing_ok=True)
+        progress_proc = subprocess.Popen([*command_prefix, str(progress_config)], cwd=ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        deadline = time.time() + 8
+        while time.time() < deadline:
+            if progress_sidecar.exists() and "RUN_START 1 " in read_text(progress_sidecar):
+                break
+            time.sleep(0.05)
+        if not progress_sidecar.exists():
+            errors.append(f"check-runner fixture {runner} progress: missing sidecar")
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(progress_proc.pid)], capture_output=True, text=True, timeout=5)
+        else:
+            progress_proc.kill()
+        try:
+            progress_proc.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            errors.append(f"check-runner fixture {runner} progress: runner did not die")
+        if progress_sidecar.exists():
+            progress_text = read_text(progress_sidecar).replace("\r\n", "\n")
+            if "RUN_START 1 " not in progress_text:
+                errors.append(f"check-runner fixture {runner} progress: missing RUN_START\nsidecar:\n{progress_text}")
+            if "RUN_END 1 " in progress_text:
+                errors.append(f"check-runner fixture {runner} progress: killed item has RUN_END\nsidecar:\n{progress_text}")
+
 
 def ground_executor_cases() -> list[tuple[str, list[str], str]]:
     """(label, base command prefix, repo-root flag) per runnable executor -
@@ -1774,6 +2173,26 @@ def check_ground_contract() -> None:
             errors.append(f"ground fixture {label} drift: missing 'UNGRADED: slice-b'\nstdout:\n{drift_stdout}")
         if "GROUND: DRIFT" not in drift_stdout:
             errors.append(f"ground fixture {label} drift: missing 'GROUND: DRIFT'\nstdout:\n{drift_stdout}")
+
+        ruled = fixture_repo / "docs" / "jobs" / "fixrun" / "slice-c-01.md"
+        rulings = fixture_repo / "docs" / "jobs" / "fixrun" / "slice-c-rulings.md"
+        write_fixture_file(ruled, "# report\nSTATUS: COMPLETE\n")
+        write_fixture_file(rulings, "GRADED-BY-RULING: standing-browser-gate\n")
+        try:
+            ruled_result = subprocess.run(command, cwd=ROOT, env=run_env, text=True, capture_output=True, timeout=20)
+        except Exception as exc:
+            errors.append(f"ground fixture {label} graded-by-ruling: raised {exc!r}")
+            continue
+        finally:
+            ruled.unlink(missing_ok=True)
+            rulings.unlink(missing_ok=True)
+        ruled_stdout = ruled_result.stdout.replace("\r\n", "\n")
+        if ruled_result.returncode != 0:
+            errors.append(
+                f"ground fixture {label} graded-by-ruling: expected exit 0 got {ruled_result.returncode}\nstdout:\n{ruled_stdout}"
+            )
+        if "graded_by_ruling=slice-c" not in ruled_stdout:
+            errors.append(f"ground fixture {label} graded-by-ruling: missing evidence\nstdout:\n{ruled_stdout}")
 
         # Typed exit 3, freeze rail: a recorded freeze SHA that resolves to no
         # commit must DRIFT with a typed line on BOTH executors - the
@@ -2281,6 +2700,7 @@ def main() -> int:
     check_status_contract()
     check_status_run_pinning_fixture()
     check_postflight_lane_fixture()
+    check_sweep_deferred_fixture()
     check_check_runner_fixture()
     check_ground_contract()
     check_run_isolation()

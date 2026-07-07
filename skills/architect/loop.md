@@ -44,6 +44,7 @@ Parallel rules: CLI-launched builders (`codex exec -o <file>` or equivalent) cap
    `ground.ps1|.sh <run>`, read its `FRONTIER:` line, and dispatch the next
    wave from it.
 5. **Finish boundary.** When build issues close, run the SKILL.md `### 5. Finish` timed-ruling closing review before integrate: default YES, 5-minute silence applies; YES dispatches one fresh resolved-strategist MEDIUM subagent from the factory branch head running the `final-review` stage skill, cited by its installed user-level skill path — review basis spec -> run diff -> published interface contract blocks — read-only over product code, reporting and decomposing rather than editing. A GREEN verdict short-circuits straight to integrate. A `REVIEW: FINDINGS n=<count>` verdict names a review spec, fix-issue drafts, and check drafts; the orchestrator harvests the three draft sets, discards the reviewer worktree, runs the frozen-checks freeze gate over every draft RUN command, commits the fix-wave freeze with the tracking-issue body's freeze record updated to the latest freeze SHA, files the fix issues, posts the verdict plus fix-issue list as the digest, and dispatches the fix wave through the existing wave machinery at the builders tier. Integrate fires after the fix wave has merged, after a GREEN verdict, or after a recorded ruling skips the review; its first step is the docs pass (SKILL.md `### 5. Finish`).
+Run `sweep-deferred.ps1|.sh <run>` before final close to clear deferred worktree cleanup paths.
 6. **Repeat** until no issues remain open, the closing review/integrate finish boundary is handled, then post the escalation digest's end-of-run summary on the tracking issue.
 
 ## Monitor protocol
@@ -62,9 +63,7 @@ Ruling options:
 - Exit 4 `WATCHDOG: REPEAT` -> rule intentional-vs-stuck before action; the
   OpenHands false-positive caveat applies to deliberate polling loops.
 - Exit 5 `WATCHDOG: ERROR` -> fix the watchdog config; no partial verdict.
-- Exit 6 `WATCHDOG: REPORT_READY` -> report is terminal but exit truth is
-  missing after one sweep; proceed to check-runner grading only with the
-  missing-exit-truth caveat recorded on the issue.
+- Exit 6 `WATCHDOG: REPORT_READY` -> report is terminal, exit truth is missing, and the wrapper heartbeat is stale; proceed to check-runner grading only with the missing-exit-truth caveat recorded on the issue.
 - Exit 7 `WATCHDOG: ORPHANED` -> wrapper died while output still grows; let it
   finish only with a recorded ruling.
 - Exit 8 `WATCHDOG: DEAD` -> no wrapper heartbeat, no terminal report, no
@@ -73,6 +72,7 @@ Ruling options:
   wrapper; never accept it as done.
 - Exit 10 `WATCHDOG: LEGACY_UNWRAPPED` -> respawn under the wrapper unless a
   recorded ruling accepts legacy evidence for diagnosis only.
+- Exit 11 `WATCHDOG: BLOCKED_ON_TOOL` -> kill or route around the named command, then respawn with that command form recorded as forbidden or bounded.
 
 Backends without background-exit notifications use the LLM fallback template
 in `dispatch.md` "## Monitor dispatch". The fallback keeps the same
@@ -81,7 +81,7 @@ detection-only boundary and per-job evidence requirements.
 ## Verdict comments
 
 Grading is recorded on the issue, not in a file. At each job close, one comment is posted on the job's issue with: the check-runner typed summary (`CHECKRUN SUMMARY` line plus typed exit), the postflight result, the slice call KILL/CONTINUE, and the decisive reason tied to raw evidence; exact tracker comment format lives in `dispatch.md` "## Issue conventions". The orchestrator posts the final review's verdict — `REVIEW: GREEN` or `REVIEW: FINDINGS n=<count>` plus the fix-issue list — as the run-level digest on the tracking issue; per-fix-issue verdicts follow the normal issue-conventions comment.
-The checkrun artifact `docs/jobs/<run>/<issue-slug>-checkrun.md` and the rulings file `docs/jobs/<run>/<issue-slug>-rulings.md` are local run artifacts (gitignored); the rulings file is orchestrator-owned and append-only, and if it is absent there are no post-freeze rulings. The closing review receives every rulings file verbatim in its dispatch block rather than thread prose.
+The checkrun artifact `docs/jobs/<run>/<issue-slug>-checkrun.md` and the rulings file `docs/jobs/<run>/<issue-slug>-rulings.md` are local run artifacts (gitignored); the rulings file is orchestrator-owned and append-only, and if it contains `GRADED-BY-RULING:` ground counts the report as graded. The closing review receives every rulings file verbatim in its dispatch block rather than thread prose.
 The issue is closed on merge. No checkrun-result comment on an issue means the
 next factory block must not build on it as accepted; the orchestrator may re-run
 the check-runner if evidence is missing, but may not fill in a result from memory.
@@ -100,9 +100,9 @@ Close-out: after processing a subagent's final result — verdict, report, or
 fix — release or stop its session in the same turn, batching independent
 close-outs into parallel calls; a lingering idle session is bookkeeping debt
 and can shadow names, so never leave one open once its result is consumed. No
-polling and no per-close commentary. Before postflight, kill lingering codex
-children of any consumed exec; kill any lingering job processes when a job is
-discarded.
+polling and no per-close commentary. Before postflight or discard, run
+`kill-job.ps1|.sh <job-dir>` for any consumed wrapped job with lingering
+children.
 
 ## Failure ladder
 
