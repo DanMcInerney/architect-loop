@@ -126,7 +126,7 @@ Long RUN output keeps head, tail, and any pytest short-summary block; optional `
 
 Worktree pre-creation and `codex exec` are Codex-backend builder jobs even under Claude Code; Claude-backend harness jobs use the Per-harness delegation table.
 
-All long-lived CLI subagents — builders, cross-family strategists, verification jobs — run through `run-job.ps1|.sh`; the wrapper writes `job.meta.json`, `job.heartbeat`, `job.exit.json`, and `events.jsonl`, including `pgid` on POSIX or `job_object` on Windows for `kill-job.ps1|.sh`. It accepts an opaque command, so the child can be `codex exec`, `claude -p`, or a long check-runner under a Claude Code or Codex orchestrator. Never pipe live stdout through display filters such as `tail`; the wrapper owns redirection. Every dispatch event re-arms the watchdog over all in-flight CLI jobs.
+All long-lived CLI subagents — builders, cross-family strategists, verification jobs — run through `run-job.ps1|.sh`; the wrapper writes `job.meta.json`, `job.heartbeat`, `job.exit.json`, `events.jsonl`, and `stderr.log`, including `pgid` on POSIX or `job_object` on Windows for `kill-job.ps1|.sh`. It accepts an opaque command, so the child can be `codex exec`, `claude -p`, or a long check-runner under a Claude Code or Codex orchestrator. Never pipe live stdout through display filters such as `tail`; the wrapper owns redirection. Every dispatch event re-arms the watchdog over all in-flight CLI jobs.
 
 Single Codex-backed job:
 
@@ -436,9 +436,9 @@ where Bash is stripped.
 - A job repeatedly issuing the same command or query with identical arguments is stalled even while output grows (the tail repeat-command check).
 - Stale heartbeat plus growing output is `ORPHANED`, not `DEAD`; the
   orchestrator rules from artifacts.
-- The PowerShell wrapper redirects stdout live to `events.jsonl` and appends
-  stderr when the child exits; use the Bash wrapper when live merged stderr is
-  required for diagnosis.
+- Wrappers write child stdout to `events.jsonl` and stderr to `stderr.log`;
+  watchdog growth includes both, repeat-command checks stay stdout-only, and
+  `DONE_FAILED` diagnosis reads `stderr.log` directly.
 
 On Windows PowerShell 5.1, `>`, `*>`, and `Tee-Object` write UTF-16. Liveness
 and rescue checks over event files must read encoding-aware (`Get-Content`,

@@ -182,7 +182,7 @@ if ($StdinFile) { $StdinFile = [System.IO.Path]::GetFullPath($StdinFile) }
 $metaPath = Join-Path $JobDir "job.meta.json"
 $heartbeatPath = Join-Path $JobDir "job.heartbeat"
 $exitPath = Join-Path $JobDir "job.exit.json"
-$stderrFile = $EventsFile + ".stderr"
+$stderrFile = Join-Path $JobDir "stderr.log"
 $sandboxTmp = Join-Path $Workdir ".architect\tmp\env"
 $sandboxUv = Join-Path $Workdir ".architect\tmp\uv-cache"
 $jobObjectName = JobObjectName $JobDir
@@ -201,6 +201,7 @@ function WriteMeta($ChildPid) {
         command = @($Command)
         cwd = $Workdir
         events_file = $EventsFile
+        stderr_file = $stderrFile
         report_path = $ReportPath
         job_dir = $JobDir
         wrapper_pid = $PID
@@ -282,11 +283,6 @@ try {
     AppendUtf8 $EventsFile ("RUNJOB: ERROR " + $_.Exception.Message + [Environment]::NewLine)
 } finally {
     try { WriteUtf8 $heartbeatPath ((Get-Date).ToUniversalTime().ToString("o") + [Environment]::NewLine) } catch {}
-    try {
-        if ((Test-Path -LiteralPath $stderrFile -PathType Leaf) -and (Get-Item -LiteralPath $stderrFile).Length -gt 0) {
-            AppendUtf8 $EventsFile ([System.IO.File]::ReadAllText($stderrFile, [System.Text.Encoding]::UTF8))
-        }
-    } catch {}
     if ($jobObjectHandle -ne [IntPtr]::Zero) {
         try { [void][ArchitectJobNative]::CloseHandle($jobObjectHandle) } catch {}
     }

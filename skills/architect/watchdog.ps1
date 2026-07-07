@@ -233,13 +233,16 @@ while ($true) {
             OutputAndExit 10 "WATCHDOG: LEGACY_UNWRAPPED $id deterministic_exit=false terminal_status=$terminal"
         }
         $metaObj = ReadJson $meta
+        $stderr = [string](Prop $j "stderr_file" "")
+        if (-not $stderr -and $metaObj) { $stderr = [string](Prop $metaObj "stderr_file" "") }
+        if (-not $stderr -and $jobDir) { $stderr = Join-Path $jobDir "stderr.log" }
         $exitObj = ReadJson $exitFile
         if (-not $exitObj -and (($events -and -not (Test-Path -LiteralPath $events)) -or ($worktree -and -not (Test-Path -LiteralPath $worktree)))) {
             OutputAndExit 2 "WATCHDOG: INTEGRATED $id"
         }
 
-        $size = (FileSize $events) + (FileSize $report)
-        $evidence = EvidenceUtc @($events, $report)
+        $size = (FileSize $events) + (FileSize $report) + (FileSize $stderr)
+        $evidence = EvidenceUtc @($events, $report, $stderr)
         $state = ReadState $stateFile $size $now $evidence
         $grew = $false
         if ($size -ne [int64]$state.last_size -or $evidence.Ticks -gt [int64]$state.last_evidence_ticks) {

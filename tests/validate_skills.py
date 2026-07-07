@@ -993,6 +993,11 @@ def check_watchdog_determinism_fixture() -> None:
                 "if behavior == 'env-check':",
                 "    emit({'TEMP':os.environ.get('TEMP'),'TMP':os.environ.get('TMP'),'TMPDIR':os.environ.get('TMPDIR'),'UV_CACHE_DIR':os.environ.get('UV_CACHE_DIR')})",
                 "    sys.exit(0)",
+                "if behavior == 'stderr-line':",
+                "    sys.stderr.write('ERR-LINE\\\\n')",
+                "    sys.stderr.flush()",
+                "    emit({'command':'stdout-only'})",
+                "    sys.exit(0)",
                 "if behavior == 'loop':",
                 "    for _ in range(6):",
                 "        emit({'command':'same-command'})",
@@ -1055,6 +1060,11 @@ def check_watchdog_determinism_fixture() -> None:
                 "    ;;",
                 "  env-check)",
                 "    printf '{\"TEMP\":\"%s\",\"TMP\":\"%s\",\"TMPDIR\":\"%s\",\"UV_CACHE_DIR\":\"%s\"}\\n' \"${TEMP:-}\" \"${TMP:-}\" \"${TMPDIR:-}\" \"${UV_CACHE_DIR:-}\"",
+                "    exit 0",
+                "    ;;",
+                "  stderr-line)",
+                "    printf 'ERR-LINE\\n' >&2",
+                "    emit '{\"command\":\"stdout-only\"}'",
                 "    exit 0",
                 "    ;;",
                 "  loop)",
@@ -1153,6 +1163,26 @@ def check_watchdog_determinism_fixture() -> None:
             if needle not in events_text:
                 errors.append(f"watchdog fixture {runner} sandbox-env: missing {needle!r} in child env\nstdout:\n{events_text}")
 
+        job_dir = base / f"{runner}-stderr-line"
+        workdir = job_dir / "work"
+        report = job_dir / "report.md"
+        workdir.mkdir(parents=True)
+        proc = run_wrapped_fake(kind, job_dir, workdir, report, fake, "stderr-line")
+        finish_wrapped_fake(proc, f"{runner} stderr-line")
+        events_text = read_text(job_dir / "events.jsonl") if (job_dir / "events.jsonl").exists() else ""
+        stderr_path = job_dir / "stderr.log"
+        stderr_text = read_text(stderr_path) if stderr_path.exists() else ""
+        if "ERR-LINE" in events_text:
+            errors.append(f"watchdog fixture {runner} stderr-line: stderr polluted events\nstdout:\n{events_text}")
+        if "ERR-LINE" not in stderr_text:
+            errors.append(f"watchdog fixture {runner} stderr-line: missing stderr.log content\nstderr:\n{stderr_text}")
+        try:
+            meta = json.loads(read_text(job_dir / "job.meta.json"))
+            if Path(meta.get("stderr_file", "")).name != "stderr.log":
+                errors.append(f"watchdog fixture {runner} stderr-line: metadata missing stderr_file=stderr.log")
+        except Exception as exc:
+            errors.append(f"watchdog fixture {runner} stderr-line: unreadable metadata {exc!r}")
+
         job_dir = base / f"{runner}-misreport"
         workdir = job_dir / "work"
         report = job_dir / "report.md"
@@ -1231,6 +1261,20 @@ def check_watchdog_determinism_fixture() -> None:
         config = job_dir / "watchdog.json"
         write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
         watchdog_run(watchdog_prefix, config, f"{runner} orphan", 7, "WATCHDOG: ORPHANED")
+
+        job_dir = base / f"{runner}-stderr-orphan"
+        workdir = job_dir / "work"
+        report = job_dir / "report.md"
+        workdir.mkdir(parents=True)
+        write_fixture_file(job_dir / "job.meta.json", json.dumps({"backend": "fixture", "stderr_file": str(job_dir / "stderr.log")}))
+        write_fixture_file(job_dir / "job.heartbeat", "old\n")
+        write_fixture_file(job_dir / "events.jsonl", "")
+        write_fixture_file(job_dir / "stderr.log", "still-growing-stderr\n")
+        write_fixture_file(job_dir / "job.state.json", '{"last_size":0,"last_growth_epoch":1,"last_evidence_epoch":1}\n')
+        os.utime(job_dir / "job.heartbeat", (1, 1))
+        config = job_dir / "watchdog.json"
+        write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
+        watchdog_run(watchdog_prefix, config, f"{runner} stderr-orphan", 7, "WATCHDOG: ORPHANED")
 
         job_dir = base / f"{runner}-report-ready"
         workdir = job_dir / "work"

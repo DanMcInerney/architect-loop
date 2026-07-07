@@ -1099,6 +1099,10 @@ cleanup. Both namespaces are load-bearing in shipped text.)
   flag now redirects TEMP/TMP/TMPDIR and `UV_CACHE_DIR` under
   `.architect/tmp/` for the child only. Evidence: validator fixture
   `sandbox-env`.
+- **Child stderr is separate evidence.** Wrappers write stdout event streams to
+  `events.jsonl` and stderr to `stderr.log`; watchdog growth counts events,
+  reports, and stderr, while repeat-command detection stays on stdout. Evidence:
+  validator fixtures `stderr-line` and `stderr-orphan`.
 - **Claude-native results are artifact-first.** Two result-bearing Agent-tool
   jobs on 2026-07-07 completed with bare idle notifications, so every
   Claude-native dispatch now requires a report path plus greppable verdict; a

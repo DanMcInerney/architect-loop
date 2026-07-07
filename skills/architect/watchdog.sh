@@ -101,6 +101,7 @@ while :; do
     exit_file=$(field "$job" exit_file); [ -n "$exit_file" ] || exit_file="$job_dir/job.exit.json"
     heartbeat=$(field "$job" heartbeat_file); [ -n "$heartbeat" ] || heartbeat="$job_dir/job.heartbeat"
     state_file=$(field "$job" state_file); [ -n "$state_file" ] || state_file="$job_dir/job.state.json"
+    stderr=$(field "$job" stderr_file); [ -n "$stderr" ] || stderr="$job_dir/stderr.log"
     terminal=false; report_done "$report" && terminal=true
     if [ -z "$job_dir" ] || [ ! -f "$meta" ]; then
       out_exit 10 "WATCHDOG: LEGACY_UNWRAPPED $id deterministic_exit=false terminal_status=$terminal"
@@ -114,7 +115,8 @@ while :; do
     if [ "$integrated" = true ]; then
       out_exit 2 "WATCHDOG: INTEGRATED $id"
     fi
-    ev=$(fsize "$events"); rp=$(fsize "$report"); size=$((ev+rp)); n=$(now); ev_mtime=$(evidence_mtime "$events" "$report")
+    ev=$(fsize "$events"); rp=$(fsize "$report"); err=$(fsize "$stderr"); size=$((ev+rp+err)); n=$(now); ev_mtime=$(evidence_mtime "$events" "$report")
+    s_mtime=$(mtime "$stderr"); [ "$s_mtime" -gt "$ev_mtime" ] && ev_mtime=$s_mtime
     last_size=$(state_field "$state_file" last_size); [ -n "$last_size" ] || last_size=$size
     last_growth=$(state_field "$state_file" last_growth_epoch); [ -n "$last_growth" ] || last_growth=$ev_mtime; [ "$last_growth" -gt 0 ] || last_growth=$n
     last_evidence=$(state_field "$state_file" last_evidence_epoch); [ -n "$last_evidence" ] || last_evidence=$ev_mtime

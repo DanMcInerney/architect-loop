@@ -29,6 +29,7 @@ done
 [ -n "$workdir" ] || { printf 'RUNJOB: ERROR missing --workdir\n'; exit 64; }
 [ "$#" -gt 0 ] || { printf 'RUNJOB: ERROR missing command\n'; exit 64; }
 [ -n "$events_file" ] || events_file="$job_dir/events.jsonl"
+stderr_file="$job_dir/stderr.log"
 
 json_escape(){
   printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
@@ -49,6 +50,7 @@ command_json(){
 
 mkdir -p "$job_dir" "$(dirname "$events_file")" || exit 64
 : > "$events_file" || exit 64
+: > "$stderr_file" || exit 64
 
 (
   printf '{'
@@ -57,6 +59,7 @@ mkdir -p "$job_dir" "$(dirname "$events_file")" || exit 64
   command_json "$@"
   printf ',"cwd":"%s",' "$(json_escape "$workdir")"
   printf '"events_file":"%s",' "$(json_escape "$events_file")"
+  printf '"stderr_file":"%s",' "$(json_escape "$stderr_file")"
   printf '"report_path":"%s",' "$(json_escape "$report_path")"
   printf '"job_dir":"%s",' "$(json_escape "$job_dir")"
   printf '"wrapper_pid":%s,' "$$"
@@ -101,18 +104,18 @@ command -v setsid >/dev/null 2>&1 && use_setsid=true
   if [ "$use_setsid" = true ]; then
     launcher=$(command -v bash 2>/dev/null || printf bash)
     if [ -n "$stdin_file" ]; then
-      setsid "$launcher" -c 'printf "%s\n" "$$" > "$1"; mv "$1" "$2"; shift 2; exec "$@"' architect-scope "$child_pid_tmp" "$child_pid_file" "$@" < "$stdin_file" > "$events_file" 2>&1 &
+      setsid "$launcher" -c 'printf "%s\n" "$$" > "$1"; mv "$1" "$2"; shift 2; exec "$@"' architect-scope "$child_pid_tmp" "$child_pid_file" "$@" < "$stdin_file" > "$events_file" 2> "$stderr_file" &
     else
-      setsid "$launcher" -c 'printf "%s\n" "$$" > "$1"; mv "$1" "$2"; shift 2; exec "$@"' architect-scope "$child_pid_tmp" "$child_pid_file" "$@" > "$events_file" 2>&1 &
+      setsid "$launcher" -c 'printf "%s\n" "$$" > "$1"; mv "$1" "$2"; shift 2; exec "$@"' architect-scope "$child_pid_tmp" "$child_pid_file" "$@" > "$events_file" 2> "$stderr_file" &
     fi
     inner=$!
     wait "$inner" 2>/dev/null
     child_code=$?
   else
     if [ -n "$stdin_file" ]; then
-      "$@" < "$stdin_file" > "$events_file" 2>&1
+      "$@" < "$stdin_file" > "$events_file" 2> "$stderr_file"
     else
-      "$@" > "$events_file" 2>&1
+      "$@" > "$events_file" 2> "$stderr_file"
     fi
     child_code=$?
   fi
