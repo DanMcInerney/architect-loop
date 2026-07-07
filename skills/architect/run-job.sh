@@ -93,7 +93,10 @@ child_pid_tmp="$job_dir/job.child.tmp"
 kill_request="$job_dir/job.kill"
 rm -f "$wait_file" "$wait_tmp" "$child_pid_file" "$child_pid_tmp" "$kill_request"
 use_setsid=false
-command -v setsid >/dev/null 2>&1 && use_setsid=true
+# Fixture hook: force the Git-Bash plain lane even on hosts with setsid.
+if [ "${ARCHITECT_RUN_JOB_DISABLE_SETSID:-}" != 1 ]; then
+  command -v setsid >/dev/null 2>&1 && use_setsid=true
+fi
 (
   if [ "$sandbox_env" = true ]; then
     export TEMP="$workdir/.architect/tmp/env"
@@ -113,10 +116,14 @@ command -v setsid >/dev/null 2>&1 && use_setsid=true
     child_code=$?
   else
     if [ -n "$stdin_file" ]; then
-      "$@" < "$stdin_file" > "$events_file" 2> "$stderr_file"
+      "$@" < "$stdin_file" > "$events_file" 2> "$stderr_file" &
     else
-      "$@" > "$events_file" 2> "$stderr_file"
+      "$@" > "$events_file" 2> "$stderr_file" &
     fi
+    inner=$!
+    printf "%s\n" "$inner" > "$child_pid_tmp"
+    mv "$child_pid_tmp" "$child_pid_file"
+    wait "$inner" 2>/dev/null
     child_code=$?
   fi
   printf '%s\n' "$child_code" > "$wait_tmp"
@@ -127,10 +134,12 @@ child=$!
 child_meta=$child
 pgid_json=null
 scope=plain
-if [ "$use_setsid" = true ]; then
-  deadline=$(( $(date +%s) + 5 ))
-  while [ ! -f "$child_pid_file" ] && [ "$(date +%s)" -lt "$deadline" ]; do sleep 0.05; done
+deadline=$(( $(date +%s) + 5 ))
+while [ ! -f "$child_pid_file" ] && [ "$(date +%s)" -lt "$deadline" ]; do sleep 0.05; done
+if [ -f "$child_pid_file" ]; then
   child_meta=$(cat "$child_pid_file" 2>/dev/null || printf '%s' "$child")
+fi
+if [ "$use_setsid" = true ]; then
   pgid_json=$child_meta
   scope=setsid
 fi
@@ -146,6 +155,15 @@ kill_at=0
 while [ ! -f "$wait_file" ]; do
   sleep 1
   now_epoch=$(date +%s)
+  if ! kill -0 "$child" 2>/dev/null; then
+    wait "$child" 2>/dev/null
+    child_code=$?
+    if [ ! -f "$wait_file" ]; then
+      printf '%s\n' "$child_code" > "$wait_tmp"
+      mv "$wait_tmp" "$wait_file"
+    fi
+    continue
+  fi
   if [ -f "$kill_request" ] && [ "$kill_sent" = false ]; then
     if [ "$pgid_json" != null ]; then kill -TERM -- "-$pgid_json" 2>/dev/null || :; else kill -TERM "$child_meta" 2>/dev/null || :; fi
     kill_sent=true

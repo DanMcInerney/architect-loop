@@ -16,7 +16,7 @@ wait_gone(){
   target=$1
   i=0
   while [ "$i" -lt 20 ]; do
-    if ! kill -0 "$target" 2>/dev/null; then return 0; fi
+    if ! kill -0 -- "$target" 2>/dev/null; then return 0; fi
     sleep 0.25
     i=$((i+1))
   done
@@ -33,9 +33,9 @@ if [ -n "$pgid" ] && [ "$pgid" != null ] && [ "$pgid" -gt 0 ] 2>/dev/null; then
 fi
 
 if [ -n "$pid" ] && [ "$pid" -gt 0 ] 2>/dev/null; then
-  if kill -TERM "$pid" 2>/dev/null; then
+  if kill -TERM -- "$pid" 2>/dev/null; then
     reaped=1
-    wait_gone "$pid" || kill -KILL "$pid" 2>/dev/null || :
+    wait_gone "$pid" || kill -KILL -- "$pid" 2>/dev/null || :
     printf 'KILLJOB: OK %s reaped=%s\n' "$(basename "$job_dir")" "$reaped"
     exit 0
   fi

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
 import os
 import shutil
 import subprocess
@@ -887,6 +888,7 @@ def run_wrapped_fake(
     behavior: str,
     detached: bool = False,
     sandbox_env: bool = False,
+    force_plain: bool = False,
 ) -> subprocess.Popen[str]:
     prefix = run_job_prefix(kind)
     if prefix is None:
@@ -935,6 +937,9 @@ def run_wrapped_fake(
         if sandbox_env:
             command.append("--sandbox-env")
         command += ["--", *child]
+    if kind == "sh" and force_plain:
+        inner = [bash_inner_executable(), *command[1:]]
+        command = [bash, "-c", "ARCHITECT_RUN_JOB_DISABLE_SETSID=1 exec " + " ".join(shlex.quote(arg) for arg in inner)]
     # Detached children survive the wrapper and would hold PIPE handles open,
     # deadlocking communicate() (the documented grandchild-holds-pipes class).
     stdio = subprocess.DEVNULL if detached else subprocess.PIPE
@@ -954,6 +959,26 @@ def finish_wrapped_fake(proc: subprocess.Popen[str], label: str, timeout: int = 
             else:
                 proc.kill()
         errors.append(f"watchdog fixture {label}: wrapper did not finish")
+
+
+def bash_pid_alive(pid_text: str) -> bool:
+    pid_text = pid_text.strip()
+    if not pid_text.isdigit():
+        return False
+    bash = shutil.which("bash")
+    if not bash:
+        return False
+    result = subprocess.run([bash, "-lc", f"kill -0 {int(pid_text)}"], cwd=ROOT, text=True, capture_output=True, timeout=5)
+    return result.returncode == 0
+
+
+def bash_kill_pid(pid_text: str) -> None:
+    pid_text = pid_text.strip()
+    if not pid_text.isdigit():
+        return
+    bash = shutil.which("bash")
+    if bash:
+        subprocess.run([bash, "-lc", f"kill -TERM {int(pid_text)} 2>/dev/null || true"], cwd=ROOT, text=True, capture_output=True, timeout=5)
 
 
 def check_watchdog_determinism_fixture() -> None:
@@ -988,6 +1013,7 @@ def check_watchdog_determinism_fixture() -> None:
                 "    time.sleep(4)",
                 "    sys.exit(0)",
                 "if behavior == 'kill-hang':",
+                "    open(os.path.join(os.path.dirname(report), 'workload.pid'), 'w', encoding='utf-8').write(str(os.getpid()))",
                 "    time.sleep(20)",
                 "    sys.exit(0)",
                 "if behavior == 'env-check':",
@@ -1055,8 +1081,13 @@ def check_watchdog_determinism_fixture() -> None:
                 "    exit 0",
                 "    ;;",
                 "  kill-hang)",
-                "    sleep 20",
-                "    exit 0",
+                "    printf '%s\\n' \"$$\" > \"$(dirname \"$report\")/workload.pid\"",
+                "    sleep 20 &",
+                "    sleep_pid=$!",
+                "    printf '%s\\n' \"$sleep_pid\" > \"$(dirname \"$report\")/sleep.pid\"",
+                "    trap 'kill \"$sleep_pid\" 2>/dev/null || :; exit 143' TERM INT HUP",
+                "    wait \"$sleep_pid\"",
+                "    exit $?",
                 "    ;;",
                 "  env-check)",
                 "    printf '{\"TEMP\":\"%s\",\"TMP\":\"%s\",\"TMPDIR\":\"%s\",\"UV_CACHE_DIR\":\"%s\"}\\n' \"${TEMP:-}\" \"${TMP:-}\" \"${TMPDIR:-}\" \"${UV_CACHE_DIR:-}\"",
@@ -1248,6 +1279,49 @@ def check_watchdog_determinism_fixture() -> None:
         finish_wrapped_fake(proc, f"{runner} kill-job", timeout=10)
         if not (job_dir / "job.exit.json").exists():
             errors.append(f"kill-job fixture {runner}: wrapper did not write job.exit.json")
+
+        if kind == "sh":
+            job_dir = base / f"{runner}-kill-job-plain"
+            workdir = job_dir / "work"
+            report = job_dir / "report.md"
+            workdir.mkdir(parents=True)
+            proc = run_wrapped_fake(kind, job_dir, workdir, report, fake, "kill-hang", force_plain=True)
+            deadline = time.time() + 5
+            while time.time() < deadline and not (job_dir / "workload.pid").exists():
+                time.sleep(0.05)
+            prefix = kill_job_prefix(kind)
+            if prefix is None:
+                errors.append(f"kill-job fixture {runner} plain: missing executor")
+            else:
+                killed = subprocess.run([*prefix, bash_path(job_dir)], cwd=ROOT, text=True, capture_output=True, timeout=12)
+                kout = killed.stdout.replace("\r\n", "\n")
+                if killed.returncode != 0 or "KILLJOB: OK" not in kout:
+                    errors.append(
+                        f"kill-job fixture {runner} plain: expected OK exit 0 got {killed.returncode}\n"
+                        f"stdout:\n{kout}\nstderr:\n{killed.stderr}"
+                    )
+            finish_wrapped_fake(proc, f"{runner} kill-job plain", timeout=10)
+            if not (job_dir / "job.exit.json").exists():
+                errors.append(f"kill-job fixture {runner} plain: wrapper did not write job.exit.json")
+            try:
+                meta = json.loads(read_text(job_dir / "job.meta.json"))
+                workload_pid = read_text(job_dir / "workload.pid").strip()
+                if str(meta.get("child_pid", "")).strip() != workload_pid:
+                    errors.append(
+                        f"kill-job fixture {runner} plain: metadata child_pid did not name workload "
+                        f"child_pid={meta.get('child_pid')} workload_pid={workload_pid}"
+                    )
+            except Exception as exc:
+                errors.append(f"kill-job fixture {runner} plain: unreadable metadata/workload pid {exc!r}")
+            sleep_pid_path = job_dir / "sleep.pid"
+            if sleep_pid_path.exists():
+                sleep_pid = read_text(sleep_pid_path)
+                if bash_pid_alive(sleep_pid):
+                    errors.append(f"kill-job fixture {runner} plain: workload sleep survived kill-job")
+                    bash_kill_pid(sleep_pid)
+            workload_pid_path = job_dir / "workload.pid"
+            if workload_pid_path.exists():
+                bash_kill_pid(read_text(workload_pid_path))
 
         job_dir = base / f"{runner}-orphan"
         workdir = job_dir / "work"
@@ -1820,18 +1894,20 @@ def check_check_runner_fixture() -> None:
         trunc_evidence = base / "trunc-evidence.md"
         if runner == "powershell":
             trunc_command = (
-                "1..12 | ForEach-Object { \"HEAD$_\" }; "
+                "\"HEAD1\"; "
                 "\"===== short test summary info =====\"; "
                 "\"FAILED tests/test_sample.py::test_x - boom\"; "
                 "\"===== 1 failed in 0.01s =====\"; "
+                "2..12 | ForEach-Object { \"HEAD$_\" }; "
                 "1..20 | ForEach-Object { \"TAIL$_\" }"
             )
         else:
             trunc_command = (
-                "for i in $(seq 1 12); do echo HEAD$i; done; "
+                "echo HEAD1; "
                 "echo '===== short test summary info ====='; "
                 "echo 'FAILED tests/test_sample.py::test_x - boom'; "
                 "echo '===== 1 failed in 0.01s ====='; "
+                "for i in $(seq 2 12); do echo HEAD$i; done; "
                 "for i in $(seq 1 20); do echo TAIL$i; done"
             )
         write_fixture_file(trunc_check, f"# Truncation\n\n- RUN: `{trunc_command}` -> exit:0\n")
@@ -1852,6 +1928,9 @@ def check_check_runner_fixture() -> None:
         if trunc_text:
             for needle in ("HEAD1", "[...", "short test summary info", "FAILED tests/test_sample.py::test_x", "TAIL20"):
                 require_checkrun_evidence(f"{runner} truncation", trunc_text, needle)
+            summary_lines = [line for line in trunc_text.splitlines() if line.strip() == "===== short test summary info ====="]
+            if len(summary_lines) != 1:
+                errors.append(f"check-runner fixture {runner} truncation: duplicated pytest summary\nevidence:\n{trunc_text}")
 
         progress_check = base / "progress.md"
         progress_config = base / "progress.json"

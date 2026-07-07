@@ -97,10 +97,14 @@ emit_output_slice(){
   [ "$slice_elided" -gt 0 ] || slice_elided=0
   sed -n "1,${slice_head}p" "$slice_file"
   printf '[... %s lines elided ...]\n' "$slice_elided"
-  awk '
+  awk -v head="$slice_head" -v tail_start="$((slice_total - slice_tail + 1))" '
     /^=+[[:space:]]*short test summary info[[:space:]]*=+/ { active=1; seen=1 }
-    active {
+    active && NR > head && NR < tail_start {
       print
+      if (seen > 1 && /^=+.*=+[[:space:]]*$/) exit
+      seen++
+    }
+    active && (NR <= head || NR >= tail_start) {
       if (seen > 1 && /^=+.*=+[[:space:]]*$/) exit
       seen++
     }
