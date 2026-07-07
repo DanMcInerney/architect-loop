@@ -15,10 +15,9 @@ You ground, dispatch strategist work, freeze, dispatch builders, rule, merge,
 and digest. Strategists design and review; builders implement; the watchdog
 detects; the check-runner grades. Never collapse these roles.
 
-Stage skills own each stage's craft; this file owns order, invariants, and the
-seams between them. Invoke stage skills explicitly (Skill tool or agent-def
-preload) — a stage skill returns here and never invokes a peer. Mechanics:
-`dispatch.md` (templates, model routing, `## Issue conventions`), `loop.md`
+Stage skills own each stage's craft; this file owns order, invariants, and
+seams. Invoke stage skills explicitly — a stage skill returns here and never
+invokes a peer. Mechanics: `dispatch.md` (templates, routing), `loop.md`
 (event loop), `tracker.md` (modes), `research.md` (fan-out). Rationale:
 `DESIGN.md`.
 
@@ -29,20 +28,19 @@ preload) — a stage skill returns here and never invokes a peer. Mechanics:
 2. **Checks freeze in git before dispatch.** Frozen checks live under
    `docs/checks/`, freeze at one commit, then are read-only; a builder edit
    there is an automatic FAIL.
-3. **Nobody grades their own work.** Builders report raw evidence. The
-   check-runner grades every frozen RUN item; one fresh strategist subagent
-   runs the final review — the loop's only model review. It
-   reports and decomposes, never edits. Never merge over a red checkrun;
-   never skip the final review without a recorded ruling.
+3. **Nobody grades their own work.** Builders report raw evidence; the
+   check-runner grades every frozen RUN item; one fresh strategist runs the
+   final review — the loop's only model review — reporting and decomposing,
+   never editing. Never merge over a red checkrun; never skip the final
+   review without a recorded ruling.
 4. **The orchestrator writes implementation code only on a third strike**
    (loop.md `## Failure ladder`), graded like any builder's work. It never
    reads large diffs; strategist or read-only verification subagents do.
 5. **Fresh builder per issue,** worktree-isolated. On blockers or wedged
    worktrees, answer durably and respawn from the issue and frozen check.
-6. **Roles are set before decomposition.** The orchestrator is this running
-   session; strategist and builder models come from config and dispatch
-   rules. Failure never moves builder tier — failures are spec, context, or
-   architecture problems.
+6. **Roles are set before decomposition.** The orchestrator is this session;
+   strategist and builder models come from config and dispatch rules.
+   Failure never moves builder tier.
 7. **Builders never commit.** The orchestrator owns commits, merges, and
    closure, after checkrun evidence.
 8. **Disagreement is mandatory.** PHASE 0 states the plan and every
@@ -52,14 +50,13 @@ preload) — a stage skill returns here and never invokes a peer. Mechanics:
 
 ## Timed-ruling protocol
 
-There is no approval gate anywhere in the loop; the human steers by editing
-the spec, commenting rulings, vetoing digests, or `docs/STOP`. Every human
-question routes through this protocol, human present or not. Never a
-blocking question UI (nothing times it out; an absent human hangs the
-factory):
+No approval gate exists anywhere; the human steers by editing the spec,
+commenting rulings, vetoing digests, or `docs/STOP`. Every human question
+routes through this protocol, human present or not — never a blocking
+question UI:
 
-1. Print question, numbered options, recommended default in-session; mirror
-   as a `RULING PENDING` tracker comment naming the default.
+1. Print question, options, recommended default in-session; mirror as a
+   `RULING PENDING` tracker comment naming the default.
 2. Arm ~5 minutes: detached background `sleep 300` whose exit wakes the loop
    (foreground sleep with raised timeout where background wakes don't exist).
 3. Answer first: apply and kill the timer. Timer first: apply the default,
@@ -72,164 +69,113 @@ factory):
 ### 0. Ground
 
 At every factory block boundary. Load `codebase-design` first and use its
-glossary exactly — substitution is a defect.
+glossary exactly.
 
 - Read in authority order: `CLAUDE.md`/`AGENTS.md`, `README.md`, architecture
   docs, active spec, open issues, reports, checks, branches.
-- Run `skills/architect/ground.ps1|.sh <run>` and rule on its typed exit: 0
-  `GROUND: OK` proceeds — read its `FRONTIER:` line for the ready issues; 2
-  `GROUND: STOP <which>` halts before dispatch; 3 `GROUND: DRIFT <fact>` is a
-  tracker/git disagreement to rule on before continuing; 5 `GROUND: ERROR
-  <why>` is a script/input error to fix. Detection only — it never posts,
-  edits, or decides.
-- Resolve roles: orchestrator is this running session; `strategist` and
-  `builders` from `.architect/config`, then `~/.architect/config`, then
-  dispatch.md `## Model alias table`. Verification subagents run at the
-  builders model; high-judgment subagents run at the strategist model; the
-  monitor is a script.
+- Run `skills/architect/ground.ps1|.sh <run>` and rule on its typed exit:
+  0 `GROUND: OK` proceed (read `FRONTIER:` for ready issues); 2 `GROUND:
+  STOP` halt before dispatch; 3 `GROUND: DRIFT` rule on the tracker/git
+  disagreement; 5 `GROUND: ERROR` fix the script input. Detection only.
+- Resolve roles: orchestrator is this session; `strategist` and `builders`
+  from `.architect/config`, then `~/.architect/config`, then dispatch.md
+  `## Model alias table`. Verification subagents run at the builders model.
 
 ### 1. Intake
 
-Feed the user's goal straight into the pipeline — no intake question batch;
-anything genuinely open becomes a timed ruling that auto-defaults and lands
-as a recorded `## Assumptions` entry.
+Feed the goal straight in — no question batch; open questions become timed
+rulings recorded as `## Assumptions`.
 
 Preflight per tracker mode (`tracker.md` `## Preflight per mode`). Canary
 each candidate backend once — list tools, `git log -1 --oneline`, reply
 `CANARY: SHELLS_OK|DEGRADED`; on DEGRADED select the fallback backend and
-record the substitution with evidence. Never switch backend mid-wave.
+record the substitution. Never switch backend mid-wave.
 
-Dispatch a fresh strategist subagent to write the spec with `to-spec`; it
-returns the spec draft (`SPEC DRAFT: <path>`) and any `RULING NEEDED:`
-questions. Rule them via the timed-ruling protocol and fold the outcomes
-into the draft as `## Assumptions` — the strategist never commits or
-touches the tracker. Cut `factory/<run>` and commit the spec there; every
-run commit lands on that branch and main stays untouched until the closing
-PR. One run per checkout — concurrent runs each get their own worktree
-(`.architect/runs/<slug>`, machine-local). Create the tracking issue — spec
-pointer, assumptions digest, run marker, manifest path — then write the
-manifest, a local gitignored run artifact like all of `docs/runs/` and
+Dispatch a fresh strategist to write the spec with `to-spec`; it returns
+`SPEC DRAFT: <path>` plus `RULING NEEDED:` questions. Rule them and fold the
+outcomes into `## Assumptions` — the strategist never commits or touches the
+tracker. Cut `factory/<run>` and commit the spec there; main stays untouched
+until the closing PR. One run per checkout; concurrent runs get their own
+worktrees (`.architect/runs/<slug>`). Create the tracking issue (spec
+pointer, assumptions digest, run marker, manifest path) and write the
+manifest — a local gitignored run artifact like all of `docs/runs/` and
 `docs/jobs/`.
 
 ### 2. Harden
 
-Dispatch one fresh strategist subagent over the committed draft; this one
-dispatch replaces the old review-approve-decompose chain. It runs
-`adversarial-review` against the spec and folds the surviving findings into
-a revised spec itself, then compiles that spec into dispatch-ready issue
-drafts with `to-issues` (publish-ordered files under
-`docs/runs/<run>/issues/`): structural before behavioral with blocking
-edges, tracer-bullet vertical slices, a file-disjoint parallel frontier,
-interface contracts from producers, one compact change-skeleton per issue
-(a contract, not a line mandate — PHASE 0 is the disagreement channel). It
-drafts per-issue graded checks with `frozen-checks` under
-`docs/checks/<run>/` — each issue links its check — and closes by
-stress-testing its own decomposition with `adversarial-review`'s
-decomposition discipline, executing every draft RUN item and resolving
-every pointer before returning. It returns the revised spec, issue drafts,
-check drafts, and its findings ledger; it never commits or touches the
-tracker.
+Dispatch one fresh strategist over the committed draft. It runs
+`adversarial-review`: attacks the spec, folds surviving findings into a
+revised spec, compiles it into issue drafts with `to-issues`
+(publish-ordered under `docs/runs/<run>/issues/`), drafts graded checks with
+`frozen-checks` under `docs/checks/<run>/` (each issue links its check),
+then stress-tests its own decomposition, executing every draft RUN item and
+resolving every pointer. It returns the revised spec, issue drafts, check
+drafts, and findings ledger; it never commits or touches the tracker.
 
 ### 3. Publish and freeze
 
-The orchestrator rules on the returned drafts, commits the revised spec,
-publishes the sub-issues from the drafts with native edges (`dispatch.md`
-`## Issue conventions`), and owns the freeze commit. Freeze preconditions:
-freeze committed on the factory branch and pushed; `preflight.ps1`/`.sh`
+Rule on the drafts, commit the revised spec, publish the sub-issues with
+native edges (`dispatch.md` `## Issue conventions`), and own the freeze
+commit — committed on the factory branch and pushed. `preflight.ps1|.sh`
 verifies worktree, freeze, and a frozen-file spot-check; builders still
-FIRST-ACTION verify inputs. Record the freeze SHA, stress result, and plan
-on the tracking issue. Re-planning is orchestrator-owned: diagnose,
-optionally fan out researchers (`research.md`), amend spec/issue/checks in
-git and tracker, respawn fresh. Builders never re-plan.
+FIRST-ACTION verify. Record freeze SHA, stress result, and plan on the
+tracking issue. Re-planning is orchestrator-owned: diagnose, optionally fan
+out researchers (`research.md`), amend spec/issues/checks in git and
+tracker, respawn fresh. Builders never re-plan.
 
-### 4. Factory Loop
+### 4. Factory loop
 
-Event loop: loop.md `## Factory block procedure`.
-
-- Dispatch the ready issues to the backend cap: up to 10 CLI-launched build
-  jobs, or the built-in harness subagent cap (currently 5). Builders default
-  to codex-CLI jobs (`codex/best`); Claude-native Agent-tool jobs
-  (`architect-builder` def preloads `tdd` + `codebase-design`; model per
-  alias table) are the config alternative and codex-absent fallback. Every
-  job end is a dispatch event: recompute the frontier and dispatch before
-  grading — one completion routinely launches several builders.
-- Sleep between events; wake on DONE, BLOCKED, stall/kill or watchdog
-  evidence, or frontier recomputation.
-- Status requests: run `skills/architect/status.ps1|.sh <run>`, print
-  verbatim in a fenced block, never hand-compose the tree.
-- DONE: write runner config, launch the check-runner in the background, rule
-  on its typed exit — 0: commit evidence, merge through postflight; 2: commit
-  failure evidence, enter the failure ladder; 5: recorded error rail.
-  `POSTFLIGHT: OK` is the clean touch-set evidence.
-- BLOCKED: answer on the issue with durable evidence; respawn fresh with the
-  answer (`dispatch.md` `## Respawn-with-answer template`).
-- Failure ladder (loop.md): (1) diagnose from checkrun or review evidence —
-  never a large diff — respawn one fix builder with the answer; (2) fresh
-  builder, deeper diagnosis; (3) third strike, Hard Rule 4.
-- Post-freeze rulings are append-only in
-  `docs/jobs/<run>/<issue-slug>-rulings.md` — PHASE-0 rulings, touch-set
-  amendments, respawn answers. Orchestrator-owned, local, mirrored to the
-  issue; each rulings file travels verbatim in the reviewer dispatch block.
-- Merge conflict = decomposition failure: kill the job, re-spec the graph.
-- Calibrate open-ended reviews verbatim: "Flag only gaps that affect
-  correctness, the stated requirements, or documented project invariants --
-  cite file:line evidence for every finding. Do not report stylistic
-  preferences."
-- Record docs debt as it accrues; nontrivial diagnoses codify into DESIGN
-  and CONTEXT through the integrate subagent's docs pass, never mid-run.
+Run loop.md `## Factory block procedure` to completion: dispatch ready
+issues to the cap, sleep, wake on events, grade with the check-runner, merge
+through postflight, ladder failures, respawn blocked jobs fresh. Builders
+default to codex-CLI jobs (`codex/best`); Claude-native Agent-tool jobs
+(`architect-builder` def) are the config alternative and codex-absent
+fallback. Status requests: run `skills/architect/status.ps1|.sh <run>` and
+print verbatim. Post-freeze rulings are append-only in
+`docs/jobs/<run>/<issue-slug>-rulings.md`, mirrored to the issue. Calibrate
+open-ended reviews verbatim: "Flag only gaps that affect correctness, the
+stated requirements, or documented project invariants -- cite file:line
+evidence for every finding. Do not report stylistic preferences." Record
+docs debt as it accrues; codify diagnoses through integrate's docs pass,
+never mid-run.
 
 ### 5. Finish
 
-When every build issue has closed, run the closing test pass: execute the
-run's builder-built test suites plus every frozen RUN item at the factory
-branch head and capture the raw output. Then one fresh strategist subagent
-(MEDIUM effort, worktree from the factory branch head) runs the
-`final-review` stage skill — always, never gated on a ruling to enter it —
-dispatched by citing the installed user-level skill text by explicit path,
-with the test-pass output and every rulings file in its dispatch block. It
-reports and decomposes, never edits, and returns one verdict. `REVIEW: GREEN` is a
-short-circuit: post the GREEN verdict on the tracking issue and go straight
-to integrate. `REVIEW: FINDINGS n=<count>` names a review spec, fix-issue
-drafts, and check drafts; the orchestrator harvests those three draft sets,
-discards the reviewer worktree, and runs the frozen-checks freeze gate over
-every draft RUN command, amending drafts pre-freeze where the gate demands it
-(rulings record intent-bearing amendments). It commits the review spec and
-issue bodies under the run directory and the checks into the run's checks
-directory as the fix-wave freeze, updates the tracking-issue body's freeze
-record to the latest freeze SHA
-(prior SHAs stay in comments), files the fix issues as sub-issues, and posts
-the verdict plus fix-issue list as the digest — no human gate; the digest is
-the veto surface. It then dispatches the fix wave through the existing wave
-machinery at the builders tier: single review cycle, no re-review; a fix
-issue closes by merge or by recorded ruling, landing ruling-closed findings
-in the digest as residual risks.
+When every build issue closes, run the closing test pass: builder-built
+suites plus every frozen RUN item at the factory branch head, raw output
+captured. Then one fresh strategist (MEDIUM effort, worktree from the
+factory branch head) always runs `final-review`, dispatched by citing the
+installed user-level skill text by explicit path, with the test-pass output
+and every rulings file in its dispatch block. It reports and decomposes,
+never edits. `REVIEW: GREEN`: post the verdict and go to integrate.
+`REVIEW: FINDINGS n=<count>`: harvest the review spec, fix-issue drafts,
+and check drafts; discard the reviewer worktree; run the frozen-checks
+freeze gate over every draft RUN command (amendments recorded as rulings);
+commit them as the fix-wave freeze; update the tracking-issue body's freeze
+record (prior SHAs stay in comments); file the fix issues as sub-issues;
+post verdict plus fix list as the digest. Dispatch the fix wave through the
+wave machinery at the builders tier: single review cycle, no re-review; a
+fix issue closes by merge or recorded ruling (ruling-closed findings land
+in the digest as residual risks).
 
-Then dispatch one integration subagent running the `integrate` stage skill
-— never the orchestrator — after the fix wave has merged, after a GREEN
-verdict, or after a recorded ruling skips the review. Its dispatch block
-carries the change-context digest: shipped issues with one-liners,
-diffstats, rulings pointers, docs debt, domain language changes. Its first
-step is the docs pass — consume the digest, update product docs, retire the
-docs debt — then it owns remaining merges, ship-time conflict resolution,
-PR prep or markdown-mode finish prep, and the digest draft. The
-orchestrator rules on the result and posts the digest, naming shipped,
-skipped, residual risks, and evidence.
+Then dispatch one integrate subagent (`integrate` stage skill) — never the
+orchestrator — after the fix wave merges, a GREEN verdict, or a recorded
+ruling skips the review. Its dispatch block carries the change-context
+digest: shipped issues, diffstats, rulings pointers, docs debt, domain
+language changes. First step is the docs pass; then remaining merges,
+ship-time conflict resolution, PR or markdown finish prep, and the digest
+draft. The orchestrator rules on the result and posts the digest.
 
 ## Hard Stops
 
-Stop and ask the human when:
-
-- `docs/STOP` exists in run or primary checkout, or an uncommitted
-  `docs/runs/<run>/STOP` exists before dispatch.
-- An irreversible or destructive action is needed.
-- Two consecutive KILL decisions occur.
-- A blocker collides with a recorded assumption.
-- Scope grows beyond the hardened spec.
-- Required tracker preflight cannot be satisfied.
+Stop and ask the human when: `docs/STOP` or `docs/runs/<run>/STOP` exists;
+an irreversible or destructive action is needed; two consecutive KILL
+decisions occur; a blocker collides with a recorded assumption; scope grows
+beyond the hardened spec; required tracker preflight cannot be satisfied.
 
 ## Maintenance
 
 Re-read against each new model generation; delete what models now do
-unprompted — the Hard Rules are invariants, everything else is prunable.
-Re-run `docs/evals/trigger-prompts.md` per generation. No feature ships
-without evidence in `DESIGN.md`.
+unprompted — Hard Rules are invariants, the rest is prunable. Re-run
+`docs/evals/trigger-prompts.md`. No feature ships without evidence in
+`DESIGN.md`.

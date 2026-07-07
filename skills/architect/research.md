@@ -1,24 +1,18 @@
 # Research fan-out reference
 
-Read this only when a research trigger fires (see SKILL.md step 3). The fan-out
-uses Codex as parallel web-research subagents — read-only, live search, on the
-flat-rate subscription — and the architect keeps all judgment: it verifies the
-load-bearing claims and writes the spec itself.
+Read only when a research trigger fires. The fan-out uses parallel
+read-only web-research subagents; the orchestrator keeps all judgment and
+verifies the load-bearing claims.
 
 ## Fan out
 
-Resolve the researcher model as builders, same order as `/architect`: repo
-`.architect/config`, then user `~/.architect/config`, then the `codex/best`
-default in `skills/architect/dispatch.md`.
+Resolve the researcher model as builders (repo config, user config, then
+the `codex/best` default in `dispatch.md`). Decompose the question into
+3–10 narrow, NON-OVERLAPPING questions — different angles, not the same
+angle five times: official docs, changelog/breaking changes, community
+failure reports, alternatives, security/operational constraints.
 
-Decompose the question into 3–10 narrow, NON-OVERLAPPING research questions.
-Cover different angles, not the same angle five times — typical split:
-official docs/reference, changelog/breaking changes, community failure reports,
-alternatives/comparisons, security/operational constraints.
-
-One fresh `codex exec` per question, all launched in parallel, up to 10
-CLI-launched researchers — codex/tier-down shown; the builders default is `codex/best`
-(`dispatch.md` `## Model resolution and dispatch rules`):
+One fresh `codex exec` per question, launched in parallel, up to 10:
 
 ```bash
 codex exec -C <repo-root> --sandbox read-only -c web_search="live" \
@@ -27,27 +21,23 @@ codex exec -C <repo-root> --sandbox read-only -c web_search="live" \
   - < .architect/research/<NN>-<topic>.prompt.md
 ```
 
-Write each research block to a `.prompt.md` file and pass it via stdin (`-`),
-never as a shell argument — quote-mangling shells make codex hang waiting on
-stdin otherwise.
+Write each research block to a `.prompt.md` file and pass it via stdin —
+quote-mangling shells make codex hang otherwise.
 
 - `--sandbox read-only`: researchers never write to the repo.
-- `-c web_search="live"`: web search is on by default in current Codex
-  (cached mode); `"live"` forces fresh results. Version ladder if the canary
-  complains: `--enable web_search` (0.13x, now deprecation-warned) →
-  `-c tools.web_search=true` (< 0.133). `--search` is TUI-only — exec rejects
-  it. Launch ONE canary researcher and confirm it starts cleanly before
-  fanning out — these flags have churned three times in 2026 alone.
-- If resolved builders is a claude row, or Codex is unavailable, run the
-  fan-out as read-only Claude subagents with web search, respecting the
-  built-in harness cap (currently 5) — the research block works verbatim.
-- Effort `high`, not `xhigh` — research is coverage work; xhigh buys nothing
-  here. Synthesis happens on the architect's side.
-- Scope each researcher to ≤5 subjects and put hard context rules in the
-  block (snippet over page; quote ≤2 sentences; stop the moment you can
-  answer) — a researcher that fills its context window dies without writing
-  its output file. Bisect and re-dispatch dead researchers; don't re-run as-is.
-- Optionally pin `[tools.web_search] allowed_domains` in config for
+- `-c web_search="live"` forces fresh results. Version ladder if the canary
+  complains: `--enable web_search` -> `-c tools.web_search=true` (< 0.133);
+  `--search` is TUI-only. Launch ONE canary researcher before fanning out —
+  these flags churn.
+- If builders resolve to a claude row or Codex is unavailable, run the
+  fan-out as read-only Claude subagents with web search (harness cap 5);
+  the research block works verbatim.
+- Effort `high`, not `xhigh` — research is coverage work.
+- Scope each researcher to ≤5 subjects with hard context rules in the block
+  (snippet over page; quote ≤2 sentences; stop when you can answer) — a
+  researcher that fills its context dies without writing its file. Bisect
+  and re-dispatch dead researchers.
+- Optionally pin `[tools.web_search] allowed_domains` for
   prompt-injection-sensitive repos.
 
 ## Research block template
@@ -73,18 +63,16 @@ OUTPUT FORMAT — a markdown report, ≤ ~2,500 tokens (~10 KB) total:
   an implementation decision.
 ```
 
-## Gather (architect — this is your work, not another agent's)
+## Gather (orchestrator work, not another agent's)
 
 1. Read every findings file in `.architect/research/`.
-2. Identify the **load-bearing claims** — facts the spec will depend on
-   (an API shape, a version constraint, a limit, a deprecation). Adversarially
-   verify each: cross-check against a second independent source or the live
-   dependency itself. Discard single-source low-confidence claims or mark them
-   as open questions.
-3. Write `docs/spec/<slice>.md`: problem, decision + why, requirements,
-   non-goals, verified facts **with citations**, open questions for the human.
-   You write it — researchers gather, the architect judges and decides.
-4. Commit the spec. Raw findings stay in `.architect/research/` (gitignored) —
-   only the distilled, cited spec is repo memory.
-5. The slice spec references this spec instead of restating it; the builder's
-   PHASE 0 is expected to challenge the spec's claims like anything else.
+2. Adversarially verify each load-bearing claim (API shape, version
+   constraint, limit, deprecation) against a second independent source or
+   the live dependency; discard or mark open single-source low-confidence
+   claims.
+3. Feed the verified, cited findings into the consuming stage — the spec
+   strategist's dispatch context at intake, or the amended issue/check text
+   during re-planning. Raw findings stay in `.architect/research/`
+   (gitignored); only distilled, cited claims become repo memory.
+4. Builders' PHASE 0 is expected to challenge research claims like
+   anything else.
