@@ -1572,9 +1572,12 @@ def check_sweep_deferred_fixture() -> None:
         rmtree_with_writable_retry(base)
     repo = base / "repo"
     debris = repo / ".architect" / "wt" / "sweeprun" / "slice-a"
+    sibling = repo / ".architect" / "wt" / "sweeprun-extra" / "slice-b"
     debris.mkdir(parents=True)
+    sibling.mkdir(parents=True)
     write_fixture_file(debris / "file.txt", "debris\n")
-    write_fixture_file(repo / "docs" / "runs" / "sweeprun" / "deferred-cleanup.txt", str(debris) + "\n")
+    write_fixture_file(sibling / "file.txt", "must-stay\n")
+    write_fixture_file(repo / "docs" / "runs" / "sweeprun" / "deferred-cleanup.txt", f"{debris}\n{sibling}\n")
     git_fixture(repo, "init")
     for label, prefix, flag in cases:
         result = subprocess.run([*prefix, "sweeprun", flag, str(repo)], cwd=ROOT, text=True, capture_output=True, timeout=30)
@@ -1585,6 +1588,8 @@ def check_sweep_deferred_fixture() -> None:
             errors.append(f"sweep-deferred fixture {label}: missing OK\nstdout:\n{stdout}")
         if debris.exists():
             errors.append(f"sweep-deferred fixture {label}: debris still exists")
+        if not sibling.exists():
+            errors.append(f"sweep-deferred fixture {label}: sibling run debris was removed")
 
 
 def write_postflight_config(

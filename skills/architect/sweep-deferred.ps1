@@ -31,6 +31,7 @@ $root = [System.IO.Path]::GetFullPath($RepoRoot)
 if (-not (Test-Path -LiteralPath $root -PathType Container)) { ErrorExit "repo root missing" }
 $wtRoot = J (J (J $root ".architect") "wt") $RunSlug
 $allowedPrefix = [System.IO.Path]::GetFullPath($wtRoot)
+$allowedPrefix = $allowedPrefix.TrimEnd(@([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)) + [System.IO.Path]::DirectorySeparatorChar
 $targets = New-Object System.Collections.Generic.List[string]
 if (Test-Path -LiteralPath $wtRoot -PathType Container) {
     foreach ($d in Get-ChildItem -LiteralPath $wtRoot -Directory -Force) { [void]$targets.Add($d.FullName) }
