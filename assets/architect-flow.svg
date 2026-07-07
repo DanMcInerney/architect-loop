@@ -1,140 +1,115 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 990" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1080" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
   <defs>
     <marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker>
     <marker id="arrRed" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/></marker>
     <marker id="arrPurple" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#7c3aed"/></marker>
   </defs>
-  <rect width="1000" height="990" fill="#ffffff"/>
+  <rect width="1000" height="1080" fill="#ffffff"/>
 
-  <text x="45" y="44" font-size="20" font-weight="700" fill="#0f172a">/architect</text>
-  <text x="165" y="44" font-size="12" fill="#64748b">spec → adversarial review → plan + frozen checks → builders → run checks → final review → fix wave → integrate → PR — run at max parallelization</text>
+  <text x="45" y="42" font-size="20" font-weight="700" fill="#0f172a">/architect</text>
+  <text x="165" y="42" font-size="12" fill="#64748b">spec -> adversarial review -> frozen checks -> wrapped builders -> typed gates -> final review -> fix wave -> integrate -> PR</text>
 
-  <!-- spine arrows (single-column section) -->
-  <line x1="380" y1="126" x2="380" y2="168" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
-  <line x1="380" y1="232" x2="380" y2="274" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
-  <line x1="380" y1="338" x2="380" y2="380" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
+  <line x1="390" y1="126" x2="390" y2="160" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
+  <line x1="390" y1="222" x2="390" y2="256" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
+  <line x1="390" y1="318" x2="390" y2="352" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
 
-  <!-- 1 SPEC -->
-  <rect x="230" y="70" width="300" height="56" rx="10" fill="#7c3aed"/>
-  <text x="380" y="93" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">SPEC</text>
-  <text x="380" y="111" font-size="10.5" fill="#ede9fe" text-anchor="middle">strategist drafts it · ≤5 questions · you approve</text>
-  <text x="560" y="90" font-size="11" fill="#475569">every question must pass a materiality test — would the answer</text>
-  <text x="560" y="104" font-size="11" fill="#475569">change the build? all else is a recorded assumption you can veto</text>
+  <rect x="230" y="70" width="320" height="56" rx="8" fill="#7c3aed"/>
+  <text x="390" y="93" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">SPEC</text>
+  <text x="390" y="111" font-size="10.5" fill="#ede9fe" text-anchor="middle">strategist draft; &lt;=5 questions; human approval</text>
+  <text x="585" y="90" font-size="11" fill="#475569">Only material questions are asked. Assumptions and</text>
+  <text x="585" y="104" font-size="11" fill="#475569">timed rulings are recorded on the tracker.</text>
 
-  <!-- 2 ADVERSARIAL REVIEW -->
-  <rect x="230" y="176" width="300" height="56" rx="10" fill="#7c3aed"/>
-  <text x="380" y="199" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">ADVERSARIAL REVIEW</text>
-  <text x="380" y="217" font-size="10.5" fill="#ede9fe" text-anchor="middle">a fresh strategist attacks spec + plan</text>
-  <text x="560" y="196" font-size="11" fill="#475569">fresh context, zero sunk cost: runs draft check commands, attacks</text>
-  <text x="560" y="210" font-size="11" fill="#475569">criteria for contradictions — bad plans die before they cost a build</text>
+  <rect x="230" y="166" width="320" height="56" rx="8" fill="#7c3aed"/>
+  <text x="390" y="189" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">ADVERSARIAL REVIEW</text>
+  <text x="390" y="207" font-size="10.5" fill="#ede9fe" text-anchor="middle">fresh strategist attacks the spec</text>
+  <text x="585" y="186" font-size="11" fill="#475569">Bad plans die before dispatch. Surviving findings</text>
+  <text x="585" y="200" font-size="11" fill="#475569">are folded into the spec before approval.</text>
 
-  <!-- 3 PLAN + FROZEN CHECKS -->
-  <rect x="230" y="282" width="300" height="56" rx="10" fill="#7c3aed"/>
-  <text x="380" y="305" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">PLAN + FROZEN CHECKS</text>
-  <text x="380" y="323" font-size="10.5" fill="#ede9fe" text-anchor="middle">parallel GitHub issues · checks frozen in git</text>
-  <text x="560" y="302" font-size="11" fill="#475569">parallel issues share no files, so merges can't conflict; checks</text>
-  <text x="560" y="316" font-size="11" fill="#475569">freeze in git before any code exists, so goalposts can't move</text>
+  <rect x="230" y="262" width="320" height="56" rx="8" fill="#7c3aed"/>
+  <text x="390" y="285" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">ISSUES + FROZEN CHECKS</text>
+  <text x="390" y="303" font-size="10.5" fill="#ede9fe" text-anchor="middle">file-disjoint slices; checks frozen in git</text>
+  <text x="585" y="282" font-size="11" fill="#475569">Manifest pins run identity. Run markers protect</text>
+  <text x="585" y="296" font-size="11" fill="#475569">against foreign sub-issues and sibling runs.</text>
 
-  <!-- 4 BUILDERS (5 in parallel) -->
-  <rect x="45" y="388" width="118" height="56" rx="10" fill="#0d9488"/>
-  <rect x="182" y="388" width="118" height="56" rx="10" fill="#0d9488"/>
-  <rect x="321" y="388" width="118" height="56" rx="10" fill="#0d9488"/>
-  <rect x="459" y="388" width="118" height="56" rx="10" fill="#0d9488"/>
-  <rect x="597" y="388" width="118" height="56" rx="10" fill="#0d9488"/>
-  <text x="104" y="411" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="middle">BUILDER</text>
-  <text x="241" y="411" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="middle">BUILDER</text>
-  <text x="380" y="411" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="middle">BUILDER</text>
-  <text x="518" y="411" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="middle">BUILDER</text>
-  <text x="656" y="411" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="middle">BUILDER</text>
-  <text x="104" y="429" font-size="9.5" fill="#ccfbf1" text-anchor="middle">own worktree</text>
-  <text x="241" y="429" font-size="9.5" fill="#ccfbf1" text-anchor="middle">own worktree</text>
-  <text x="380" y="429" font-size="9.5" fill="#ccfbf1" text-anchor="middle">own worktree</text>
-  <text x="518" y="429" font-size="9.5" fill="#ccfbf1" text-anchor="middle">own worktree</text>
-  <text x="656" y="429" font-size="9.5" fill="#ccfbf1" text-anchor="middle">own worktree</text>
-  <text x="740" y="404" font-size="11" fill="#475569">fresh builder per ready issue,</text>
-  <text x="740" y="418" font-size="11" fill="#475569">10 via CLI; harness cap 5</text>
-  <text x="740" y="432" font-size="11" fill="#475569">dispatches the next instantly</text>
+  <rect x="230" y="358" width="320" height="56" rx="8" fill="#64748b"/>
+  <text x="390" y="381" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">PREFLIGHT + WRAPPER</text>
+  <text x="390" y="399" font-size="10.5" fill="#e2e8f0" text-anchor="middle">run-job owns heartbeat, exit truth, stderr, sandbox env</text>
+  <text x="585" y="378" font-size="11" fill="#475569">CLI jobs write meta, events, stderr, heartbeat, and</text>
+  <text x="585" y="392" font-size="11" fill="#475569">exit JSON. Exit truth outranks report text.</text>
 
-  <!-- builder → checks arrows -->
-  <line x1="104" y1="444" x2="104" y2="486" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
-  <line x1="241" y1="444" x2="241" y2="486" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
-  <line x1="380" y1="444" x2="380" y2="486" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
-  <line x1="518" y1="444" x2="518" y2="486" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
-  <line x1="656" y1="444" x2="656" y2="486" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
+  <line x1="390" y1="414" x2="390" y2="454" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
 
-  <!-- 5 RUN CHECKS (5 in parallel, deterministic) -->
-  <rect x="45" y="494" width="118" height="56" rx="10" fill="#64748b"/>
-  <rect x="182" y="494" width="118" height="56" rx="10" fill="#64748b"/>
-  <rect x="321" y="494" width="118" height="56" rx="10" fill="#64748b"/>
-  <rect x="459" y="494" width="118" height="56" rx="10" fill="#64748b"/>
-  <rect x="597" y="494" width="118" height="56" rx="10" fill="#64748b"/>
-  <text x="104" y="517" font-size="11.5" font-weight="700" fill="#ffffff" text-anchor="middle">RUN CHECKS</text>
-  <text x="241" y="517" font-size="11.5" font-weight="700" fill="#ffffff" text-anchor="middle">RUN CHECKS</text>
-  <text x="380" y="517" font-size="11.5" font-weight="700" fill="#ffffff" text-anchor="middle">RUN CHECKS</text>
-  <text x="518" y="517" font-size="11.5" font-weight="700" fill="#ffffff" text-anchor="middle">RUN CHECKS</text>
-  <text x="656" y="517" font-size="11.5" font-weight="700" fill="#ffffff" text-anchor="middle">RUN CHECKS</text>
-  <text x="104" y="535" font-size="9.5" fill="#e2e8f0" text-anchor="middle">frozen · scripted</text>
-  <text x="241" y="535" font-size="9.5" fill="#e2e8f0" text-anchor="middle">frozen · scripted</text>
-  <text x="380" y="535" font-size="9.5" fill="#e2e8f0" text-anchor="middle">frozen · scripted</text>
-  <text x="518" y="535" font-size="9.5" fill="#e2e8f0" text-anchor="middle">frozen · scripted</text>
-  <text x="656" y="535" font-size="9.5" fill="#e2e8f0" text-anchor="middle">frozen · scripted</text>
-  <text x="740" y="510" font-size="11" fill="#475569">a script, not a model — it</text>
-  <text x="740" y="524" font-size="11" fill="#475569">can't fabricate an exit code;</text>
-  <text x="740" y="538" font-size="11" fill="#475569">green merges, red respawns</text>
+  <rect x="45" y="462" width="118" height="56" rx="8" fill="#0d9488"/>
+  <rect x="182" y="462" width="118" height="56" rx="8" fill="#0d9488"/>
+  <rect x="321" y="462" width="118" height="56" rx="8" fill="#0d9488"/>
+  <rect x="459" y="462" width="118" height="56" rx="8" fill="#0d9488"/>
+  <rect x="597" y="462" width="118" height="56" rx="8" fill="#0d9488"/>
+  <text x="104" y="485" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="middle">BUILDER</text>
+  <text x="241" y="485" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="middle">BUILDER</text>
+  <text x="380" y="485" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="middle">BUILDER</text>
+  <text x="518" y="485" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="middle">BUILDER</text>
+  <text x="656" y="485" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="middle">BUILDER</text>
+  <text x="104" y="503" font-size="9.5" fill="#ccfbf1" text-anchor="middle">own worktree</text>
+  <text x="241" y="503" font-size="9.5" fill="#ccfbf1" text-anchor="middle">own worktree</text>
+  <text x="380" y="503" font-size="9.5" fill="#ccfbf1" text-anchor="middle">own worktree</text>
+  <text x="518" y="503" font-size="9.5" fill="#ccfbf1" text-anchor="middle">own worktree</text>
+  <text x="656" y="503" font-size="9.5" fill="#ccfbf1" text-anchor="middle">own worktree</text>
+  <text x="740" y="478" font-size="11" fill="#475569">Fresh builder per ready issue.</text>
+  <text x="740" y="492" font-size="11" fill="#475569">10 CLI jobs or harness cap 5.</text>
+  <text x="740" y="506" font-size="11" fill="#475569">Builders report raw evidence only.</text>
 
-  <!-- FAIL loop: checks back to a fresh builder -->
-  <path d="M 45 522 H 20 V 416 H 42" fill="none" stroke="#dc2626" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrRed)"/>
-  <text x="20" y="464" font-size="10" font-weight="700" fill="#dc2626">FAIL</text>
-  <text x="20" y="477" font-size="8.5" fill="#64748b">amend issue,</text>
-  <text x="20" y="488" font-size="8.5" fill="#64748b">fresh builder</text>
+  <rect x="45" y="548" width="670" height="54" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+  <text x="380" y="570" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">WATCHDOG EVIDENCE</text>
+  <text x="380" y="588" font-size="10.5" fill="#475569" text-anchor="middle">ALL_DONE, STALL, REPEAT, BLOCKED_ON_TOOL, ORPHANED, DEAD, DONE_FAILED, LEGACY_UNWRAPPED</text>
+  <text x="740" y="568" font-size="11" fill="#475569">Detection only. It never kills,</text>
+  <text x="740" y="582" font-size="11" fill="#475569">nudges, grades, or decides.</text>
 
-  <!-- converge: checks → final review -->
-  <line x1="104" y1="550" x2="104" y2="574" stroke="#334155" stroke-width="2"/>
-  <line x1="241" y1="550" x2="241" y2="574" stroke="#334155" stroke-width="2"/>
-  <line x1="380" y1="550" x2="380" y2="574" stroke="#334155" stroke-width="2"/>
-  <line x1="518" y1="550" x2="518" y2="574" stroke="#334155" stroke-width="2"/>
-  <line x1="656" y1="550" x2="656" y2="574" stroke="#334155" stroke-width="2"/>
-  <line x1="104" y1="574" x2="656" y2="574" stroke="#334155" stroke-width="2"/>
-  <line x1="380" y1="574" x2="380" y2="614" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
-  <text x="392" y="600" font-size="11" font-weight="700" fill="#16a34a">ALL ISSUES CLOSED</text>
+  <line x1="380" y1="518" x2="380" y2="540" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
+  <line x1="380" y1="602" x2="380" y2="636" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
 
-  <!-- 6 FINAL REVIEW -->
-  <rect x="230" y="622" width="300" height="56" rx="10" fill="#7c3aed"/>
-  <text x="380" y="645" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">FINAL REVIEW</text>
-  <text x="380" y="663" font-size="10.5" fill="#ede9fe" text-anchor="middle">strategist review · whole run diff · findings become a review spec</text>
-  <text x="560" y="648" font-size="11" fill="#475569">never the author, always fresh: verifies findings, never edits —</text>
-  <text x="560" y="662" font-size="11" fill="#475569">the review spec is cut into fix issues, built like any other issue</text>
+  <rect x="230" y="644" width="320" height="56" rx="8" fill="#64748b"/>
+  <text x="390" y="667" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">CHECK-RUNNER</text>
+  <text x="390" y="685" font-size="10.5" fill="#e2e8f0" text-anchor="middle">graded RUN items; head/tail/pytest evidence</text>
+  <text x="585" y="664" font-size="11" fill="#475569">Fixed exit and match expectations. Progress sidecar</text>
+  <text x="585" y="678" font-size="11" fill="#475569">names the active RUN item if a runner is killed.</text>
 
-  <!-- FINDINGS loop: final review → review spec → fix issues → parallel fix builders -->
-  <path d="M 530 634 H 950 V 372 H 656 V 380" fill="none" stroke="#7c3aed" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrPurple)"/>
-  <text x="690" y="364" font-size="10" font-weight="700" fill="#7c3aed">FINDINGS → fix issues → parallel fix builders (one cycle)</text>
+  <path d="M 230 672 H 24 V 490 H 43" fill="none" stroke="#dc2626" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrRed)"/>
+  <text x="28" y="604" font-size="10" font-weight="700" fill="#dc2626">FAIL OR WEDGE</text>
+  <text x="28" y="617" font-size="8.5" fill="#64748b">kill-job; amend issue;</text>
+  <text x="28" y="628" font-size="8.5" fill="#64748b">fresh builder</text>
 
-  <!-- spine: final review → integrate -->
-  <line x1="380" y1="678" x2="380" y2="720" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
-  <text x="392" y="702" font-size="11" font-weight="700" fill="#16a34a">GREEN — or fix wave merged</text>
+  <line x1="390" y1="700" x2="390" y2="734" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
+  <rect x="230" y="742" width="320" height="56" rx="8" fill="#64748b"/>
+  <text x="390" y="765" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">POSTFLIGHT + MERGE</text>
+  <text x="390" y="783" font-size="10.5" fill="#e2e8f0" text-anchor="middle">touch-set audit; merge; cleanup or deferred cleanup</text>
+  <text x="585" y="762" font-size="11" fill="#475569">Conflicts are decomposition failures. Deferred</text>
+  <text x="585" y="776" font-size="11" fill="#475569">cleanup becomes sweepable run-scoped state.</text>
 
-  <!-- 7 INTEGRATE -->
-  <rect x="230" y="728" width="300" height="56" rx="10" fill="#0d9488"/>
-  <text x="380" y="751" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">INTEGRATE</text>
-  <text x="380" y="769" font-size="10.5" fill="#ccfbf1" text-anchor="middle">builder subagent · docs pass · PR handoff</text>
-  <text x="560" y="748" font-size="11" fill="#475569">one fresh builder-model subagent consumes the docs-debt digest,</text>
-  <text x="560" y="762" font-size="11" fill="#475569">then merges, re-verifies, and opens the PR + digest</text>
+  <line x1="390" y1="798" x2="390" y2="832" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
+  <rect x="230" y="840" width="320" height="56" rx="8" fill="#7c3aed"/>
+  <text x="390" y="863" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">FINAL REVIEW</text>
+  <text x="390" y="881" font-size="10.5" fill="#ede9fe" text-anchor="middle">read-only strategist; GREEN or FINDINGS</text>
+  <text x="585" y="860" font-size="11" fill="#475569">Findings become a review spec, fix issues, and</text>
+  <text x="585" y="874" font-size="11" fill="#475569">draft checks. The reviewer never edits code.</text>
 
-  <!-- 8 PR -->
-  <line x1="380" y1="784" x2="380" y2="826" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
-  <rect x="230" y="834" width="300" height="56" rx="10" fill="#16a34a"/>
-  <text x="380" y="857" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">PR</text>
-  <text x="380" y="875" font-size="10.5" fill="#dcfce7" text-anchor="middle">opened by integrate with the run digest</text>
-  <text x="560" y="854" font-size="11" fill="#475569">the PR digest lists shipped, skipped, residual risks, and evidence;</text>
-  <text x="560" y="868" font-size="11" fill="#475569">the issue trail is the durable memory of the whole run</text>
+  <path d="M 550 858 H 955 V 450 H 656 V 454" fill="none" stroke="#7c3aed" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrPurple)"/>
+  <text x="678" y="442" font-size="10" font-weight="700" fill="#7c3aed">FINDINGS -> fix issues -> one fix wave</text>
 
-  <!-- legend -->
-  <rect x="45" y="940" width="12" height="12" rx="3" fill="#7c3aed"/>
-  <text x="63" y="950" font-size="11" fill="#475569">strategists (Fable default)</text>
-  <rect x="360" y="940" width="12" height="12" rx="3" fill="#0d9488"/>
-  <text x="378" y="950" font-size="11" fill="#475569">builders + integrate (Codex xhigh fast)</text>
-  <rect x="620" y="940" width="12" height="12" rx="3" fill="#64748b"/>
-  <text x="638" y="950" font-size="11" fill="#475569">deterministic script</text>
-  <rect x="800" y="940" width="12" height="12" rx="3" fill="#16a34a"/>
-  <text x="818" y="950" font-size="11" fill="#475569">the shipped PR</text>
+  <line x1="390" y1="896" x2="390" y2="930" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
+  <rect x="230" y="938" width="320" height="56" rx="8" fill="#0d9488"/>
+  <text x="390" y="961" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">INTEGRATE</text>
+  <text x="390" y="979" font-size="10.5" fill="#ccfbf1" text-anchor="middle">docs pass first; verify; sweep; PR handoff</text>
+  <text x="585" y="958" font-size="11" fill="#475569">Consumes the digest, retires docs debt, runs</text>
+  <text x="585" y="972" font-size="11" fill="#475569">closing validation, and prepares the ship.</text>
+
+  <line x1="390" y1="994" x2="390" y2="1018" stroke="#334155" stroke-width="2.5" marker-end="url(#arr)"/>
+  <rect x="230" y="1026" width="320" height="34" rx="8" fill="#16a34a"/>
+  <text x="390" y="1048" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">PR OR MARKDOWN FINISH RECORD</text>
+
+  <rect x="45" y="1040" width="12" height="12" rx="3" fill="#7c3aed"/>
+  <text x="63" y="1050" font-size="11" fill="#475569">strategist</text>
+  <rect x="140" y="1040" width="12" height="12" rx="3" fill="#0d9488"/>
+  <text x="158" y="1050" font-size="11" fill="#475569">builder/integrate</text>
+  <rect x="275" y="1040" width="12" height="12" rx="3" fill="#64748b"/>
+  <text x="293" y="1050" font-size="11" fill="#475569">scripted gates</text>
 </svg>

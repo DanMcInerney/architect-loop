@@ -1,316 +1,191 @@
 # architect-loop
 
-**Set-it-and-forget-it research and software factory loop with best
-practices built in. Cut frontier-model usage while keeping the quality gates.**
+**A spec-approved autonomous software factory for Codex and Claude: one
+orchestrator, fresh-context strategist and builder agents, deterministic gates,
+and a single shipping PR or local finish record.**
 
 ## Usage
 
-```
+```text
 /architect-research <topic>
 /architect <hours+ feature/product request>
 /architect-fast <small change>
 ```
 
-`/architect-research` to explore ideas or features  
-`/architect-fast` to do a quick change  
-`/architect` for long, multi-hour runs. Start it and walk away.
+- `/architect-research` explores a topic and writes an answer-first report.
+- `/architect-fast` ships a small, bounded change through the light lane.
+- `/architect` runs the full multi-hour factory. Approve the spec, then let it work.
 
 ## Installation
 
 ```bash
 git clone https://github.com/DanMcInerney/architect-loop
 cd architect-loop && ./install.sh        # Windows: .\install.ps1
-npm i -g @openai/codex@latest            # optional: Codex CLI (>= 0.133)
+npm i -g @openai/codex@latest            # optional builder backend
 ```
+
+The installer copies the same `skills/` tree to Claude and Codex skill
+locations. Use `./install.sh --project` or `.\install.ps1 -Project` to install
+into the current repo instead of your user profile.
+
+## What Changed Recently
+
+- The loop is now a small stage-skill library: `codebase-design`, `to-spec`,
+  `adversarial-review`, `to-issues`, `frozen-checks`, `tdd`,
+  `final-review`, and `integrate`.
+- Run identity is pinned by `docs/runs/<run>/manifest.md`; status commands
+  take a run slug and no longer discover "the current run" by scanning issues.
+- GitHub and markdown tracker modes share the same state machine. Markdown
+  issues live in `docs/issues/<run>/` and need no GitHub remote.
+- The closing `final-review` is read-only. It returns `REVIEW: GREEN` or a
+  review spec plus fix issues; fix issues build through the same builder wave.
+- CLI jobs now run through `run-job.ps1|.sh`, which owns heartbeat, exit truth,
+  stdout events, stderr logs, sandbox temp/cache redirects, and kill scope.
+- The watchdog is typed evidence only. It detects stalls, repeated commands,
+  blocked tool calls, orphaned wrappers, failed exits, and legacy unwrapped jobs;
+  the orchestrator still decides.
+- `kill-job.ps1|.sh` is the explicit reaping action for stuck wrapped jobs.
+- The check-runner preserves head, tail, and pytest summaries, and can emit
+  progress events for killed or interrupted RUN items.
+- Postflight can defer locked worktree cleanup; `sweep-deferred.ps1|.sh <run>`
+  clears run-scoped debris before final close.
 
 ## Design
 
-The current session is the **orchestrator**: it grounds, dispatches, rules,
-and merges. A configurable **strategist** subagent (default: Fable) handles
-the full-lane design and review work, while **builders** stay Codex GPT-5.5
-xhigh with Fast mode where available. See [Config](#config).
+The current session is the **orchestrator**. It grounds the repo, dispatches
+fresh agents, rules on typed evidence, owns commits, and posts the digest. A
+configurable **strategist** subagent handles full-lane design and review work;
+fresh **builders** implement exactly one issue each in isolated worktrees and
+report raw evidence only. See [DESIGN.md](DESIGN.md) for the evidence trail and
+[CONTEXT.md](CONTEXT.md) for the vocabulary.
 
 ### /architect
 
 ![architect flow](assets/architect-flow.svg)
 
-- Each stage is its own small skill, invoked in order: `codebase-design`
-  (shared vocabulary), `to-spec`, `adversarial-review`, `to-issues`,
-  `frozen-checks`; builders preload `tdd`; `final-review` audits the run
-  read-only and decomposes findings into fix issues for a fix wave;
-  builder-model `integrate` updates the docs and preps the ship.
-- Orchestrator grounds in the vocabulary, then dispatches a fresh strategist
-  to draft the spec doc and surface at most 5 material questions.
-- A fresh strategist subagent adversarially reviews the spec.
-- A strategist breaks the work into parallelizable, vertical-slice tracker
-  issues and drafts the frozen checks; the orchestrator freezes them in git.
-- A run manifest in `docs/runs/<run>/manifest.md` pins the tracking issue,
-  factory branch, tracker, and spec; status commands take the run slug and
-  read that pin instead of scanning every issue.
-- Orchestrator loops through the issues, assigning builders until every
-  issue is fully complete:
-  - builders work test-first and run their own tests, with progress mirrored
-    to the tracker issue when the backend allows it;
-  - a deterministic check-runner grades each issue's frozen checks;
-  - on failure, the orchestrator diagnoses why, updates the issue and its
-    requirements, and respawns a fresh builder — otherwise it comments,
-    closes, and merges.
-- A closing review — one fresh strategist subagent over the whole
-  run diff — is read-only: it verifies findings and writes a review spec
-  cut into fix issues, never editing the diff itself.
-- Fix issues build through the fix wave, the same parallel builder
-  machinery as any other issue; zero findings short-circuits straight to
-  integrate.
-- An `integrate` subagent updates the product docs first — consuming the
-  run's docs-debt digest — then merges remaining green branches,
-  re-verifies, and preps the ship.
-- The run ends in one PR plus a digest of what shipped.
+- Intake asks at most five materiality-tested questions, records assumptions,
+  drafts a spec, and runs an adversarial review before approval.
+- Spec approval is the one human gate: in-session approval, tracker `APPROVE`,
+  or timed 5-minute auto-approval with a recorded ruling.
+- The strategist decomposes the approved spec into file-disjoint vertical-slice
+  issues and frozen checks. Checks freeze in git before any builder exists.
+- The run manifest pins the tracking issue, tracker mode, factory branch, and
+  spec path; every issue carries a run marker.
+- Builders run in fresh worktrees. They must state disagreements before coding,
+  must not commit, and must end with one raw `STATUS:` line.
+- Wrapped CLI jobs write `job.meta.json`, `job.heartbeat`, `job.exit.json`,
+  `events.jsonl`, and `stderr.log`; exit truth outranks terminal-looking report
+  text.
+- The watchdog reports typed evidence only. It never kills, nudges, or grades.
+  Stuck jobs are reaped with `kill-job.ps1|.sh` and respawned from durable issue
+  context.
+- The check-runner grades frozen RUN items with fixed expectations. Postflight
+  audits touched files, merges green jobs, and records deferred cleanup if a
+  worktree cannot be removed immediately.
+- The final review is one fresh, read-only strategist pass over the whole run.
+  Findings become fix issues and draft checks for a fix wave; zero findings
+  short-circuit to integrate.
+- `integrate` is a builder-model stage whose first step is the docs pass. It
+  consumes the change-context digest, updates product docs, verifies the closing
+  state, sweeps deferred cleanup, and prepares the PR or markdown finish record.
 
 ### /architect-fast
 
 ![architect-fast flow](assets/architect-fast-flow.svg)
 
-- Each stage reuses the same small stage skills as `/architect` —
-  `codebase-design`, `to-spec`, `to-issues`, `integrate` — with named
-  substitutions for the machinery it skips.
-- Orchestrator grounds in the vocabulary, then writes a spec doc and asks
-  you no more than 3 questions.
-- Orchestrator breaks the work into at most 3 parallelizable, file-disjoint
-  vertical-slice issues, each carrying acceptance criteria in place of a
-  frozen-check path; beyond 3 issues or ~400 changed lines, the skill stops
-  and recommends `/architect` instead — the size ceiling.
-- Fresh worktree-isolated builders implement the issues in parallel,
-  running their own tests.
-- Once every issue merges, the orchestrator itself performs one complete
-  review — code, cohesion, and tests — over the whole run diff, and makes
-  the fixes directly: no check-runner, no fresh final-review subagent.
-- Orchestrator dispatches the existing `integrate` stage skill to ship —
-  docs pass first, then one PR plus a digest, the same as `/architect`.
+- Same front door and tracker semantics as `/architect`, but capped at at most
+  three builder issues and roughly 400 changed lines.
+- No strategist subagents, no adversarial review, no frozen checks, no
+  per-issue check-runner, and no watchdog script. Issue-body acceptance
+  criteria, builder-run tests, and the orchestrator review carry the gate.
+- Each job records its dispatch-head SHA; that SHA is the postflight diff base
+  in place of a freeze SHA.
+- One per-wave timed fallback wake replaces watchdog monitoring.
+- After all issues merge, the orchestrator reviews code, cohesion, and tests,
+  makes any fixes directly, records the verdict and diffstat, then dispatches
+  `integrate`.
+- If the work exceeds the size ceiling, the lane stops and recommends
+  `/architect`.
 
 ### /architect-research
 
 ![research flow](assets/research-flow.svg)
 
-- For brainstorm-scale work, orchestrator launches a scout for the overhead
-  view of the topic; quick fact-finds and focused comparisons skip it.
-- Orchestrator designs research lanes along the topic's fault lines.
-- Orchestrator launches researchers per lane, in parallel: up to 10 through
-  CLI-launched workers or the harness cap for built-in subagents.
-- Orchestrator drafts a skeleton report marked SUPPORTED / THIN / EMPTY.
-- THIN / EMPTY sections trigger targeted gap researchers, up to 2 rounds.
-- Orchestrator verifies load-bearing claims against raw sources and writes
-  the final report.
-
-## Details
-
-Every choice below is enforced mechanically — by skill text, script, or
-git — not left as advice. Full evidence and citations: [DESIGN.md](DESIGN.md).
-
-### Both loops
-
-- **One frontier orchestrator, many disposable cheap workers.**
-  Judgment minutes go on the strongest model and typing
-  hours on the cheap one; measured orchestrator/worker splits run 58–74%
-  cheaper than the top model end-to-end, and weak planners hurt results more
-  than weak executors.
-- **Fresh context everywhere it matters.** An agent reviewing
-  its own work in the same session measurably misses more defects, so every
-  builder, researcher, adversarial reviewer, and closing reviewer starts cold.
-- **The tracker is the memory.** Specs and checks live in git;
-  disagreements, verdicts, and digests live on the issues. Not in the
-  tracker = didn't happen, so any later session can recover the run.
-- **The orchestrator sleeps between events.** It reads
-  one-line typed results from scripts and reviewers; builder output streams
-  never enter its context.
-- **Thin, size-guarded skill text.** Skill bodies ride in
-  context all session, so a validator caps their size and a
-  per-model-generation pass deletes instructions newer models do unprompted.
-
-### /architect
-
-- **At most 5 materiality-tested questions, in one batch.** A
-  question is only worth asking if the answer would change the build or how
-  it's validated; everything else becomes a recorded assumption you can veto.
-- **Spec approval is the only human step.** Misdesign is
-  cheapest to fix at the spec, so human attention concentrates there; after
-  approval you hear only the digest or a hard stop.
-- **A fresh adversarial review attacks the plan before anything is built.**
-  It executes draft check commands and hunts contradictions and
-  unfalsifiable criteria; it has caught real defects on every use so far.
-- **Acceptance checks freeze in git before any builder exists.**
-  Criteria written after results exist always pass; a builder touching a
-  check file is an automatic FAIL.
-- **Issues are vertical slices with disjoint file sets, up to 10 in parallel.**
-  CLI-launched builders run 10-wide; built-in harness subagents use their
-  native cap, currently 5. Merge conflicts are the top multi-agent failure
-  mode; a conflict means the plan was wrong, so the job is killed and
-  re-sliced, never hand-merged.
-- **Builders get their own git worktree and no commit rights.**
-  A broken builder can't reach a branch; the orchestrator owns every commit
-  and merge.
-- **Run identity is pinned, not discovered.** Each run has a
-  local `docs/runs/<run>/manifest.md` plus a run marker in every issue
-  body. Status reads `skills/architect/status.ps1 <run>` or
-  `skills/architect/status.sh <run>` from that manifest; foreign issues under
-  the same parent are escalated instead of dispatched.
-- **Builders must argue with the spec before coding.**
-  Builder-class models follow specs literally, so spec errors are only
-  catchable before execution; every disagreement gets an explicit ruling.
-- **Builders report raw evidence only.** Command output and
-  numbers, never verdicts; auditing every status claim against tool output
-  nearly eliminates fabricated reports.
-- **Stall detection is a deterministic watchdog script.**
-  A small script watches output growth, file mtimes, and repeated commands;
-  the LLM monitor it replaced measured 0 true positives and 2 false positives.
-  It never kills — the orchestrator rules on its evidence.
-- **Frozen checks run through a deterministic check-runner.** *token
-  savings* — ~9 mechanical commands per check file were burning
-  frontier-priced judge turns; a script grades expected exits and fixed
-  stdout matches, records the evidence, and can't fabricate an exit code.
-- **Dispatch and merge mechanics are scripted.** Worktree
-  setup, freeze verification, touch-set audit, merge, and cleanup each
-  collapse from 4–5 orchestrator calls into one typed-exit line.
-- **The closing review decomposes findings instead of editing.** One
-  fresh strategist subagent reads the whole run diff read-only
-  before integrate; verified findings become a review spec cut into fix
-  issues for a parallel fix wave; zero findings short-circuits to done.
-- **Reviewed diffs target ≤~400 changed lines per issue.**
-  Review effectiveness collapses past a few hundred lines, so bigger specs
-  split into more issues.
-- **Failures fix inputs, not models.** First FAIL: diagnose from
-  the check-runner's evidence, amend the issue, respawn fresh at the same
-  tier. A failure is a spec or context problem, not a retry knob.
-- **BLOCKED is a completion event.** A stuck builder posts the
-  blocker and stops; the orchestrator answers durably on the issue and
-  respawns fresh, because resuming a polluted context is the documented
-  anti-pattern.
-- **Tiers are fixed when the plan is cut.** A failed job
-  never silently escalates to a stronger model; escalation is an explicit
-  re-plan decision.
-- **Every builder backend passes a canary before the plan is cut.**
-  Each backend proves it has a working shell on a trivial task
-  before tiers are recorded, so a degraded backend is swapped at intake, not
-  discovered mid-run.
-- **High-stakes changes get cross-family review.** Same-family
-  review shares blind spots (measured self-preference bias);
-  Claude-reviews-Codex is the preferred direction.
-- **Closing review and docs debt are batched at the PR boundary.** *token
-  savings* — Product docs are the highest-contention files in a repo; one
-  gated review and integrate's single docs pass consume the accumulated
-  pointers instead of every builder fighting over the README.
-- **Hard stops.** The `docs/STOP` kill-all switch,
-  `docs/runs/<run>/STOP` for one run, irreversible actions, two consecutive
-  killed jobs, or scope growth beyond the approved spec halt the factory and
-  ask you.
-- **`tracker = markdown` runs the same loop without GitHub.**
-  Issues live in git-tracked `docs/issues/<run>/` for GitLab or fully local
-  repos; every rule, check, review, and the status tree work identically.
-
-### /architect-fast
-
-- **Size ceiling: ≤3 issues, ~≤400 changed lines total.** Beyond it the
-  skill stops and recommends `/architect`; small work stays small instead
-  of stretching the light lane past where one reviewer can hold the whole
-  diff in mind.
-- **The orchestrator review replaces the check-runner and the final-review
-  subagent.** After every issue merges, the orchestrator itself reads the
-  whole run diff for code correctness, cross-slice cohesion, and test
-  stewardship, and makes the fixes directly — a recorded relaxation of Hard
-  Rules 3 and 4. The closing PR is the later eyes on that work: the
-  `integrate` subagent verifies mechanically but reviews no code
-  correctness.
-- **A per-wave timed fallback wake replaces the watchdog script.** *token
-  savings* — most waves finish before the timer fires, so no script runs at
-  all; on a fallback wake with jobs still in flight, the orchestrator
-  judges liveness from report growth and file mtimes directly.
-- **The dispatch-head SHA is the postflight base.** Each job's dispatch-head
-  commit is recorded on its issue at dispatch and doubles as its ffcheck
-  target and its postflight merge-guard base, in place of a freeze SHA —
-  there is no separate freeze commit in the fast lane.
-- **Spec approval is unchanged.** The same one human step, the same three
-  recorded forms, the same 5-minute auto-approve on silence as `/architect`.
-
-### /architect-research
-
-- **Research is a separate skill on purpose.** Research
-  fan-out costs ~15× chat-level tokens, so it's a deliberate act, never a
-  side effect of building.
-- **A scout maps the topic before lanes are designed.** Dynamic,
-  topic-shaped decomposition measurably beats any fixed taxonomy; the
-  ~10-search scout is skipped for quick fact-finds.
-- **Researchers run under hard budgets.** 10–25 tool calls
-  and ≤5 subjects each; a researcher that fills its own context window dies
-  without writing output.
-- **Returns are capped near 2,500 tokens against a numbered source list.**
-  Compact findings with `[S#]` tags remove
-  double-citation waste; the cap was calibrated against measured real lanes.
-- **Researchers can't recommend, and NOT FOUND is a first-class answer.**
-  Researchers gather; only the author concludes. Eager agents
-  papering over gaps is how bad claims enter reports.
-- **The draft is the state between waves.** Sections are
-  marked SUPPORTED / THIN / EMPTY, and the gap round (max 2) targets only
-  the gaps — nothing already found gets re-chased.
-- **Verification is a separate pass against raw sources.**
-  ≥2 independent sources per load-bearing claim, adversarial falsification
-  searches, and citations only from URLs actually fetched this session —
-  even search-grounded agents fabricate 3–13% of URLs.
-- **One author writes the report.** Section-parallel writers
-  produce disjoint reports; gathering parallelizes, synthesis never does.
-  The committed report is the handoff into `/architect` specs.
+- A scout maps brainstorm-scale topics before lanes are designed; quick
+  fact-finds skip the scout.
+- The orchestrator designs research lanes along the topic's real fault lines.
+- Researchers gather in parallel under hard budgets and return compact findings
+  tied to numbered sources.
+- The draft is marked SUPPORTED / THIN / EMPTY. Thin or empty sections trigger
+  up to two targeted gap rounds.
+- Verification checks load-bearing claims against raw sources, including
+  falsification searches, before one author writes the report.
 
 ## Config
 
-Optional — with no config file the defaults just work. Settings live in
-`.architect/config` at the repo root or `~/.architect/config` (repo wins;
-unknown keys warn, never fail).
+Optional config lives at `.architect/config` or `~/.architect/config` (repo
+wins; unknown keys warn and do not fail).
 
 ```ini
-strategist = claude/best       # Fable subagents for design/review
-builders = codex/best          # GPT-5.5 at xhigh; Fast pins under ChatGPT auth
-tracker = markdown             # local issue files; omit for the GitHub default
-when broad ambiguous refactor -> codex/best:xhigh  # keep the builder pin, record why
+strategist = claude/best       # Fable-class design/review subagents
+builders = codex/best          # GPT-5.5 xhigh builders; Fast pins when available
+tracker = markdown             # local issue files; omit for GitHub mode
+when broad ambiguous refactor -> codex/best:xhigh  # optional builder route
 ```
 
-### Models
-
 Role strings are `<cli>/<model-spec>[:<effort>]`, with `<cli>` `claude` or
-`codex`. `best` and `tier-down` are per-family aliases (Fable at high /
-GPT-5.5 at xhigh, and Sonnet at high / GPT-5.5 at high); any concrete model
-works too. The orchestrator is always your current session, not a config key.
-Unconfigured, `strategist` subagents are `claude/best` for `/architect`
-design, spec, decomposition, adversarial review, and final review; builders
-are `codex/best` (Fast mode under ChatGPT auth). `claude/tier-down` is the
-builder config-selected alternative and the recorded fallback when the Codex
-CLI is absent. Optional read-only verification subagents follow `builders`;
-`/architect-research` researchers follow `builders`; `/architect-fast` keeps
-its orchestrator-review carve-out and does not invoke the strategist final
-review. `when <task class> -> <model>` lines route classes of builder work.
-A configured CLI missing at dispatch uses the recorded fallback with a note
-on the tracking issue — never a hard fail.
+`codex`. `best` and `tier-down` resolve per family. The orchestrator is always
+the session you opened, never a config key.
 
-### Local issues without GitHub
+Default full-lane routing uses `claude/best` for strategist stages and
+`codex/best` for builders. If a configured CLI is missing, the loop records the
+substitution on the tracker instead of silently changing behavior. Codex
+builders under ChatGPT auth use Fast-mode pins when available; API-key auth
+drops those pins with a recorded substitution.
 
-`tracker = markdown` runs the identical loop with no GitHub dependency —
-for GitLab-hosted or fully local repos. Issues become git-tracked files in
-`docs/issues/<run>/<NNN>-<slug>.md` with per-run numbering, the same states,
-parent/blocker edges, and comment log, so every rule, check, review, and
-the status tree work unchanged. Only a git repo is required; a remote is
-optional and `gh` isn't needed. Two differences: spec approval is
-in-session only, and the run ends with the factory branch ready plus merge
-instructions instead of an auto-merged PR. The default `tracker = github`
-needs a GitHub remote, authenticated `gh` ≥ 2.94.0, and push access.
+### Tracker Modes
 
-### Run artifacts
+`tracker = github` needs a GitHub remote, authenticated `gh >= 2.94.0`, and push
+access. Sub-issues use native parent and blocked-by edges.
 
-A run commits specs to `docs/spec/`, frozen checks to `docs/checks/<run>/`,
-and markdown-mode issues to `docs/issues/<run>/`. Everything else is local,
-gitignored bookkeeping: the manifest at `docs/runs/<run>/manifest.md`, job
-reports and check evidence under `docs/jobs/<run>/` — the tracker is the
-durable record. Each concurrent run uses its own orchestrator checkout on
-`factory/<run>` (local convention: `.architect/runs/<slug>`), while builder
-worktrees live under `.architect/wt/<run>/` and are removed at merge. An
-empty `docs/STOP` file halts every factory at the next dispatch boundary;
-an empty `docs/runs/<run>/STOP` halts only that run.
+`tracker = markdown` needs only a git repo. Issues are git-tracked markdown
+files in `docs/issues/<run>/`, with the same parent/blocker semantics, comments,
+states, and status tree. The run finishes with a ready factory branch and merge
+instructions instead of an auto-opened PR unless the in-session human directs
+otherwise.
+
+### Run Artifacts
+
+Versioned run inputs live under `docs/spec/`, `docs/checks/<run>/`, and, in
+markdown mode, `docs/issues/<run>/`.
+
+Local run bookkeeping is gitignored: manifests under `docs/runs/<run>/`, job
+reports and check evidence under `docs/jobs/<run>/`, wrapper files under
+`.architect/jobs/<run>/`, builder worktrees under `.architect/wt/<run>/`, and
+temporary sandbox/cache paths under `.architect/tmp/`.
+
+Status is scripted:
+
+```bash
+skills/architect/status.sh <run>
+```
+
+```powershell
+skills\architect\status.ps1 <run>
+```
+
+An empty `docs/STOP` file halts every run at the next dispatch boundary. An
+empty `docs/runs/<run>/STOP` halts only that run.
+
+## Validation
+
+```bash
+uv run --no-project python tests/validate_skills.py
+```
+
+The validator checks skill trigger hygiene, sibling-file pointers, README and
+DESIGN links, fenced code blocks, runner contracts, wrapper/watchdog fixtures,
+and the shipped architectural invariants.
 
 ## License
 
