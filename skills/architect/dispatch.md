@@ -19,9 +19,8 @@
 - Builder block template
 - Builder-side standing setup
 
-Dispatch turns a frozen slice into fresh builder or verification work. The
-orchestrator chooses the job shape, model tier, worktree, and report path;
-the subagent receives a self-contained task and returns raw evidence.
+Dispatch turns a frozen slice or high-judgment stage into fresh strategist, builder, or verification work.
+The orchestrator chooses the job shape, model role, worktree, and report path; the subagent receives a self-contained task and returns raw evidence.
 
 Verified local Codex facts from the v3 evidence remain useful for the Codex
 backend path: the model slug is `gpt-5.5`; `--search` and
@@ -46,18 +45,12 @@ flags in every command; this table is the source of those pins.
 
 ## Model resolution and dispatch rules
 
-Role strings are `<cli>/<model-spec>[:<effort>]`, with `<cli>` in `{claude,
-codex}`. Resolution order per role is repo `.architect/config`, then user
-`~/.architect/config`, then defaults: orchestrator = the running session;
-builders = `codex/best` (gpt-5.5 at xhigh, Fast pins per the Builder speed
-default below) as codex-CLI jobs — Claude Code and Codex orchestrators both
-dispatch builders through the codex command lines in the sections below.
-The Claude-native backend (`builders = claude/tier-down`, Sonnet at high,
-Agent-tool jobs; the `architect-builder` def preloads `tdd` and
-`codebase-design` via its `skills:` field, model per invocation from the
-alias table) is the config-selected alternative and the recorded fallback
-when the codex CLI is absent. Flat `key = value` lines are the supported
-format for role keys. Unknown keys warn and never fail.
+Role strings are `<cli>/<model-spec>[:<effort>]`, with `<cli>` in `{claude,codex}`.
+The orchestrator is not a config role: it is the Claude or Codex session already running the loop.
+Configurable roles resolve repo `.architect/config`, then user `~/.architect/config`, then defaults: `strategist = claude/best` (Fable 5 high) for `/architect` high-judgment subagents, and `builders = codex/best` (gpt-5.5 xhigh, Fast pins below) as codex-CLI jobs.
+Claude Code and Codex orchestrators both dispatch builders through the codex command lines in the sections below.
+The Claude-native builder backend (`builders = claude/tier-down`, Sonnet high, Agent-tool jobs; `architect-builder` preloads `tdd` and `codebase-design`) is the config-selected alternative and codex-absent fallback.
+Flat `key = value` lines are the supported role-key format; the legacy orchestrator key is retired, warns, and is ignored. Unknown keys warn and never fail.
 
 A pin is a request, not proof — verify the served model from the spawn transcript's model field; resume drifts a subagent's model back to the parent's, and `CLAUDE_CODE_SUBAGENT_MODEL` outranks per-invocation pins.
 
@@ -65,18 +58,16 @@ Optional dispatch-rules lines route task classes to a builder tier:
 
 ```ini
 # .architect/config or ~/.architect/config
-orchestrator = claude/best
-builders = codex/best
+strategist = claude/best # Fable subagents for design/review
+builders = codex/best # GPT-5.5 xhigh builders; Fast pins under ChatGPT auth
 tracker = markdown # local issue files; omit for github default
-when trivial mechanical edit -> claude/haiku:low # cheap exact patch
-when broad ambiguous refactor -> codex/best:xhigh # deeper search and edit budget
+when trivial mechanical edit -> codex/best:xhigh # keep builder pin
+when broad ambiguous refactor -> codex/best:xhigh # same builder pin, record why
 ```
 
 Format: `when <task-class description> -> <cli>/<model-spec>[:<effort>] # why`.
-The trailing reason is optional but preferred. Absent file = the `codex/best`
-default above. Absent dispatch rules = the same default. A matching rule is
-still a judgment aid; the orchestrator records which rule was used and may
-override it with a reason recorded on the issue.
+The trailing reason is optional but preferred. Absent role lines use `strategist = claude/best` and `builders = codex/best`; absent dispatch rules = the builders default.
+A matching rule is still a judgment aid; the orchestrator records which rule was used and may override it with a reason recorded on the issue.
 
 Builder speed default: when the resolved builders backend is Codex under
 ChatGPT auth, every builder `codex exec` appends the Fast-mode pins
@@ -84,21 +75,19 @@ ChatGPT auth, every builder `codex exec` appends the Fast-mode pins
 inference (gpt-5.5 at 2.5x credit burn), never a tier change. Verify at the
 intake canary; API-key auth cannot use Fast mode — drop the two pins and
 record the substitution on the tracking issue (no silent fallback). The
-default is builder-only; verification subagents and the monitor never carry the Fast pins.
+default is builder-only; strategist subagents, verification subagents, and the
+monitor never carry the Fast pins.
 
-Configured builders CLI absent at preflight -> fall back to `claude/tier-down`
-(the Claude-native fallback) and write one tracking-issue comment naming
-requested vs substituted. Cross-family
-review backend absent -> run review in a fresh same-CLI context and log the
-same-family bias caveat. Never hard-fail on model availability alone. Tier is
-fixed at decomposition by config plus dispatch rules and never moves because a
-job failed; a failure is the orchestrator's diagnosis job, not a
-retry-at-a-different-tier job (see `loop.md` "## Failure ladder").
+Configured strategist CLI absent at preflight -> use the alias row's in-family fallback first; if Claude is unavailable, substitute a fresh Codex strategist without Fast pins and record the capability caveat.
+Configured builders CLI absent -> fall back to `claude/tier-down` and write one tracking-issue comment naming requested vs substituted.
+Cross-family review backend absent -> run review in a fresh same-CLI context and log the same-family bias caveat. Never hard-fail on model availability alone.
+Builder tier is fixed at decomposition by config plus dispatch rules and never moves because a job failed; failure is the orchestrator's diagnosis job, not a retry-at-a-different-tier job (see `loop.md` "## Failure ladder").
 
 ## Per-harness delegation
 
 | | Claude Code (CLI + Desktop) | Codex (CLI + app) |
 |---|---|---|
+| Strategist | Agent tool or headless `claude -p` at the resolved strategist model; dispatch synchronously for result-bearing stages, with stage skills named in the prompt (`codebase-design` plus `to-spec`, `to-issues`, `frozen-checks`, `adversarial-review`, or `final-review`). | CLI-launched `claude -p` for the default Fable strategist; if Claude is unavailable, record a Codex strategist substitution and use `spawn_agent` or `codex exec -o <file>` without builder Fast pins. |
 | Builder | Agent tool with `.claude/agents/architect-builder.md`; `disallowedTools` denies `Bash(git commit *)` and `Bash(git push *)`; `isolation: worktree`; `background: true`; model may be passed per invocation from the alias table. On the desktop app, the harness auto-creates the agent's isolation worktree (`.claude/worktrees/agent-<id>`) and its branch — integrate from that branch. On the CLI, spawns have been observed to run UNISOLATED in the orchestrator's checkout despite `isolation: worktree` frontmatter (D11) — pass isolation explicitly per invocation if supported, and never run two Claude-backend builder jobs concurrently unless each is verified to have its own worktree (`git worktree list` after spawn). In all cases, never pre-create a job worktree for Claude-backend jobs (a pre-made one is ignored); do not use `.architect/wt/<run>/<slice>-<NN>` (that pattern is Codex-backend only, below). | `spawn_agent` with defensive framing: "Your task is: ..."; worktree created by the orchestrator via git; use `/goal` semantics for persistent job completion. |
 | Verification (optional, read-only) | Agent tool with `.claude/agents/architect-judge.md` (read-only verification def); dispatch synchronously with `run_in_background: false` so the result is the tool result; read-only tools plus Bash for check commands; the resolved builders model passed per invocation (the def's `model: inherit` is only the fallback where per-invocation model is unsupported). | Background `codex exec -o <file>` typed-exit path with read-only instructions; the process exit wakes the loop. |
 | Monitor | Script watchdog (`watchdog.ps1` on Windows, `watchdog.sh` on POSIX) under a long-lived Bash task when the orchestrator can wait on task exit; LLM fallback template only otherwise. | Script watchdog (`watchdog.ps1` on Windows, `watchdog.sh` on POSIX) under a long-lived Bash task when task exits wake the orchestrator; LLM fallback template only otherwise and it consumes one native subagent slot. |

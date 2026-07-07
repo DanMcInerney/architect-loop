@@ -97,7 +97,7 @@ approves, closes, or requests another ruling.
 
 Use the codebase-design glossary exactly: module, interface, implementation,
 depth, seam, adapter, leverage, locality; run, tracking issue, issue, slice,
-frozen check, check-runner, builder, orchestrator, factory branch, worktree,
+frozen check, check-runner, strategist, builder, orchestrator, factory branch, worktree,
 job report, verdict, ruling, digest, hard stop.
 
 Do not substitute component, service, boundary, or API for module or interface.

@@ -25,9 +25,10 @@ npm i -g @openai/codex@latest            # optional: Codex CLI (>= 0.133)
 
 ## Design
 
-The current session is the **orchestrator** by default: it designs, assigns,
-and reviews. A configurable **builder** model (default: GPT-5.5, xhigh, Fast
-mode) does the heavy lifting. Both are overridable — see [Config](#config).
+The current session is the **orchestrator**: it grounds, dispatches, rules,
+and merges. A configurable **strategist** subagent (default: Fable) handles
+the full-lane design and review work, while **builders** stay Codex GPT-5.5
+xhigh with Fast mode where available. See [Config](#config).
 
 ### /architect
 
@@ -37,13 +38,12 @@ mode) does the heavy lifting. Both are overridable — see [Config](#config).
   (shared vocabulary), `to-spec`, `adversarial-review`, `to-issues`,
   `frozen-checks`; builders preload `tdd`; `final-review` audits the run
   read-only and decomposes findings into fix issues for a fix wave;
-  builder-tier `integrate` updates the docs and preps the ship.
-- Orchestrator grounds in the vocabulary, then writes a spec doc and asks
-  you no more than 5 questions.
-- A fresh orchestrator-tier subagent adversarially reviews the spec.
-- Orchestrator breaks the work into parallelizable, vertical-slice tracker
-  issues.
-- Orchestrator freezes the acceptance checks in git.
+  builder-model `integrate` updates the docs and preps the ship.
+- Orchestrator grounds in the vocabulary, then dispatches a fresh strategist
+  to draft the spec doc and surface at most 5 material questions.
+- A fresh strategist subagent adversarially reviews the spec.
+- A strategist breaks the work into parallelizable, vertical-slice tracker
+  issues and drafts the frozen checks; the orchestrator freezes them in git.
 - A run manifest in `docs/runs/<run>/manifest.md` pins the tracking issue,
   factory branch, tracker, and spec; status commands take the run slug and
   read that pin instead of scanning every issue.
@@ -55,7 +55,7 @@ mode) does the heavy lifting. Both are overridable — see [Config](#config).
   - on failure, the orchestrator diagnoses why, updates the issue and its
     requirements, and respawns a fresh builder — otherwise it comments,
     closes, and merges.
-- A closing review — one fresh orchestrator-tier subagent over the whole
+- A closing review — one fresh strategist subagent over the whole
   run diff — is read-only: it verifies findings and writes a review spec
   cut into fix issues, never editing the diff itself.
 - Fix issues build through the fix wave, the same parallel builder
@@ -171,7 +171,7 @@ git — not left as advice. Full evidence and citations: [DESIGN.md](DESIGN.md).
   setup, freeze verification, touch-set audit, merge, and cleanup each
   collapse from 4–5 orchestrator calls into one typed-exit line.
 - **The closing review decomposes findings instead of editing.** One
-  fresh orchestrator-tier subagent reads the whole run diff read-only
+  fresh strategist subagent reads the whole run diff read-only
   before integrate; verified findings become a review spec cut into fix
   issues for a parallel fix wave; zero findings short-circuits to done.
 - **Reviewed diffs target ≤~400 changed lines per issue.**
@@ -265,10 +265,10 @@ Optional — with no config file the defaults just work. Settings live in
 unknown keys warn, never fail).
 
 ```ini
-orchestrator = claude/best     # Fable at high effort
-builders = codex/best:xhigh    # GPT-5.5 at xhigh
+strategist = claude/best       # Fable subagents for design/review
+builders = codex/best          # GPT-5.5 at xhigh; Fast pins under ChatGPT auth
 tracker = markdown             # local issue files; omit for the GitHub default
-when trivial mechanical edit -> claude/haiku:low   # cheap exact patch
+when broad ambiguous refactor -> codex/best:xhigh  # keep the builder pin, record why
 ```
 
 ### Models
@@ -276,16 +276,17 @@ when trivial mechanical edit -> claude/haiku:low   # cheap exact patch
 Role strings are `<cli>/<model-spec>[:<effort>]`, with `<cli>` `claude` or
 `codex`. `best` and `tier-down` are per-family aliases (Fable at high /
 GPT-5.5 at xhigh, and Sonnet at high / GPT-5.5 at high); any concrete model
-works too. Unconfigured, the orchestrator is your current session and
-builders are `codex/best` (Fast mode under ChatGPT auth); `claude/tier-down`
-is the config-selected alternative, and the recorded fallback when the
-Codex CLI is absent. Optional read-only verification
-subagents follow `builders`; adversarial reviewers
-and closing review follow the orchestrator tier; `/architect-research`
-researchers follow `builders`. `when <task
-class> -> <model>` lines route classes of work to a tier. A configured CLI
-missing at dispatch uses the recorded fallback with a note on the tracking
-issue — never a hard fail.
+works too. The orchestrator is always your current session, not a config key.
+Unconfigured, `strategist` subagents are `claude/best` for `/architect`
+design, spec, decomposition, adversarial review, and final review; builders
+are `codex/best` (Fast mode under ChatGPT auth). `claude/tier-down` is the
+builder config-selected alternative and the recorded fallback when the Codex
+CLI is absent. Optional read-only verification subagents follow `builders`;
+`/architect-research` researchers follow `builders`; `/architect-fast` keeps
+its orchestrator-review carve-out and does not invoke the strategist final
+review. `when <task class> -> <model>` lines route classes of builder work.
+A configured CLI missing at dispatch uses the recorded fallback with a note
+on the tracking issue — never a hard fail.
 
 ### Local issues without GitHub
 

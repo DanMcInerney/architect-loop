@@ -3,7 +3,7 @@ name: final-review
 description: >
   Use for the closing whole-run review in the architect factory — the only
   model review in the loop: dispatched by the orchestrator, at
-  finish, to one fresh orchestrator-model subagent that audits the entire
+  finish, to one fresh strategist subagent that audits the entire
   run diff for defects only isolated parallel slices can produce, checks
   the merged whole against the spec, verifies every candidate finding, and
   delivers a review spec plus draft fix issues and draft graded checks — it
@@ -129,7 +129,7 @@ stays green after the fix wave's test edits.
 Use the `codebase-design` glossary (`skills/codebase-design/SKILL.md`)
 exactly: module, interface,
 implementation, seam, adapter, depth, leverage, locality; run, tracking
-issue, issue, slice, frozen check, check-runner, builder,
+issue, issue, slice, frozen check, check-runner, strategist, builder,
 orchestrator, factory branch, worktree, job report, verdict, ruling, digest,
 hard stop. Do not substitute component/service/boundary/API for
 module/interface, or task/ticket for issue — a substitution is itself a

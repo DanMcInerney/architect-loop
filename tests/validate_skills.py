@@ -409,7 +409,7 @@ def check_model_alias_table() -> None:
             errors.append(f"skills/architect/dispatch.md: Model alias table has empty Flags for {alias}")
 
 
-ROLE_CONFIG_RE = re.compile(r"^(orchestrator|builders)\s*=\s*(claude|codex)/[^\s/#]+(:[^\s/#]+)?$")
+ROLE_CONFIG_RE = re.compile(r"^(strategist|builders)\s*=\s*(claude|codex)/[^\s/#]+(:[^\s/#]+)?$")
 TRACKER_CONFIG_RE = re.compile(r"^tracker\s*=\s*(github|markdown)(\s+#\s*.*)?$")
 DISPATCH_RULE_RE = re.compile(
     r"^when\s+.+\s+->\s+(claude|codex)/[^\s/#]+(:[^\s/#]+)?(\s+#\s*.+)?$"
@@ -425,11 +425,11 @@ def check_config_example() -> None:
     target = None
     for block in blocks:
         lines = [line.strip() for line in block.splitlines()]
-        if any(line.startswith(("orchestrator =", "builders =", "when ")) for line in lines):
+        if any(line.startswith(("strategist =", "builders =", "when ")) for line in lines):
             target = block
             break
     if target is None:
-        errors.append("skills/architect: no fenced C2/C2' config example with orchestrator/builders or dispatch rules")
+        errors.append("skills/architect: no fenced C2/C2' config example with strategist/builders or dispatch rules")
         return
     saw_dispatch_rule = False
     for line in target.splitlines():

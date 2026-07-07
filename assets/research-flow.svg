@@ -15,7 +15,7 @@
   <!-- 1 SCOUT -->
   <rect x="230" y="70" width="300" height="56" rx="10" fill="#0d9488"/>
   <text x="380" y="93" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">SCOUT</text>
-  <text x="380" y="111" font-size="10.5" fill="#ccfbf1" text-anchor="middle">cheap agent maps the topic before lanes exist</text>
+  <text x="380" y="111" font-size="10.5" fill="#ccfbf1" text-anchor="middle">builder-model agent maps the topic before lanes exist</text>
   <text x="560" y="90" font-size="11" fill="#475569">~10 searches find the topic vocabulary, load-bearing systems,</text>
   <text x="560" y="104" font-size="11" fill="#475569">and expert fault lines; skipped entirely for quick fact-finds</text>
 
@@ -91,9 +91,9 @@
 
   <!-- legend -->
   <rect x="45" y="760" width="12" height="12" rx="3" fill="#7c3aed"/>
-  <text x="63" y="770" font-size="11" fill="#475569">orchestrator + verification (frontier model)</text>
+  <text x="63" y="770" font-size="11" fill="#475569">orchestrator + verification (running session)</text>
   <rect x="360" y="760" width="12" height="12" rx="3" fill="#0d9488"/>
-  <text x="378" y="770" font-size="11" fill="#475569">scout + researchers (cheap model)</text>
+  <text x="378" y="770" font-size="11" fill="#475569">scout + researchers (builder model)</text>
   <rect x="590" y="760" width="12" height="12" rx="3" fill="#16a34a"/>
   <text x="608" y="770" font-size="11" fill="#475569">committed report</text>
 </svg>

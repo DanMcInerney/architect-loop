@@ -5,8 +5,9 @@ description: >
   tracer-bullet vertical slices through every layer, ordering structural work
   first with blocking edges, maximizing the disjoint parallel frontier,
   publishing producer/consumer interface contracts, and attaching a compact
-  change-skeleton to each issue. Orchestrator-invoked only, after spec
-  approval — never left to description-trigger discovery.
+  change-skeleton to each issue. Strategist-invoked only from the
+  orchestrator's explicit `/architect` dispatch, after spec approval —
+  never left to description-trigger discovery.
 ---
 
 <!-- Adapted from mattpocock/skills (MIT). -->
@@ -23,7 +24,7 @@ question here.
 Load the spec, then hold the codebase-design vocabulary
 (`skills/codebase-design/SKILL.md`) exactly: module, interface, implementation, seam, adapter, depth, leverage,
 locality for design; run, tracking issue, issue, slice, frozen check,
-check-runner, builder, intent judge, orchestrator, factory branch, worktree,
+check-runner, strategist, builder, orchestrator, factory branch, worktree,
 job report, verdict, ruling, digest, hard stop for the factory. Never
 substitute component/service/boundary/API for module/interface, or
 task/ticket for issue — that drift is a defect, not a style choice.

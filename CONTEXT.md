@@ -5,16 +5,19 @@ Glossary only. No implementation details, no spec content.
 ## Roles
 
 - **Orchestrator** - the single interactive session the human opens (any
-  harness, any surface). Grounds, runs intake, decomposes, freezes,
-  dispatches, arbitrates, diagnoses, integrates. Never writes implementation
-  code, never reads large diffs, never judges checks. In the fast lane
-  (`/architect-fast`) it additionally performs the closing review and its
-  fixes - the recorded Hard-Rule 3/4 relaxation.
-- **Orchestrator tier** - the model tier used for orchestration and designated
-  high-judgment reviews: a capability level, not one process.
+  harness, any surface). Grounds, dispatches strategist and builder work,
+  freezes, arbitrates, diagnoses, integrates. It is whatever model the loop
+  started in, never a config role. Never writes implementation code, never
+  reads large diffs, never judges checks. In the fast lane (`/architect-fast`)
+  it additionally performs the closing review and its fixes - the recorded
+  Hard-Rule 3/4 relaxation.
+- **Strategist** - a fresh high-judgment subagent, defaulting to Fable
+  (`claude/best`), that handles `/architect` design work: spec drafting,
+  issue decomposition, frozen-check drafting, adversarial review, and the
+  closing final review. Not used for `/architect-fast`'s closing review.
 - **Builder** - a fresh-context worker agent that implements exactly one issue
   in an isolated worktree. Cannot commit. The builder tier is typically
-  cheaper than the orchestrator tier and never changes because a job failed.
+  cheaper than the strategist tier and never changes because a job failed.
 - **Judge** - retired (human-directed ruling 2026-07-06; removed from
   `skills/architect/**` by the skill-library run, issue #118). Was the
   per-issue fresh-context, read-only intent reviewer for one issue.
@@ -110,7 +113,7 @@ Glossary only. No implementation details, no spec content.
   verification. Input to fix-issue decomposition; a run artifact, not
   human-approved.
 - **Closing review** - the human-gated review-and-decompose pass after build
-  issues close and before integrate. It uses the orchestrator tier, is
+  issues close and before integrate. It uses the strategist role, is
   read-only over product code and tests, and on findings writes a review spec
   cut into fix issues for the fix wave; zero findings short-circuits to a
   GREEN verdict.
@@ -120,7 +123,7 @@ Glossary only. No implementation details, no spec content.
   docs-debt, and domain-language summary passed to the integrate subagent,
   whose first step is the docs pass.
 - **Config vocabulary** - flat `.architect/config` keys include
-  `tracker = github | markdown`, `orchestrator = cli/model`,
+  `tracker = github | markdown`, `strategist = cli/model`,
   `builders = cli/model:effort`, and optional
   `when -> cli/model:effort - why` dispatch rules. Absent `tracker =` means
   GitHub mode; absent builder routing means the `codex/best` default.

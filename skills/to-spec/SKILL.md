@@ -3,8 +3,8 @@ name: to-spec
 description: >
   Spec-writing stage skill for the architect factory: synthesizes the run's
   conversation, repo evidence, and research findings into `docs/spec/<run>.md`
-  after grounding. Invoked directly by the orchestrator (/architect) during
-  intake, before decomposition into issues.
+  after grounding. Invoked by the strategist subagent the orchestrator
+  dispatches during `/architect` intake, before decomposition into issues.
 ---
 
 <!-- Adapted from mattpocock/skills (MIT). -->

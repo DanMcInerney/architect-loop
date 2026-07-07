@@ -260,8 +260,8 @@ None at freeze.
 
 - gh 2.96.0 (≥ 2.94.0), authenticated as DanMcInerney; origin remote
   present; `docs/STOP` absent.
-- No `.architect/config` at repo or user level: orchestrator = this session
-  (Fable), builders = `claude/tier-down` (Sonnet high), tracker = github.
+- No `.architect/config` existed for that run: the running session was
+  Fable, builders were `claude/tier-down` (Sonnet high), tracker = github.
 - Backend canary: SHELLS_OK by work-product evidence — the intake scout ran
   shell and search tools in the run worktree to produce anchored output; the
   literal CANARY line was not delivered after one poke (recorded

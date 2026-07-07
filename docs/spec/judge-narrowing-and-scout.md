@@ -84,7 +84,7 @@ the spec, the decomposition skeletons, and every builder.
   before the docs-finish job and closing PR, the orchestrator asks through
   the timed-ruling protocol: one comprehensive closing review, recommended
   default YES; 5 minutes of silence applies the default. On yes, dispatch one
-  fresh subagent at the resolved ORCHESTRATOR model at medium effort, in a
+  fresh subagent at the resolved strategist model at medium effort, in a
   worktree cut from the factory branch head, with the spec path, the scout
   map path, the full run diff, and rulings/solutions pointers. Its task:
   review the shipped work for correctness, simplification, DRY, and dead
@@ -155,7 +155,7 @@ the spec, the decomposition skeletons, and every builder.
 - G4: decomposition section requires the skeleton block and
   ownership-derived parallel frontier — greps.
 - G5: SKILL.md Finish opens with the timed-ruling closing-review question
-  (default YES), names the orchestrator-model-at-medium pin, the
+  (default YES), names the strategist-medium pin, the
   spec→map→diff reading order, the docs/checks/ read-only rule, the
   green-or-discard rail, and ordering before the docs job — greps.
 - End-to-end: the first factory run after merge exercises graded checkrun →
@@ -168,7 +168,7 @@ the spec, the decomposition skeletons, and every builder.
   + one spot-check, no re-grading. **Scout map** — the committed
   ≤~2,500-token code map with file:line anchors. **Change-skeleton** — the
   per-issue structural pseudocode contract that proves decomposition
-  disjointness. **Closing review** — the human-gated, orchestrator-model
+  disjointness. **Closing review** — the human-gated, strategist
   medium-effort review-and-fix pass at the PR boundary, green-or-discarded.
 
 ## Approval record
