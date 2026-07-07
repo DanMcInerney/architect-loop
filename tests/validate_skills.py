@@ -905,7 +905,10 @@ def run_wrapped_fake(
             "--",
             *child,
         ]
-    return subprocess.Popen(command, cwd=ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    # Detached children survive the wrapper and would hold PIPE handles open,
+    # deadlocking communicate() (the documented grandchild-holds-pipes class).
+    stdio = subprocess.DEVNULL if detached else subprocess.PIPE
+    return subprocess.Popen(command, cwd=ROOT, text=True, stdout=stdio, stderr=stdio)
 
 
 def finish_wrapped_fake(proc: subprocess.Popen[str], label: str, timeout: int = 8) -> None:

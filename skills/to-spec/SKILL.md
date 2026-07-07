@@ -4,7 +4,9 @@ description: >
   Spec-writing stage skill for the architect factory: synthesizes the run's
   conversation, repo evidence, and research findings into `docs/spec/<run>.md`
   after grounding. Invoked by the strategist subagent the orchestrator
-  dispatches during `/architect` intake, before decomposition into issues.
+  dispatches during `/architect` intake — or directly by the orchestrator in
+  `/architect-fast` (that skill's stage-skill deltas apply) — before
+  decomposition into issues.
 ---
 
 <!-- Adapted from mattpocock/skills (MIT). -->
@@ -30,15 +32,22 @@ through step 4.
    (state machine, schema, type shape), inline it within the relevant
    decision and note briefly that it came from a prototype. Trim to the
    decision-rich parts.
-4. Send every open question through the timed-ruling protocol
-   (`skills/architect/SKILL.md` `### 2. Spec Approval`) instead of asking
-   directly, and record the outcome as an `## Assumptions` entry — do not
-   restate the protocol itself.
-5. Shape the spec on the template below; commit it at `docs/spec/<run>.md`.
-   Then create or update the tracking issue — or its markdown-mode
-   equivalent, `skills/architect/tracker.md` `## Command mapping` — with the
-   spec pointer, an assumptions digest, and the three approve-by-comment
-   forms: `APPROVE`, `APPROVE with edits: <text>`, `REJECT <reason>`.
+4. Never run the timed-ruling protocol yourself or wait on the human:
+   return every open question to the orchestrator, one line each —
+   `RULING NEEDED: <question> | options: <a | b> | default: <option> — <why>`
+   — and it runs the protocol (`skills/architect/SKILL.md` `### 2. Spec
+   Approval`). Rulings already present in your dispatch context are decided;
+   record each as an `## Assumptions` entry. (Direct orchestrator invocation
+   only — `/architect-fast`: run the protocol yourself as that lane records.)
+5. Shape the spec on the template below and write it to
+   `docs/spec/<run>.md` in your working tree. Do NOT commit it and do NOT
+   create or update the tracking issue — the spec commit and the
+   tracking-issue update (spec pointer, assumptions digest, the three
+   approve-by-comment forms `APPROVE`, `APPROVE with edits: <text>`,
+   `REJECT <reason>`, or the markdown-mode equivalent in
+   `skills/architect/tracker.md` `## Command mapping`) are orchestrator
+   actions after you return. End your reply with `SPEC DRAFT: <path>` plus
+   any `RULING NEEDED:` lines.
 
 ## Template
 

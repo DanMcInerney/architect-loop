@@ -84,10 +84,12 @@ each candidate backend once — list tools, `git log -1 --oneline`, reply
 record the substitution with evidence. Never switch backend mid-wave.
 
 Dispatch a fresh strategist subagent to write the spec with `to-spec`; it
-returns the spec draft and any timed-ruling questions for you to record and
-rule. Then one fresh strategist subagent runs `adversarial-review` against
-the draft; apply surviving findings before approval. Create the tracking
-issue — spec pointer, assumptions digest,
+returns the spec draft (`SPEC DRAFT: <path>`) and any `RULING NEEDED:`
+questions. Rule them via the timed-ruling protocol, fold the outcomes into
+the draft as `## Assumptions`, and commit the spec — the strategist never
+commits or touches the tracker. Then one fresh strategist subagent runs
+`adversarial-review` against the draft; apply surviving findings before
+approval. Create the tracking issue — spec pointer, assumptions digest,
 approve-by-comment instructions (`APPROVE`, `APPROVE with edits: <text>`,
 `REJECT <reason>`), run marker, manifest path — then write the manifest, a
 local gitignored run artifact like all of `docs/runs/` and `docs/jobs/`.
@@ -125,15 +127,17 @@ each get their own worktree (`.architect/runs/<slug>`, machine-local).
 ### 3. Decompose
 
 Dispatch a fresh strategist subagent to compile the spec into dispatch-ready
-issues with `to-issues`: sub-issues under the tracking issue, structural
-before behavioral with blocking edges, tracer-bullet vertical slices, a
-file-disjoint parallel frontier, interface contracts from producers, one
-compact change-skeleton per issue (a contract, not a line mandate — PHASE 0
-is the disagreement channel).
+issue drafts with `to-issues` (publish-ordered files under
+`docs/runs/<run>/issues/`): structural before behavioral with blocking
+edges, tracer-bullet vertical slices, a file-disjoint parallel frontier,
+interface contracts from producers, one compact change-skeleton per issue
+(a contract, not a line mandate — PHASE 0 is the disagreement channel).
 
 The strategist drafts per-issue graded checks with `frozen-checks` under
 `docs/checks/<run>/`;
-each issue links its check. Freeze preconditions: freeze committed on the
+each issue links its check. The orchestrator publishes the sub-issues from
+the drafts with native edges (`dispatch.md` `## Issue conventions`) and owns
+the freeze commit. Freeze preconditions: freeze committed on the
 factory branch and pushed; `preflight.ps1`/`.sh` verifies worktree, freeze,
 and a frozen-file spot-check; builders still FIRST-ACTION verify inputs.
 
