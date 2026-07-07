@@ -143,7 +143,8 @@ while ($true) {
         if (-not $jobDir -or -not (Test-Path -LiteralPath $meta -PathType Leaf)) {
             OutputAndExit 10 "WATCHDOG: LEGACY_UNWRAPPED $id deterministic_exit=false terminal_status=$terminal"
         }
-        if ($events -and $worktree -and -not (Test-Path -LiteralPath $events) -and -not (Test-Path -LiteralPath $worktree)) {
+        $exitObj = ReadJson $exitFile
+        if (-not $exitObj -and (($events -and -not (Test-Path -LiteralPath $events)) -or ($worktree -and -not (Test-Path -LiteralPath $worktree)))) {
             OutputAndExit 2 "WATCHDOG: INTEGRATED $id"
         }
 
@@ -159,7 +160,6 @@ while ($true) {
         }
         $lastGrowth = ParseUtc $state.last_growth_utc $now
 
-        $exitObj = ReadJson $exitFile
         if ($exitObj) {
             $code = [int](Prop $exitObj "exit_code" 127)
             if ($code -eq 0 -and $terminal) {

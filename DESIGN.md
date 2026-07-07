@@ -560,6 +560,11 @@ runner's first live use finished 7/7.
   existence alone produced twice-observed false `ALL_DONE` evidence in the
   run #36 respawn case and the run #43 incremental-write case recorded in
   the loop-tuning spec (evidence: git history before the 2026-07-04 cleanup).
+  The 2026-07-06 watchdog-determinism incident added wrapper-owned CLI job
+  evidence (`job.meta.json`, heartbeat, exit file, raw events) so child exit,
+  liveness, and legacy/unwrapped failures are file facts across Claude Code and
+  Codex CLI launches; process enumeration and harness wakeups are corroborating
+  at most.
 - **Hard stops (D11).** the `docs/STOP` kill-all switch before any wave;
   `docs/runs/<run>/STOP` for one run; irreversible actions; two consecutive
   KILLs; a blocker colliding with a recorded assumption (a spec-approval

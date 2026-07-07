@@ -46,16 +46,7 @@ command_json(){
 }
 
 mkdir -p "$job_dir" "$(dirname "$events_file")" || exit 64
-if [ ! -d "$workdir" ]; then
-  write_exit 127
-  printf 'RUNJOB: ERROR missing workdir\n'
-  exit 127
-fi
-if [ -n "$stdin_file" ] && [ ! -f "$stdin_file" ]; then
-  write_exit 127
-  printf 'RUNJOB: ERROR missing stdin file\n'
-  exit 127
-fi
+: > "$events_file" || exit 64
 
 (
   printf '{'
@@ -71,27 +62,51 @@ fi
   printf '}\n'
 ) > "$job_dir/job.meta.json"
 
-if [ -n "$stdin_file" ]; then
-  "$@" < "$stdin_file" > "$events_file" 2>&1 &
-else
-  "$@" > "$events_file" 2>&1 &
+if [ ! -d "$workdir" ]; then
+  write_exit 127
+  printf 'RUNJOB: ERROR missing workdir\n'
+  exit 127
 fi
+if [ -n "$stdin_file" ] && [ ! -f "$stdin_file" ]; then
+  write_exit 127
+  printf 'RUNJOB: ERROR missing stdin file\n'
+  exit 127
+fi
+
+wait_file="$job_dir/job.wait"
+wait_tmp="$job_dir/job.wait.tmp"
+rm -f "$wait_file" "$wait_tmp"
+(
+  if [ -n "$stdin_file" ]; then
+    "$@" < "$stdin_file" > "$events_file" 2>&1
+  else
+    "$@" > "$events_file" 2>&1
+  fi
+  child_code=$?
+  printf '%s\n' "$child_code" > "$wait_tmp"
+  mv "$wait_tmp" "$wait_file"
+  exit "$child_code"
+) &
 child=$!
 tmp_meta="$job_dir/job.meta.json.tmp"
 sed "s/\"started_at\"/\"child_pid\":$child,\"started_at\"/" "$job_dir/job.meta.json" > "$tmp_meta" && mv "$tmp_meta" "$job_dir/job.meta.json"
 
-(
-  while kill -0 "$child" 2>/dev/null; do
-    write_heartbeat
-    sleep "$heartbeat_sec"
-  done
-) &
-heartbeat_pid=$!
+trap 'exit 143' INT TERM HUP
 
-wait "$child"
-code=$?
-kill "$heartbeat_pid" 2>/dev/null || true
-wait "$heartbeat_pid" 2>/dev/null || true
+write_heartbeat
+last_heartbeat=$(date +%s)
+while [ ! -f "$wait_file" ]; do
+  sleep 1
+  now_epoch=$(date +%s)
+  if [ $((now_epoch - last_heartbeat)) -ge "$heartbeat_sec" ]; then
+    write_heartbeat
+    last_heartbeat=$now_epoch
+  fi
+done
+wait "$child" 2>/dev/null || true
+code=$(cat "$wait_file" 2>/dev/null || printf 127)
+rm -f "$wait_file" "$wait_tmp"
+trap - INT TERM HUP
 write_heartbeat
 write_exit "$code"
 exit "$code"

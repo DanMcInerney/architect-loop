@@ -23,6 +23,7 @@ import shutil
 import subprocess
 import stat
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -166,6 +167,7 @@ ARCHITECT_HANDOFF_FREE_FILES = [
 ]
 errors: list[str] = []
 BASH_FLAVOR_CACHE: str | None = None
+BASH_INNER_PATH_CACHE: str | None = None
 
 
 def bash_flavor() -> str:
@@ -203,6 +205,40 @@ def bash_path(path: Path | str) -> str:
         if bash_flavor() == "wsl":
             return f"/mnt/{text[0].lower()}/{rest}"
     return text
+
+
+def bash_inner_executable() -> str:
+    global BASH_INNER_PATH_CACHE
+    if BASH_INNER_PATH_CACHE is not None:
+        return BASH_INNER_PATH_CACHE
+    bash = shutil.which("bash")
+    if not bash:
+        BASH_INNER_PATH_CACHE = "bash"
+        return BASH_INNER_PATH_CACHE
+    try:
+        result = subprocess.run(
+            [bash, "-lc", "command -v bash"],
+            text=True,
+            capture_output=True,
+            timeout=5,
+        )
+        BASH_INNER_PATH_CACHE = result.stdout.strip() if result.returncode == 0 else "bash"
+    except Exception:
+        BASH_INNER_PATH_CACHE = "bash"
+    return BASH_INNER_PATH_CACHE
+
+
+def bash_command_exists(command: str) -> bool:
+    bash = shutil.which("bash")
+    if not bash:
+        return False
+    result = subprocess.run(
+        [bash, "-lc", f"command -v {command} >/dev/null 2>&1"],
+        text=True,
+        capture_output=True,
+        timeout=5,
+    )
+    return result.returncode == 0
 
 
 def rmtree_with_writable_retry(path: Path) -> None:
@@ -815,7 +851,15 @@ def watchdog_run(prefix: list[str], config: Path, label: str, expected_exit: int
     return stdout
 
 
-def run_wrapped_fake(kind: str, job_dir: Path, workdir: Path, report: Path, fake: Path, behavior: str) -> subprocess.Popen[str]:
+def run_wrapped_fake(
+    kind: str,
+    job_dir: Path,
+    workdir: Path,
+    report: Path,
+    fake: Path,
+    behavior: str,
+    detached: bool = False,
+) -> subprocess.Popen[str]:
     prefix = run_job_prefix(kind)
     if prefix is None:
         raise RuntimeError(f"missing wrapper executor {kind}")
@@ -840,7 +884,12 @@ def run_wrapped_fake(kind: str, job_dir: Path, workdir: Path, report: Path, fake
         bash = shutil.which("bash")
         if not bash:
             raise RuntimeError("missing bash")
-        child = [bash_path(bash), bash_path(fake), behavior, bash_path(report)]
+        child = [bash_inner_executable(), bash_path(fake), behavior, bash_path(report)]
+        if detached:
+            if bash_command_exists("setsid"):
+                child = ["setsid", *child]
+            elif bash_command_exists("nohup"):
+                child = ["nohup", *child]
         command = [
             *prefix,
             "--job-dir",
@@ -909,6 +958,11 @@ def check_watchdog_determinism_fixture() -> None:
                 "    emit({'command':'ok'})",
                 "    open(report, 'w', encoding='utf-8').write('done\\nSTATUS: COMPLETE\\n')",
                 "    sys.exit(0)",
+                "if behavior == 'orphan-live':",
+                "    for i in range(20):",
+                "        emit({'command':f'still-writing-{i}'})",
+                "        time.sleep(0.5)",
+                "    sys.exit(0)",
                 "sys.exit(64)",
             ]
         )
@@ -951,6 +1005,15 @@ def check_watchdog_determinism_fixture() -> None:
                 "  happy)",
                 "    emit '{\"command\":\"ok\"}'",
                 "    printf 'done\\nSTATUS: COMPLETE\\n' > \"$report\"",
+                "    exit 0",
+                "    ;;",
+                "  orphan-live)",
+                "    i=0",
+                "    while [ \"$i\" -lt 20 ]; do",
+                "      printf '{\"command\":\"still-writing-%s\"}\\n' \"$i\"",
+                "      sleep 0.5",
+                "      i=$((i+1))",
+                "    done",
                 "    exit 0",
                 "    ;;",
                 "esac",
@@ -1048,6 +1111,79 @@ def check_watchdog_determinism_fixture() -> None:
         config = job_dir / "watchdog.json"
         write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
         watchdog_run(watchdog_prefix, config, f"{runner} legacy", 10, "WATCHDOG: LEGACY_UNWRAPPED")
+
+        job_dir = base / f"{runner}-missing-workdir"
+        workdir = job_dir / "missing-work"
+        report = job_dir / "report.md"
+        proc = run_wrapped_fake(kind, job_dir, workdir, report, fake, "happy")
+        finish_wrapped_fake(proc, f"{runner} missing-workdir")
+        config = job_dir / "watchdog.json"
+        write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
+        output = watchdog_run(watchdog_prefix, config, f"{runner} missing-workdir", 9, "WATCHDOG: DONE_FAILED")
+        if "LEGACY_UNWRAPPED" in output or "INTEGRATED" in output:
+            errors.append(f"watchdog fixture {runner} missing-workdir: wrapper failure lost exit truth\nstdout:\n{output}")
+
+        job_dir = base / f"{runner}-integrated-worktree"
+        workdir = job_dir / "vanished-work"
+        report = job_dir / "report.md"
+        job_dir.mkdir(parents=True)
+        write_fixture_file(job_dir / "job.meta.json", "{}")
+        write_fixture_file(job_dir / "job.heartbeat", "fresh\n")
+        write_fixture_file(job_dir / "events.jsonl", "evidence remains\n")
+        config = job_dir / "watchdog.json"
+        write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
+        watchdog_run(watchdog_prefix, config, f"{runner} integrated-worktree", 2, "WATCHDOG: INTEGRATED")
+
+        job_dir = base / f"{runner}-integrated-events"
+        workdir = job_dir / "work"
+        report = job_dir / "report.md"
+        workdir.mkdir(parents=True)
+        write_fixture_file(job_dir / "job.meta.json", "{}")
+        write_fixture_file(job_dir / "job.heartbeat", "fresh\n")
+        config = job_dir / "watchdog.json"
+        write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
+        watchdog_run(watchdog_prefix, config, f"{runner} integrated-events", 2, "WATCHDOG: INTEGRATED")
+
+        if kind == "ps1":
+            job_dir = base / f"{runner}-start-failure"
+            workdir = job_dir / "work"
+            report = job_dir / "report.md"
+            workdir.mkdir(parents=True)
+            prefix = run_job_prefix(kind) or []
+            command = [
+                *prefix,
+                "-JobDir",
+                str(job_dir),
+                "-Workdir",
+                str(workdir),
+                "-Backend",
+                "fake-start-failure",
+                "-ReportPath",
+                str(report),
+                "-ArgvJson",
+                json.dumps(["definitely-not-a-real-executable-architect-loop"]),
+            ]
+            proc = subprocess.Popen(command, cwd=ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            finish_wrapped_fake(proc, f"{runner} start-failure")
+            config = job_dir / "watchdog.json"
+            write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
+            output = watchdog_run(watchdog_prefix, config, f"{runner} start-failure", 9, "WATCHDOG: DONE_FAILED")
+            if "LEGACY_UNWRAPPED" in output:
+                errors.append(f"watchdog fixture {runner} start-failure: missing metadata on Start-Process failure\nstdout:\n{output}")
+
+        if kind == "sh":
+            job_dir = base / f"{runner}-real-orphan"
+            workdir = job_dir / "work"
+            report = job_dir / "report.md"
+            workdir.mkdir(parents=True)
+            proc = run_wrapped_fake(kind, job_dir, workdir, report, fake, "orphan-live", detached=True)
+            time.sleep(1.5)
+            proc.kill()
+            proc.communicate(timeout=5)
+            time.sleep(6)
+            config = job_dir / "watchdog.json"
+            write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
+            watchdog_run(watchdog_prefix, config, f"{runner} real-orphan", 7, "WATCHDOG: ORPHANED")
 
 
 def check_status_contract() -> None:

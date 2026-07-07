@@ -47,7 +47,13 @@ while :; do
     if [ -z "$job_dir" ] || [ ! -f "$meta" ]; then
       out_exit 10 "WATCHDOG: LEGACY_UNWRAPPED $id deterministic_exit=false terminal_status=$terminal"
     fi
-    if [ -n "$events" ] && [ -n "$worktree" ] && [ ! -e "$events" ] && [ ! -e "$worktree" ]; then
+    code=$(exit_code "$exit_file")
+    integrated=false
+    if [ -z "$code" ]; then
+      if [ -n "$events" ] && [ ! -e "$events" ]; then integrated=true; fi
+      if [ -n "$worktree" ] && [ ! -e "$worktree" ]; then integrated=true; fi
+    fi
+    if [ "$integrated" = true ]; then
       out_exit 2 "WATCHDOG: INTEGRATED $id"
     fi
     ev=$(fsize "$events"); rp=$(fsize "$report"); size=$((ev+rp)); n=$(now); ev_mtime=$(evidence_mtime "$events" "$report")
@@ -57,7 +63,6 @@ while :; do
     report_ready=$(state_field "$state_file" report_ready_epoch); [ -n "$report_ready" ] || report_ready=0
     grew=false
     if [ "$size" != "$last_size" ] || [ "$ev_mtime" -gt "$last_evidence" ]; then last_size=$size; last_evidence=$ev_mtime; last_growth=$n; grew=true; fi
-    code=$(exit_code "$exit_file")
     if [ -n "$code" ]; then
       if [ "$code" = 0 ] && [ "$terminal" = true ]; then
         save_state "$state_file" "$last_size" "$last_growth" "$last_evidence" "$report_ready"

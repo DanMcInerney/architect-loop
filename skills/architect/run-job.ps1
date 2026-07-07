@@ -82,8 +82,27 @@ if ($StdinFile) { $StdinFile = [System.IO.Path]::GetFullPath($StdinFile) }
 $metaPath = Join-Path $JobDir "job.meta.json"
 $heartbeatPath = Join-Path $JobDir "job.heartbeat"
 $exitPath = Join-Path $JobDir "job.exit.json"
+$stderrFile = $EventsFile + ".stderr"
+
+function WriteMeta($ChildPid) {
+    $meta = [ordered]@{
+        backend = $Backend
+        command = @($Command)
+        cwd = $Workdir
+        events_file = $EventsFile
+        report_path = $ReportPath
+        job_dir = $JobDir
+        wrapper_pid = $PID
+        child_pid = $ChildPid
+        started_at = (Get-Date).ToUniversalTime().ToString("o")
+    }
+    WriteUtf8 $metaPath ($meta | ConvertTo-Json -Depth 6)
+}
 
 New-Item -ItemType Directory -Path $JobDir -Force | Out-Null
+WriteUtf8 $EventsFile ""
+WriteUtf8 $stderrFile ""
+WriteMeta $null
 if (-not (Test-Path -LiteralPath $Workdir -PathType Container)) {
     WriteUtf8 $exitPath (@{ exit_code = 127; ended_at = (Get-Date).ToUniversalTime().ToString("o"); error = "missing workdir" } | ConvertTo-Json -Depth 4)
     Write-Output "RUNJOB: ERROR missing workdir"
@@ -101,9 +120,6 @@ if ($Command.Count -gt 1) {
     foreach ($arg in @($Command[1..($Command.Count - 1)])) { $childArgs += (QuoteArg $arg) }
 }
 $argString = ($childArgs -join " ")
-$stderrFile = $EventsFile + ".stderr"
-WriteUtf8 $EventsFile ""
-WriteUtf8 $stderrFile ""
 
 try {
     $startArgs = @{
@@ -118,18 +134,7 @@ try {
     if ($StdinFile) { $startArgs.RedirectStandardInput = $StdinFile }
     $p = Start-Process @startArgs
     $null = $p.Handle
-    $meta = [ordered]@{
-        backend = $Backend
-        command = @($Command)
-        cwd = $Workdir
-        events_file = $EventsFile
-        report_path = $ReportPath
-        job_dir = $JobDir
-        wrapper_pid = $PID
-        child_pid = $p.Id
-        started_at = (Get-Date).ToUniversalTime().ToString("o")
-    }
-    WriteUtf8 $metaPath ($meta | ConvertTo-Json -Depth 6)
+    WriteMeta $p.Id
     while (-not $p.HasExited) {
         WriteUtf8 $heartbeatPath ((Get-Date).ToUniversalTime().ToString("o") + [Environment]::NewLine)
         Start-Sleep -Seconds ([Math]::Max(1, $HeartbeatSec))
