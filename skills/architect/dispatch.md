@@ -7,6 +7,7 @@
 - Per-harness delegation
 - Check-runner dispatch
 - CLI-launched subagent dispatch
+- Sandbox posture
 - Preflight and postflight dispatch
 - Integration commands
 - Issue conventions
@@ -87,7 +88,7 @@ decomposition and never moves because a job failed (`loop.md`
 
 | | Claude Code (CLI + Desktop) | Codex (CLI + app) |
 |---|---|---|
-| Strategist | `strategist = claude/*`: Agent tool at the strategist model, `run_in_background: false` for result-bearing stages, stage skills named in the prompt. `strategist = codex/*`: background `codex exec -o <file>` job through `run-job.ps1\|.sh` — read-heavy sandbox, no Fast pins; drafts and verdict return as files (no tracker access in sandbox). | `strategist = codex/*`: `spawn_agent` with defensive framing, no Fast pins. `strategist = claude/*`: CLI-launched `claude -p` through `run-job.ps1\|.sh`, dispatch block on stdin, file-based output contract; claude CLI absent -> record and fall back per the rules above. |
+| Strategist | `strategist = claude/*`: Agent tool at the strategist model, `run_in_background: false` for result-bearing stages, stage skills named in the prompt. `strategist = codex/*`: background `codex exec -o <file>` job through `run-job.ps1\|.sh` — same full-access posture, no Fast pins; drafts and verdict return as files. | `strategist = codex/*`: `spawn_agent` with defensive framing, no Fast pins. `strategist = claude/*`: CLI-launched `claude -p` through `run-job.ps1\|.sh`, dispatch block on stdin, file-based output contract; claude CLI absent -> record and fall back per the rules above. |
 | Builder | Agent tool with `.claude/agents/architect-builder.md`; `isolation: worktree`; `background: true`; model passed per invocation. Desktop auto-creates the isolation worktree (`.claude/worktrees/agent-<id>`) — integrate from its branch. CLI spawns have run UNISOLATED despite frontmatter (D11): pass isolation per invocation if supported and verify each concurrent job's worktree (`git worktree list`) before running two at once. Never pre-create a worktree for Claude-backend jobs; `.architect/wt/<run>/<slice>-<NN>` is Codex-backend only. | `spawn_agent` with defensive framing ("Your task is: ..."); worktree created by the orchestrator via git; `/goal` semantics for persistent completion. |
 | Verification (optional, read-only) | Agent tool with `.claude/agents/architect-judge.md`, `run_in_background: false`, report file plus one greppable verdict line required; builders model per invocation. | Background `codex exec -o <file>` typed-exit path with read-only instructions; process exit wakes the loop. |
 | Monitor | Script watchdog (`watchdog.ps1` / `watchdog.sh`) under a long-lived Bash task; LLM fallback template only where task exits cannot wake the loop. | Same; the LLM fallback consumes one native subagent slot. |
@@ -150,8 +151,8 @@ all in-flight CLI jobs.
 Single Codex-backed job:
 
 ```bash
-<repo-root>/skills/architect/run-job.sh --job-dir <repo-root>/.architect/jobs/<run>/<slice>-<NN> --workdir <repo-root>/.architect/wt/<run>/<slice>-<NN> --backend codex-cli --report-path <repo-root>/docs/jobs/<run>/<slice>-01.md --stdin-file <repo-root>/.architect/jobs/<run>/<slice>-<NN>/block.md --sandbox-env -- \
-  codex exec -C <repo-root>/.architect/wt/<run>/<slice>-<NN> --sandbox workspace-write -m gpt-5.5 -c model_reasoning_effort="xhigh" -c service_tier="fast" -c features.fast_mode=true --json -o <repo-root>/.architect/jobs/<run>/<slice>-<NN>/last-run.md \
+<repo-root>/skills/architect/run-job.sh --job-dir <repo-root>/.architect/jobs/<run>/<slice>-<NN> --workdir <repo-root>/.architect/wt/<run>/<slice>-<NN> --backend codex-cli --report-path <repo-root>/docs/jobs/<run>/<slice>-01.md --stdin-file <repo-root>/.architect/jobs/<run>/<slice>-<NN>/block.md -- \
+  codex exec -C <repo-root>/.architect/wt/<run>/<slice>-<NN> --sandbox danger-full-access -m gpt-5.5 -c model_reasoning_effort="xhigh" -c service_tier="fast" -c features.fast_mode=true --json -o <repo-root>/.architect/jobs/<run>/<slice>-<NN>/last-run.md \
   -
 ```
 
@@ -176,9 +177,38 @@ git -C <repo-root> worktree add <repo-root>/.architect/wt/<run>/<slice>-<NN> -b 
 <repo-root>/skills/architect/run-job.sh ... -- <codex-or-claude command for that worktree>
 ```
 
-A worktree's `.git` is a pointer file and the resolved git dir is
-sandbox-protected too: builders cannot commit or touch shared history;
-nothing reaches a branch until orchestrator checks pass.
+Builders still never commit — a prose ban audited by postflight; nothing
+reaches a branch until orchestrator checks pass.
+
+## Sandbox posture
+
+Builder, strategist, and verification CLI jobs run `--sandbox
+danger-full-access` by design (owner directive, 2026-07-07): network
+calls, reads, and writes outside the worktree are allowed. Three verified
+hang classes forced this — the Codex Windows sandbox's restricted token
+wedged jobs after the real work had already succeeded: (1) Cygwin-runtime
+binaries (Git-for-Windows bash/grep/sed) die at startup
+(`CreateFileMapping` Win32 error 5; openai/codex#12000, #21715); (2)
+pytest's cacheprovider hangs forever in `pytest_sessionfinish ->
+tempfile.mkdtemp()` (py-spy-verified stack; TEMP/TMP/TMPDIR + `--basetemp`
++ `-o cache_dir` redirects verified insufficient); (3) asyncio
+subprocess/network I/O blocks in `select()` (live-provider tests that pass
+in an unsandboxed shell). Researchers stay `--sandbox read-only`
+(`research.md`); they write nothing.
+
+The constraints that matter are enforced downstream, not by the OS
+sandbox: builders never commit (prose ban, postflight-audited); MAY TOUCH
+is enforced by postflight's touch-set diff over the full freeze->job
+range; a `docs/checks/` edit is an automatic FAIL; and unwrapped work
+cannot merge (postflight `job_dir` gate below).
+
+Opting a job back into a sandbox (not recommended): every pytest
+invocation needs `-p no:cacheprovider`; pass the wrapper's `--sandbox-env`
+flag to redirect TEMP/TMP/TMPDIR into the workspace; keep temp/cache paths
+in `.architect/tmp/<purpose>`; sanctioned same-pattern substitutions
+(PowerShell + native git for Cygwin deaths,
+`UV_CACHE_DIR=.architect/tmp/uv-cache`) are recorded per use; and the hang
+classes above still apply to anything this list misses.
 
 ## Preflight and postflight dispatch
 
@@ -212,9 +242,16 @@ postflight config JSON:
   "merge_message": "<text>",
   "push": false,
   "remote": "origin",
-  "worktree": ".architect/wt/<run>/<slice>-<NN>"
+  "worktree": ".architect/wt/<run>/<slice>-<NN>",
+  "job_dir": ".architect/jobs/<run>/<slice>-<NN>"
 }
 ```
+
+`job_dir` is mandatory for CLI-launched jobs: postflight requires
+`<job_dir>/job.exit.json` (wrapper exit truth) and exits
+`POSTFLIGHT: VIOLATION wrapper exit truth missing` without it — unwrapped
+work cannot merge. Omit `job_dir` only for harness-native Agent-tool jobs,
+whose exits the harness itself owns.
 
 | Script | Exit | Prefix | Meaning |
 |---|---:|---|---|
@@ -271,9 +308,9 @@ spawning; a builder never self-claims:
 gh issue edit <n> --add-assignee "@me"   # orchestrator claims, before dispatch
 ```
 
-Builders usually cannot post (Codex has no network; Claude subagents have a
-shell-strip watch item) — `MIRROR: ORCHESTRATOR` is normal. Builder
-comments on its own issue are exactly four kinds, never one per commit:
+Builders often lack tracker auth in their jobs — `MIRROR: ORCHESTRATOR` is
+normal. Builder comments on its own issue are exactly four kinds, never
+one per commit:
 
 ```bash
 gh issue comment <n> --body "PHASE 0: <disagreements, or what I checked>"
@@ -387,25 +424,8 @@ bodies and check files may carry duration *hints* (e.g. "full suite ~ 20m")
 — informative context for the monitor, never an enforced ceiling.
 
 Builder edits, orchestrator exercises: spawn-heavy checks that cannot run
-in the sandbox become orchestrator-side bounded RUN evidence; the builder
-does edits plus static/local verification only.
-
-Executor truth for sandboxed jobs: MSYS2/Cygwin-runtime binaries (Git for
-Windows `bash.exe`, `grep.exe`, `sed.exe`) die at startup under the Codex
-Windows sandbox (Cygwin shared-memory `CreateFileMapping` denied, Win32
-error 5, under the restricted token; upstream openai/codex#12000, #21715).
-Native `git.exe` and PowerShell are unaffected; POSIX sandboxes are
-unaffected. Check files therefore name the platform-native executor primary
-for sandboxed jobs: PowerShell + native git on Windows, bash on POSIX.
-
-Sanctioned substitutions, recorded per use:
-
-| Condition | Substitution |
-|---|---|
-| Git Bash CreateFileMapping error 5 in Codex Windows sandbox | PowerShell + native git, same pattern |
-| `uv` AppData cache denial (os error 5) | `UV_CACHE_DIR=.architect/tmp/uv-cache` |
-| pytest tmpdir `mkdir(mode=0o700)` WinError 5 | wrapper `--sandbox-env` TEMP/TMP/TMPDIR redirect |
-| Tracker posting unavailable in sandbox | `MIRROR: ORCHESTRATOR` in the report |
+in the job's environment become orchestrator-side bounded RUN evidence;
+the builder does edits plus static/local verification only.
 
 ## Orchestrator shell hygiene
 
@@ -434,12 +454,6 @@ harnesses where Bash is stripped.
 On Windows PowerShell 5.1, `>`, `*>`, and `Tee-Object` write UTF-16; read
 event files encoding-aware (`Get-Content`, or `iconv`) — byte-oriented grep
 can silently miss growth.
-
-Known sandbox hang sources: `asyncio.create_subprocess_exec` and anything
-built on it (Playwright launch, anyio subprocess pools) — plain
-`subprocess.run` works; out-of-workspace temp paths under workspace-write —
-prescribe `.architect/tmp/<purpose>`, `--basetemp
-.architect/tmp/<check-id>`, and in-workspace caches.
 
 ## Respawn-with-answer template
 
@@ -543,13 +557,13 @@ design; the architect commits and merges after verification. Do NOT delete lock
 files or escalate privileges if a git command fails; record the exact error and
 continue.
 
-SANDBOX EXECUTION POLICY - All temp, basetemp, and cache paths MUST be inside
-the workspace (`.architect/tmp/<purpose>`); never the system temp. Run test/check
-commands SEQUENTIALLY - never two invocations in flight at once. The spec or issue may declare duration hints for known-long commands (e.g. "full suite ~ 20m");
+EXECUTION POLICY - Run test/check commands SEQUENTIALLY - never two
+invocations in flight at once. Prefer in-workspace scratch paths
+(`.architect/tmp/<purpose>`) so forensics stay with the job. The spec or issue may declare duration hints for known-long commands (e.g. "full suite ~ 20m");
 they are context, not kill ceilings. If a command appears stalled - no output
 growth and no file mtime movement well past its duration hint - record the
 exact command and observed state in the job report and stop the job; the
-monitor and orchestrator own stall handling. A filesystem/sandbox error on a path is
+monitor and orchestrator own stall handling. A filesystem or permission error on a path is
 environmental: record the exact failure and route around it - never retry the same path.
 
 When a known-bad pattern exists, the spec must name it as forbidden with
@@ -588,8 +602,10 @@ fully handled end-to-end.
 
 ## Builder-side standing setup
 
-- Builders never commit; the orchestrator does. Workspace-write protects
-  `.git` as read-only in Codex on Windows, including worktree pointers.
+- Builders never commit; the orchestrator does. Enforcement is the prose
+  ban plus postflight — the touch-set audit over the full freeze->job
+  range and the `job_dir` wrapper gate — since the OS sandbox is
+  deliberately weak (`## Sandbox posture`).
 - Repo `AGENTS.md` carries exact build/test commands and repo gotchas only;
   the loop's PHASE rules stay in the dispatch block so they version with
   the skill.

@@ -1672,6 +1672,7 @@ def write_postflight_config(
     freeze: str,
     job_branch: str,
     worktree: str | None,
+    job_dir: str | None = None,
 ) -> None:
     cfg: dict[str, object] = {
         "repo_root": str(repo_root),
@@ -1684,6 +1685,8 @@ def write_postflight_config(
     }
     if worktree is not None:
         cfg["worktree"] = worktree
+    if job_dir is not None:
+        cfg["job_dir"] = job_dir
     write_fixture_file(path, json.dumps(cfg, indent=2))
 
 
@@ -1749,6 +1752,82 @@ def check_postflight_lane_fixture() -> None:
         needle = "POSTFLIGHT: ERROR job branch has no commits beyond freeze"
         if needle not in stdout:
             errors.append(f"postflight fixture noop: missing {needle!r}\nstdout:\n{stdout}")
+
+    # Wrapper-exit-truth gate (2026-07-07 bypass incident): a config naming a
+    # job_dir without job.exit.json must refuse to merge; with exit truth
+    # present the gate passes and the normal flow continues.
+    gate_repo = base / "gate" / "repo"
+    gate_elsewhere = base / "gate-elsewhere"
+    gate_elsewhere.mkdir(parents=True)
+    gate_freeze = configure_fixture_repo(gate_repo)
+    if gate_freeze is None:
+        return
+    git_fixture(gate_repo, "branch", "job", gate_freeze)
+    unwrapped_dir = base / "gate" / "job-dir-unwrapped"
+    unwrapped_dir.mkdir(parents=True)
+    gate_config = base / "configs" / "gate-unwrapped.json"
+    write_postflight_config(
+        gate_config, gate_repo, gate_freeze, "job", None, job_dir=str(unwrapped_dir)
+    )
+    gate = run_postflight_fixture(gate_config, gate_elsewhere)
+    if gate is not None:
+        stdout = gate.stdout.replace("\r\n", "\n")
+        if gate.returncode != 2:
+            errors.append(
+                "postflight fixture wrapper gate: expected exit 2 "
+                f"got {gate.returncode}\nstdout:\n{stdout}\nstderr:\n{gate.stderr}"
+            )
+        if "POSTFLIGHT: VIOLATION wrapper exit truth missing" not in stdout:
+            errors.append(
+                f"postflight fixture wrapper gate: missing violation line\nstdout:\n{stdout}"
+            )
+
+    wrapped_dir = base / "gate" / "job-dir-wrapped"
+    write_fixture_file(wrapped_dir / "job.exit.json", '{"exit_code": 0}\n')
+    passthrough_config = base / "configs" / "gate-wrapped.json"
+    write_postflight_config(
+        passthrough_config, gate_repo, gate_freeze, "job", None, job_dir=str(wrapped_dir)
+    )
+    passthrough = run_postflight_fixture(passthrough_config, gate_elsewhere)
+    if passthrough is not None:
+        stdout = passthrough.stdout.replace("\r\n", "\n")
+        if passthrough.returncode != 5 or "no commits beyond freeze" not in stdout:
+            errors.append(
+                "postflight fixture wrapper gate passthrough: expected exit 5 "
+                f"'no commits beyond freeze' got {passthrough.returncode}\nstdout:\n{stdout}"
+            )
+
+
+def check_sandbox_posture() -> None:
+    """Owner directive 2026-07-07: the OS sandbox stays weak; boundaries are
+    enforced by postflight (touch-set audit + wrapper gate), not the sandbox.
+    Guards the load-bearing strings so a later edit cannot silently
+    re-strengthen the sandbox or lose the recorded pytest route-around."""
+    dispatch = read_text(SKILLS / "architect" / "dispatch.md")
+    builder_blocks = [
+        block
+        for block in re.findall(r"```bash\n(.*?)```", dispatch, re.DOTALL)
+        if "codex exec" in block and "--json" in block
+    ]
+    for i, block in enumerate(builder_blocks, start=1):
+        if "--sandbox danger-full-access" not in block:
+            errors.append(
+                f"skills/architect/dispatch.md: codex dispatch example {i} must use "
+                "--sandbox danger-full-access (sandbox posture, owner directive "
+                "2026-07-07: restricted-token hang classes)"
+            )
+    if "-p no:cacheprovider" not in dispatch:
+        errors.append(
+            "skills/architect/dispatch.md: missing -p no:cacheprovider pytest "
+            "route-around for sandboxed jobs (cacheprovider mkdtemp hang, "
+            "py-spy-verified 2026-07-07; temp/basetemp/cache_dir redirects "
+            "verified insufficient)"
+        )
+    if '"job_dir"' not in dispatch:
+        errors.append(
+            "skills/architect/dispatch.md: postflight config example missing "
+            "job_dir (wrapper-exit-truth merge gate)"
+        )
 
 
 def check_runner_cases() -> list[tuple[str, list[str], dict[str, Path]]]:
@@ -2700,6 +2779,7 @@ def main() -> int:
     check_status_contract()
     check_status_run_pinning_fixture()
     check_postflight_lane_fixture()
+    check_sandbox_posture()
     check_sweep_deferred_fixture()
     check_check_runner_fixture()
     check_ground_contract()

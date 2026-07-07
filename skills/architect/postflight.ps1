@@ -79,6 +79,17 @@ $push = $false
 if (@($cfg.PSObject.Properties.Name) -contains "push") { $push = [bool]$cfg.push }
 if (-not $remote) { $remote = "origin" }
 
+# Wrapper-exit-truth gate: CLI-launched jobs pass job_dir; unwrapped work
+# cannot merge (2026-07-07 bypass incident).
+$jobDir = PropString $cfg "job_dir"
+if ($jobDir) {
+    $exitFile = Join-Path (FullPath $jobDir) "job.exit.json"
+    if (-not (Test-Path -LiteralPath $exitFile -PathType Leaf)) {
+        Write-Output "POSTFLIGHT: VIOLATION wrapper exit truth missing $exitFile"
+        exit 2
+    }
+}
+
 $cur = GitRun -GitArgs @("-C", $script:RepoRoot, "rev-parse", "--abbrev-ref", "HEAD")
 if ($cur.Code -ne 0 -or @($cur.Lines).Count -lt 1) { ErrorExit "current branch unavailable" }
 $current = ([string]$cur.Lines[0]).Trim()
