@@ -4,10 +4,12 @@ set -u
 out=
 tmp=
 tmp_base=
+progress_out=
 tmp_files=()
 add_tmp(){ tmp_files[${#tmp_files[@]}]=$1; }
 cleanup_tmp(){ for f in "${tmp_files[@]}"; do [ -n "$f" ] && rm -f "$f"; done; }
 die(){
+  [ -n "${progress_out:-}" ] && printf 'RUNNER_ERROR %s %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$1" >> "$progress_out"
   cleanup_tmp
   [ -n "${out:-}" ] && rm -f "$out"
   [ -n "${tmp:-}" ] && rm -f "$tmp"
@@ -73,12 +75,45 @@ cfg=${1:-}
 json=$(tr -d '\r\n' < "$cfg") || die "unreadable config"
 field(){ printf '%s' "$json" | sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p"; }
 numfield(){ printf '%s' "$json" | sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p"; }
+progress(){
+  [ -n "$progress_out" ] || return 0
+  progress_dir=$(dirname "$progress_out")
+  [ -d "$progress_dir" ] || mkdir -p "$progress_dir"
+  printf '%s\n' "$1" >> "$progress_out"
+}
+emit_output_slice(){
+  slice_file=$1
+  slice_max=$2
+  slice_total=$(awk 'END{print NR}' "$slice_file")
+  if [ "$slice_total" -le "$slice_max" ]; then
+    cat "$slice_file"
+    return
+  fi
+  slice_head=$(awk -v n="$slice_max" 'BEGIN{v=n*0.4; printf "%d", (v == int(v) ? v : int(v)+1)}')
+  slice_tail=$(awk -v n="$slice_max" 'BEGIN{printf "%d", int(n*0.6)}')
+  [ "$slice_head" -gt 0 ] || slice_head=1
+  [ "$slice_tail" -gt 0 ] || slice_tail=1
+  slice_elided=$((slice_total - slice_head - slice_tail))
+  [ "$slice_elided" -gt 0 ] || slice_elided=0
+  sed -n "1,${slice_head}p" "$slice_file"
+  printf '[... %s lines elided ...]\n' "$slice_elided"
+  awk '
+    /^=+[[:space:]]*short test summary info[[:space:]]*=+/ { active=1; seen=1 }
+    active {
+      print
+      if (seen > 1 && /^=+.*=+[[:space:]]*$/) exit
+      seen++
+    }
+  ' "$slice_file"
+  tail -n "$slice_tail" "$slice_file"
+}
 
 check_file=$(field check_file)
 workdir=$(field workdir)
 freeze_sha=$(field freeze_sha)
 out=$(field evidence_out)
 executor=$(field executor)
+progress_out=$(field progress_out)
 max_output_lines=$(numfield max_output_lines)
 [ -n "$max_output_lines" ] || max_output_lines=60
 
@@ -154,6 +189,7 @@ slug=$(basename "$out" .md)
     run_out=$(make_tmp run); add_tmp "$run_out"
     run_stdout=$(make_tmp stdout); add_tmp "$run_stdout"
     run_stderr=$(make_tmp stderr); add_tmp "$run_stderr"
+    progress "RUN_START $((i + 1)) $(date -u '+%Y-%m-%dT%H:%M:%SZ') ${commands[$i]}"
     start=$(now_ms)
     if [ "$executor" = powershell ]; then
       (cd "$workdir" && powershell -NoProfile -Command "${commands[$i]}") > "$run_stdout" 2> "$run_stderr"
@@ -162,6 +198,7 @@ slug=$(basename "$out" .md)
       (cd "$workdir" && bash -c "${commands[$i]}") > "$run_stdout" 2> "$run_stderr"
       code=$?
     fi
+    progress "RUN_END $((i + 1)) $(date -u '+%Y-%m-%dT%H:%M:%SZ') exit=$code"
     end=$(now_ms)
     ms=$((end - start))
     cat "$run_stdout" "$run_stderr" > "$run_out"
@@ -197,7 +234,7 @@ slug=$(basename "$out" .md)
     printf 'exit: %s  ms: %s  bytes: %s%s\n' "$code" "$ms" "$bytes" "$mark"
     printf 'expected: %s\n' "${expected_texts[$i]}"
     printf 'verdict: %s\n' "$verdict"
-    sed -n "1,${max_output_lines}p" "$run_out"
+    emit_output_slice "$run_out" "$max_output_lines"
     rm -f "$run_out" "$run_stdout" "$run_stderr"
     i=$((i + 1))
   done

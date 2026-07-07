@@ -1090,6 +1090,10 @@ cleanup. Both namespaces are load-bearing in shipped text.)
   the assigned child tree; POSIX tries the process group first and falls back to
   a wrapper-owned `job.kill` request when the host PID layer cannot signal it.
   Evidence: validator fixture `kill-job`.
+- **Check evidence preserves the verdict lines.** Check-runner truncation now
+  keeps head, tail, and pytest short-summary blocks instead of first-N lines,
+  and `progress_out` gives killed runners a flushed sidecar naming the in-flight
+  RUN item. Evidence: validator fixtures `truncation` and `progress`.
 
 ---
 

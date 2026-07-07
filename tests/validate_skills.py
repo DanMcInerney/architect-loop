@@ -1682,6 +1682,89 @@ def check_check_runner_fixture() -> None:
                     f"check-runner fixture {runner} missing: missing grammar error\nstdout:\n{stdout}"
                 )
 
+        base = ROOT / ".architect" / "tmp" / f"checkrun-w5-{runner}"
+        base.mkdir(parents=True, exist_ok=True)
+        trunc_check = base / "trunc.md"
+        trunc_config = base / "trunc.json"
+        trunc_evidence = base / "trunc-evidence.md"
+        if runner == "powershell":
+            trunc_command = (
+                "1..12 | ForEach-Object { \"HEAD$_\" }; "
+                "\"===== short test summary info =====\"; "
+                "\"FAILED tests/test_sample.py::test_x - boom\"; "
+                "\"===== 1 failed in 0.01s =====\"; "
+                "1..20 | ForEach-Object { \"TAIL$_\" }"
+            )
+        else:
+            trunc_command = (
+                "for i in $(seq 1 12); do echo HEAD$i; done; "
+                "echo '===== short test summary info ====='; "
+                "echo 'FAILED tests/test_sample.py::test_x - boom'; "
+                "echo '===== 1 failed in 0.01s ====='; "
+                "for i in $(seq 1 20); do echo TAIL$i; done"
+            )
+        write_fixture_file(trunc_check, f"# Truncation\n\n- RUN: `{trunc_command}` -> exit:0\n")
+        write_fixture_file(
+            trunc_config,
+            json.dumps(
+                {
+                    "check_file": str(trunc_check.relative_to(ROOT)),
+                    "workdir": str(ROOT),
+                    "freeze_sha": "HEAD",
+                    "evidence_out": str(trunc_evidence),
+                    "executor": "powershell" if runner == "powershell" else "bash",
+                    "max_output_lines": 10,
+                }
+            ),
+        )
+        _, trunc_text = run_check_runner_case(f"{runner} truncation", command_prefix, trunc_config, 0)
+        if trunc_text:
+            for needle in ("HEAD1", "[...", "short test summary info", "FAILED tests/test_sample.py::test_x", "TAIL20"):
+                require_checkrun_evidence(f"{runner} truncation", trunc_text, needle)
+
+        progress_check = base / "progress.md"
+        progress_config = base / "progress.json"
+        progress_evidence = base / "progress-evidence.md"
+        progress_sidecar = base / "progress.log"
+        sleep_command = "Start-Sleep -Seconds 20" if runner == "powershell" else "sleep 20"
+        write_fixture_file(progress_check, f"# Progress\n\n- RUN: `{sleep_command}` -> exit:0\n")
+        write_fixture_file(
+            progress_config,
+            json.dumps(
+                {
+                    "check_file": str(progress_check.relative_to(ROOT)),
+                    "workdir": str(ROOT),
+                    "freeze_sha": "HEAD",
+                    "evidence_out": str(progress_evidence),
+                    "progress_out": str(progress_sidecar),
+                    "executor": "powershell" if runner == "powershell" else "bash",
+                }
+            ),
+        )
+        progress_sidecar.unlink(missing_ok=True)
+        progress_proc = subprocess.Popen([*command_prefix, str(progress_config)], cwd=ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        deadline = time.time() + 8
+        while time.time() < deadline:
+            if progress_sidecar.exists() and "RUN_START 1 " in read_text(progress_sidecar):
+                break
+            time.sleep(0.05)
+        if not progress_sidecar.exists():
+            errors.append(f"check-runner fixture {runner} progress: missing sidecar")
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(progress_proc.pid)], capture_output=True, text=True, timeout=5)
+        else:
+            progress_proc.kill()
+        try:
+            progress_proc.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            errors.append(f"check-runner fixture {runner} progress: runner did not die")
+        if progress_sidecar.exists():
+            progress_text = read_text(progress_sidecar).replace("\r\n", "\n")
+            if "RUN_START 1 " not in progress_text:
+                errors.append(f"check-runner fixture {runner} progress: missing RUN_START\nsidecar:\n{progress_text}")
+            if "RUN_END 1 " in progress_text:
+                errors.append(f"check-runner fixture {runner} progress: killed item has RUN_END\nsidecar:\n{progress_text}")
+
 
 def ground_executor_cases() -> list[tuple[str, list[str], str]]:
     """(label, base command prefix, repo-root flag) per runnable executor -

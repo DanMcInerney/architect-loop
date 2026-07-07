@@ -119,6 +119,8 @@ Evidence contains per-item `expected:` and `verdict:` lines, then `CHECKRUN SUMM
 Typed exits: 0 = all RUN items pass; 2 = any RUN item fails; 5 = error, no partial evidence file left behind.
 Launch pattern: write the runner config JSON — fields `check_file`, `workdir`, `freeze_sha`, `evidence_out`, `executor` (`powershell`|`bash`), `max_output_lines` (default 60) — then run `skills/architect/check-runner.ps1 -Config <path>` or `check-runner.sh <path>` as a foreground child of a long-lived Bash task; on exit 0 commit `docs/jobs/<run>/<issue-slug>-checkrun.md`, then merge through postflight. Exit 2 routes to the failure ladder; `loop.md` owns the full rule.
 
+Long RUN output keeps head, tail, and any pytest short-summary block; optional `progress_out` writes flushed `RUN_START`/`RUN_END`/`RUNNER_ERROR` sidecar events for forensics only.
+
 ## CLI-launched subagent dispatch
 
 Worktree pre-creation and `codex exec` are Codex-backend builder jobs even under Claude Code; Claude-backend harness jobs use the Per-harness delegation table.
