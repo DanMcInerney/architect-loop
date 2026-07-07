@@ -961,6 +961,18 @@ cleanup. Both namespaces are load-bearing in shipped text.)
   manual forensics (hot spin vs idle block) but stays out of the watchdog
   by ruling — it cannot distinguish a wedged `mkdtemp` from a legitimate
   long compile; `BLOCKED_ON_TOOL` covers the class deterministically.
+  Same-day follow-up (BenchPair #220/#221): two builders dispatched from a
+  stale pre-directive launch script (workspace-write, raw shell, no
+  wrapper) hung on a spawned `benchpair web` readiness wait. Controlled
+  repro exonerated `Start-Process` itself — a detached network-less child
+  returns in 16s under BOTH sandbox modes — and pinned the class: under
+  workspace-write the server-spawn + local-HTTP command is
+  `rejected: blocked by policy` (or the child blocks silently when the
+  network I/O is internal); under danger-full-access the identical command
+  returns SERVER=200 in 24s. Not a fourth hang class — class (3) reached
+  via a spawned server. The stale template was fixed in place; ad-hoc
+  dispatch copies the sandbox flag from `## Sandbox posture`, never from
+  an older run's launch script.
 - **Loop-hygiene pre-freeze stress-test catch record (2026-07-04):** 6
   defects before dispatch, including the host-specific finding that bare
   `python` resolves to the Windows Store stub and validator checks must run as
