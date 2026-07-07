@@ -17,14 +17,14 @@
   <!-- 1 SPEC -->
   <rect x="230" y="70" width="300" height="56" rx="10" fill="#7c3aed"/>
   <text x="380" y="93" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">SPEC</text>
-  <text x="380" y="111" font-size="10.5" fill="#ede9fe" text-anchor="middle">orchestrator writes it · ≤5 questions · you approve</text>
+  <text x="380" y="111" font-size="10.5" fill="#ede9fe" text-anchor="middle">strategist drafts it · ≤5 questions · you approve</text>
   <text x="560" y="90" font-size="11" fill="#475569">every question must pass a materiality test — would the answer</text>
   <text x="560" y="104" font-size="11" fill="#475569">change the build? all else is a recorded assumption you can veto</text>
 
   <!-- 2 ADVERSARIAL REVIEW -->
   <rect x="230" y="176" width="300" height="56" rx="10" fill="#7c3aed"/>
   <text x="380" y="199" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">ADVERSARIAL REVIEW</text>
-  <text x="380" y="217" font-size="10.5" fill="#ede9fe" text-anchor="middle">a fresh orchestrator-model reviewer attacks spec + plan</text>
+  <text x="380" y="217" font-size="10.5" fill="#ede9fe" text-anchor="middle">a fresh strategist attacks spec + plan</text>
   <text x="560" y="196" font-size="11" fill="#475569">fresh context, zero sunk cost: runs draft check commands, attacks</text>
   <text x="560" y="210" font-size="11" fill="#475569">criteria for contradictions — bad plans die before they cost a build</text>
 
@@ -101,7 +101,7 @@
   <!-- 6 FINAL REVIEW -->
   <rect x="230" y="622" width="300" height="56" rx="10" fill="#7c3aed"/>
   <text x="380" y="645" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">FINAL REVIEW</text>
-  <text x="380" y="663" font-size="10.5" fill="#ede9fe" text-anchor="middle">read-only · whole run diff · findings become a review spec</text>
+  <text x="380" y="663" font-size="10.5" fill="#ede9fe" text-anchor="middle">strategist review · whole run diff · findings become a review spec</text>
   <text x="560" y="648" font-size="11" fill="#475569">never the author, always fresh: verifies findings, never edits —</text>
   <text x="560" y="662" font-size="11" fill="#475569">the review spec is cut into fix issues, built like any other issue</text>
 
@@ -116,8 +116,8 @@
   <!-- 7 INTEGRATE -->
   <rect x="230" y="728" width="300" height="56" rx="10" fill="#0d9488"/>
   <text x="380" y="751" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">INTEGRATE</text>
-  <text x="380" y="769" font-size="10.5" fill="#ccfbf1" text-anchor="middle">builder-tier subagent · docs pass · PR handoff</text>
-  <text x="560" y="748" font-size="11" fill="#475569">one fresh builder-tier subagent consumes the docs-debt digest,</text>
+  <text x="380" y="769" font-size="10.5" fill="#ccfbf1" text-anchor="middle">builder subagent · docs pass · PR handoff</text>
+  <text x="560" y="748" font-size="11" fill="#475569">one fresh builder-model subagent consumes the docs-debt digest,</text>
   <text x="560" y="762" font-size="11" fill="#475569">then merges, re-verifies, and opens the PR + digest</text>
 
   <!-- 8 PR -->
@@ -130,9 +130,9 @@
 
   <!-- legend -->
   <rect x="45" y="940" width="12" height="12" rx="3" fill="#7c3aed"/>
-  <text x="63" y="950" font-size="11" fill="#475569">orchestrator + its fresh reviewers (frontier model)</text>
+  <text x="63" y="950" font-size="11" fill="#475569">strategists (Fable default)</text>
   <rect x="360" y="940" width="12" height="12" rx="3" fill="#0d9488"/>
-  <text x="378" y="950" font-size="11" fill="#475569">builders + integrate (cheap model)</text>
+  <text x="378" y="950" font-size="11" fill="#475569">builders + integrate (Codex xhigh fast)</text>
   <rect x="620" y="940" width="12" height="12" rx="3" fill="#64748b"/>
   <text x="638" y="950" font-size="11" fill="#475569">deterministic script</text>
   <rect x="800" y="940" width="12" height="12" rx="3" fill="#16a34a"/>

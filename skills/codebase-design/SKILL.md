@@ -44,8 +44,9 @@ file for frozen check. Consistent language is the whole point.
 - **Slice** - the vertical cut an issue implements; slice names the cut, issue names its tracker record - same unit, two angles.
 - **Frozen check** - the committed, read-only acceptance check a builder's work is graded against.
 - **Check-runner** - the deterministic script that grades a frozen check's RUN items and exits typed (0/2/5).
+- **Strategist** - the fresh high-judgment subagent that drafts specs, cuts issues, stress-tests plans, and runs full-lane reviews.
 - **Builder** - the fresh, worktree-isolated agent that implements one issue and never commits.
-- **Orchestrator** - the one session that grounds, decomposes, freezes, dispatches, and integrates; never writes implementation code; in the fast lane (/architect-fast) it also performs the closing review and its fixes - a recorded relaxation.
+- **Orchestrator** - the one session that grounds, dispatches strategist and builder work, freezes, and integrates; never writes implementation code; in the fast lane (/architect-fast) it also performs the closing review and its fixes - a recorded relaxation.
 - **Factory branch** - the run's integration branch (`factory/<run>`) that job branches merge into.
 - **Worktree** - the isolated git checkout a builder or reviewer works in, verified against the freeze commit.
 - **Job report** - a builder's raw-evidence artifact, ending in one STATUS line.

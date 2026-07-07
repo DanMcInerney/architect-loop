@@ -26,7 +26,7 @@ merge discipline, typed-exit scripts, timed rulings, and hard stops.
    (markdown-local when `tracker = markdown`). Shape follows Pocock's
    `/to-prd`: synthesize, do not interview; no file paths or code snippets in
    the spec body (prototype snippets only when they encode a decision).
-4. Adversarial spec review: one fresh orchestrator-model subagent runs
+4. Adversarial spec review: one fresh strategist subagent runs
    `/adversarial-review` against the spec; orchestrator applies the surviving
    findings and updates the spec. (Replaces + absorbs the current pre-freeze
    spec GRILL.)
@@ -49,7 +49,7 @@ merge discipline, typed-exit scripts, timed rulings, and hard stops.
    finishes the issue itself — its work still passes the frozen-check
    runner and the closing review (no self-grading in artifacts). On any
    issue completion, immediately dispatch newly unblocked issues.
-8. `/cohesion-review` (closing): one fresh orchestrator-model subagent over
+8. `/cohesion-review` (closing): one fresh strategist subagent over
    the whole run diff, targeted at isolated-parallel-work defects:
    duplicated concepts/helpers, divergent naming vs the vocabulary,
    interface drift between producer and consumer slices, contradictory
@@ -138,8 +138,8 @@ assumption 3)
 
 The per-issue intent judge is REMOVED. Grading becomes: builders run their
 own tests; the deterministic check-runner grades each issue's frozen checks;
-ONE closing cohesion review — a fresh subagent at the resolved orchestrator
-model — runs after all issues close, immediately before the PR, and is the
+ONE closing cohesion review — a fresh strategist subagent — runs after all
+issues close, immediately before the PR, and is the
 only model review in the loop. (The fresh-subagent form preserves
 nobody-grades-their-own-work at the run level; recorded as the
 interpretation of "done by the orchestrator" — veto-able.) The

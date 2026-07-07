@@ -23,7 +23,7 @@ grading stays with the check-runner end to end.
 
 1. Finish boundary opens unchanged: timed-ruling question "run the final
    review?", default YES, recorded ruling to skip.
-2. One fresh orchestrator-model subagent (MEDIUM effort, worktree from the
+2. One fresh strategist subagent (MEDIUM effort, worktree from the
    factory branch head) runs the `final-review` stage skill: same review
    basis (spec, whole run diff, published interface contracts), same finding
    gates (scope, confidence, verify-then-report), same cohesion and spec
@@ -232,7 +232,7 @@ None. (All intake questions answered in-session 2026-07-06.)
 - Measured 2026-07-06 (orchestrator): architect-core non-blank totals
   181+503+132+66+77 = 959 vs `ARCHITECT_SKILL_TEXT_MAX_NON_BLANK = 989`
   (`tests/validate_skills.py:36`, guard applied at `:502`).
-- Adversarial spec review 2026-07-06 (fresh orchestrator-model subagent):
+- Adversarial spec review 2026-07-06 (fresh strategist-equivalent subagent):
   9 findings — 1 blocking, 5 major, 3 minor — all applied above; the
   blocking finding (fix-wave freeze vs ground single-freeze reconcile) and
   both budget claims were independently re-verified by the orchestrator
@@ -248,7 +248,7 @@ None. (All intake questions answered in-session 2026-07-06.)
   succeeded 2026-07-06 (auth + repo access proven).
 - Repo state: clean main at 993ea7b; no `docs/STOP`; factory branch
   `factory/review-fanout` cut from main.
-- Models resolved: orchestrator = running session (Fable 5); builders =
+- Models resolved then: running session was Fable 5; builders were
   `claude/tier-down` (Sonnet at high effort) per the dispatch alias table.
 - Builder-backend canary 2026-07-06: Claude-native Agent job at the
   builders model replied `CANARY: SHELLS_OK` with shell tools present

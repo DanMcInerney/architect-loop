@@ -1,7 +1,7 @@
 ---
 name: frozen-checks
 description: >
-  Use when the orchestrator writes per-issue graded checks after decomposition
+  Use when the strategist drafts per-issue graded checks after decomposition
   and before builder dispatch. Produces one check file per
   issue at `docs/checks/<run>/<slice>.md`, frozen in git, read-only after.
 ---

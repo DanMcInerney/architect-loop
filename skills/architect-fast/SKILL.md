@@ -40,8 +40,9 @@ silent fallback — every precondition, blocker, and substitution is recorded.
 
 ## Relaxed by design
 
-- No adversarial spec or decomposition review — intake is at most
-  ~3 questions and `to-issues` runs straight off the approved spec.
+- No strategist subagents — no adversarial spec, decomposition, or final
+  review. Intake is at most ~3 questions and `to-issues` runs straight off
+  the approved spec.
 - The fast lane's gates: no frozen check files, no check-runner —
   issue-body acceptance criteria, builder-run tests, and the orchestrator
   review carry the weight instead.

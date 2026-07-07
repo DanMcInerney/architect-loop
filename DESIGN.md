@@ -1,13 +1,14 @@
 # DESIGN — architect-loop
 
-**The design rationale for an autonomous software factory.** The orchestrator model
-(the session you open — Claude Fable 5 or Codex) runs intake, writes the spec,
-decomposes it into a GitHub issue plan, dispatches parallel fresh builder jobs
-into worktrees that work test-first and run their own tests, answers blockers,
-grades every issue's frozen checks through a deterministic check-runner, closes
-with one fresh, read-only review over the whole run diff that decomposes any
-findings into fix issues built by a parallel fix wave before the integrate
-subagent (docs pass first) preps the PR, and merges — with exactly one human step, spec approval. This document is the
+**The design rationale for an autonomous software factory.** The orchestrator
+(the session you open — Claude or Codex) grounds the run, dispatches Fable-class
+strategist subagents for spec/decomposition/review work, dispatches parallel
+fresh Codex builders into worktrees that work test-first and run their own
+tests, answers blockers, grades every issue's frozen checks through a
+deterministic check-runner, closes with one fresh, read-only strategist review
+over the whole run diff that decomposes any findings into fix issues built by
+a parallel fix wave before the integrate subagent (docs pass first) preps the
+PR, and merges — with exactly one human step, spec approval. This document is the
 "why", with citations; the skill files in `skills/architect/` are the "how";
 [CONTEXT.md](CONTEXT.md) is the vocabulary.
 
@@ -69,12 +70,13 @@ wiring them into two installable skills with the failure modes closed.
 
 | Role | What it is | Owns |
 |---|---|---|
-| **Orchestrator** | the session the human opened | intake, spec, decomposition, check freeze, dispatch, blocker answers, merge decisions, digest |
+| **Orchestrator** | the session the human opened | grounding, strategist/builder dispatch, blocker answers, freeze/merge decisions, digest |
+| **Strategist** | fresh Fable-class subagent | design, spec drafting, issue decomposition, check drafting, adversarial review, final review |
 | **Builder** | fresh worker agent, one per issue, own worktree | implementation and raw-evidence reporting only |
 | **Judge** *(retired — see note)* | fresh builders-model agent, read-only | checks-integrity review, diff-vs-intent, one graded-check spot-check |
 | **Watchdog** | deterministic script per wave; "monitor" informally | mechanical stall evidence only — never kills, never decides |
-| **Adversarial reviewer** | fresh reviewer, pre-freeze | the stress-test pass (called the *grill* in earlier runs) falsifies the decomposition before it's authorized |
-| **Cohesion reviewer** | fresh orchestrator-model subagent, once per run | read-only closing review over the whole run diff; verified findings become a review spec cut into fix issues for the fix wave, never a direct edit |
+| **Adversarial reviewer** | fresh strategist reviewer, pre-freeze | the stress-test pass (called the *grill* in earlier runs) falsifies the decomposition before it's authorized |
+| **Cohesion reviewer** | fresh strategist subagent, once per run | read-only closing review over the whole run diff; verified findings become a review spec cut into fix issues for the fix wave, never a direct edit |
 | **Human** | you | spec approval, hard stops, taste |
 
 Note (human-directed, 2026-07): the per-issue Judge role was retired in
@@ -88,10 +90,13 @@ history below — are retained as run history: the per-issue judge is what
 those runs actually used, and what it caught. The judge templates stay in
 `dispatch.md`, marked RETIRED, for optional read-only verification.
 
-Why the orchestrator does the design work and the builders only build:
+Why strategist subagents do the design work and builders only build:
 [PEAR](https://arxiv.org/abs/2510.07505) measured that weak planners hurt
 multi-agent performance more than weak executors, so planning and merge
-decisions go on the strongest model and typing hours on the cheaper one. Community
+decisions go on the strongest model and typing hours on the cheaper one. The
+orchestrator now stays the human-opened session that routes, records, and
+rules; Fable-class strategist subagents carry the high-judgment design and
+review passes in fresh context. Community
 measurements of orchestrator/worker splits report 58–74% lower cost than
 running the top model end-to-end
 ([Fable 5 Orchestrator Playbook](https://www.developersdigest.tech/blog/fable-5-orchestrator-model-playbook)).
@@ -508,7 +513,7 @@ runner's first live use finished 7/7.
   issue #137).** After the last build issue closes and before integrate, the
   orchestrator asks through the timed-ruling protocol whether to run
   a comprehensive review. The default is yes; if it runs, the reviewer is at
-  the resolved orchestrator model, reads spec -> diff, and edits
+  the resolved strategist model, reads spec -> diff, and edits
   no product code and no tests. Zero verified findings return a GREEN verdict
   and the run proceeds straight to integrate. One or more findings become a
   review spec — the findings as requirements — cut into fix issues with draft
@@ -573,18 +578,18 @@ runner's first live use finished 7/7.
 
 ### Model routing
 
-- **Orchestrator, builders, judges, and watchdog are routed roles, not brand
-  names (D2).** Flat `key = value` lines in `.architect/config` (repo) then
+- **The orchestrator is inherited; strategist and builders are routed roles
+  (D2).** Flat `key = value` lines in `.architect/config` (repo) then
   `~/.architect/config` (user); the alias table in `dispatch.md` is the
   single owned rot point mapping `codex/best`, `claude/best`, and tier-downs
   to current CLI flags, so model churn is reviewed in one place. The
-  inherit-by-default shape follows the `opusplan` precedent and matching
-  requests across aider/goose issue trackers.
+  orchestrator itself is whatever Claude or Codex session the human opened;
+  config may set `strategist` and `builders`, never `orchestrator`.
 - **Routine issue judges resolved to the builders model** *(role retired —
   see §2 note)*. The runner owns deterministic grading; while the per-issue
   judge existed it was a fresh builders-model intent reviewer with one
   spot-check, and optional read-only verification dispatches keep that tier.
-  The closing review uses the orchestrator model, and cross-family judgment
+  The closing review uses the strategist model, and cross-family judgment
   remains an explicit high-stakes route.
 - **Default builders are codex-frontier** (human ruling 2026-07-06,
   flipping the skill-library-era Claude-native default): `codex/best`

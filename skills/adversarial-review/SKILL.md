@@ -1,8 +1,8 @@
 ---
 name: adversarial-review
 description: >
-  Use when the architect factory orchestrator dispatches a fresh subagent to
-  falsify a draft spec before decomposition, or a frozen decomposition
+  Use when the architect factory orchestrator dispatches a fresh strategist
+  subagent to falsify a draft spec before decomposition, or a frozen decomposition
   (issues plus checks) before dispatch. Attacks the plan with file:line
   evidence; never edits the spec, an issue, or a check.
 effort: high
@@ -75,7 +75,7 @@ say so and name what's missing rather than guessing.
 
 Use the factory glossary exactly: module, interface, implementation, seam,
 adapter, depth, leverage, locality, run, tracking issue, issue, slice,
-frozen check, check-runner, builder, intent judge, orchestrator, factory
+frozen check, check-runner, strategist, builder, orchestrator, factory
 branch, worktree, job report, verdict, ruling, digest, hard stop. Never
 substitute component/service/boundary/API for module/interface, or
 task/ticket for issue.

@@ -32,7 +32,7 @@ the current runner ignores expectations as prose.
   step and loop.md agree. Cite file:line in both.
 - Judge-only: Finish opens with the timed-ruling closing-review question
   (recommended default YES, 5-minute silence applies it), then on yes: one
-  fresh subagent at the resolved orchestrator model at medium effort, in a
+  fresh subagent at the resolved strategist model at medium effort, in a
   worktree from the factory branch head, reading spec then map then run diff,
   docs/checks/ read-only, all graded RUN items across the run must stay
   green, full closing checkrun plus named test suites re-run, green-or-
@@ -40,5 +40,5 @@ the current runner ignores expectations as prose.
   merge through postflight, verdict and diffstat on the tracking issue,
   ordered BEFORE the docs-finish job. Cite file:line.
 - Judge-only: Hard Rule 3 and Ground wording are consistent with the
-  builders-model intent-only judge (no stale "orchestrator-tier" or
+  builders-model intent-only judge (no stale strategist-tier or
   evidence-re-grading claims). Cite file:line.

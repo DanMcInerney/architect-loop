@@ -5,8 +5,10 @@ description: >
   tracer-bullet vertical slices through every layer, ordering structural work
   first with blocking edges, maximizing the disjoint parallel frontier,
   publishing producer/consumer interface contracts, and attaching a compact
-  change-skeleton to each issue. Orchestrator-invoked only, after spec
-  approval — never left to description-trigger discovery.
+  change-skeleton to each issue. Invoked only from an explicit architect
+  dispatch — by the strategist subagent in `/architect`, or directly by the
+  orchestrator in `/architect-fast` — after spec approval; never left to
+  description-trigger discovery.
 ---
 
 <!-- Adapted from mattpocock/skills (MIT). -->
@@ -23,7 +25,7 @@ question here.
 Load the spec, then hold the codebase-design vocabulary
 (`skills/codebase-design/SKILL.md`) exactly: module, interface, implementation, seam, adapter, depth, leverage,
 locality for design; run, tracking issue, issue, slice, frozen check,
-check-runner, builder, intent judge, orchestrator, factory branch, worktree,
+check-runner, strategist, builder, orchestrator, factory branch, worktree,
 job report, verdict, ruling, digest, hard stop for the factory. Never
 substitute component/service/boundary/API for module/interface, or
 task/ticket for issue — that drift is a defect, not a style choice.
@@ -77,11 +79,21 @@ a compact change-skeleton (≤30 lines — files, signatures, data flow,
 invariants; a contract, not a line mandate). Close every issue body with the
 run marker comment: `<!-- architect-run: <run> -->`.
 
-## 7. Publish in dependency order
+## 7. Draft in publish order; the orchestrator publishes
 
-Publish structural issues, then behavioral issues, blockers before the
-issues that cite them, so every blocked-by ID names a real, already-open
-issue — never a forward reference.
+Write one draft file per issue at `docs/runs/<run>/issues/<NN>-<slice>.md`
+(a local run artifact), `NN` numbered in publish order: structural issues
+first, blockers before the issues that cite them. Name blocked-by and
+parent edges by slice name — real issue numbers do not exist yet; the
+orchestrator maps slice names to issue numbers as it publishes in `NN`
+order, so every blocked-by resolves to a real, already-open issue and
+never a forward reference. Do not post to the tracker yourself —
+publishing sub-issues, edges, and claims are orchestrator actions
+(`skills/architect/dispatch.md` `## Issue conventions`). When the
+orchestrator runs this skill directly (`/architect-fast`), it publishes
+the drafts itself in the same order.
 
-Done when the whole plan is issues on the tracker, structural-first,
-frontier-maxed, and every blocked-by ID resolves to a real issue.
+Done when every slice in the plan has a draft file — structural-first,
+frontier-maxed — whose order publishes with no forward references. End
+your reply with one line: `ISSUE DRAFTS: <count> at
+docs/runs/<run>/issues/`.
