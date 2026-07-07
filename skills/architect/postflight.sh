@@ -87,6 +87,17 @@ case "$repo_root" in /*) ;; *) printf 'POSTFLIGHT: ERROR repo_root not absolute\
 tmp_dir="$repo_root/.architect/tmp/postflight"
 mkdir -p "$tmp_dir" 2>/dev/null || err "tmp unavailable"
 
+# Wrapper-exit-truth gate: CLI-launched jobs pass job_dir; unwrapped work
+# cannot merge (2026-07-07 bypass incident).
+job_dir=$(json_string job_dir)
+if [ -n "$job_dir" ]; then
+  jd=$(abs_path "$job_dir")
+  if [ ! -f "$jd/job.exit.json" ]; then
+    printf 'POSTFLIGHT: VIOLATION wrapper exit truth missing %s\n' "$jd/job.exit.json"
+    exit 2
+  fi
+fi
+
 current=$(git_repo rev-parse --abbrev-ref HEAD 2>/dev/null) || err "current branch unavailable"
 # Refuse to run off the configured factory branch before touch audit or merge.
 if [ "$current" != "$factory_branch" ]; then printf 'POSTFLIGHT: ERROR off factory branch current=%s expected=%s\n' "$current" "$factory_branch"; exit 5; fi

@@ -331,11 +331,29 @@ architect-v5 and architect-v5.1 specs, and loop-improvements research
   it does not resume polluted context (a running builder never re-reads its
   own issue comments; see §3, Copilot precedent).
 - **Builders never commit.** The orchestrator owns commits, merges, and
-  issue closure. Codex `workspace-write` is the one backend with verified
-  sandbox `.git` write protection; Claude builders use permission-deny rules
-  plus post-flight branch/commit checks instead
-  ([Codex sandboxing](https://developers.openai.com/codex/agent-approvals-security),
-  [headless docs](https://code.claude.com/docs/en/headless)).
+  issue closure. Enforcement is the prose ban plus postflight — the
+  touch-set audit over the full freeze->job diff and the wrapper-exit-truth
+  gate — on every backend
+  ([headless docs](https://code.claude.com/docs/en/headless)).
+- **The OS sandbox is weak by directive (owner directive, 2026-07-07).**
+  Builder, strategist, and verification CLI jobs run
+  `--sandbox danger-full-access`: network, outside reads, and outside
+  writes allowed. Three verified hang classes under the Codex Windows
+  sandbox's restricted token forced this, each wedging jobs *after* the
+  real work succeeded: Cygwin `CreateFileMapping` deaths (D13), pytest's
+  cacheprovider `pytest_sessionfinish -> tempfile.mkdtemp()` hang
+  (py-spy-verified, §7 2026-07-07), and asyncio subprocess/network
+  `select()` blocks on live-provider tests that pass unsandboxed. The
+  factory's real boundaries — never-commit, MAY TOUCH, read-only checks,
+  wrapped dispatch — are all enforced by postflight audits and grading,
+  so the sandbox bought hangs, not safety. Accepted trade-off: builders
+  can reach the network and the wider filesystem; the audit trail, not
+  the OS, is the containment. Researchers stay `--sandbox read-only`.
+- **Unwrapped work cannot merge (2026-07-07).** Postflight's `job_dir`
+  gate requires the wrapper's `job.exit.json` before any merge, closing
+  the bypass where an orchestrator launched raw background builders with
+  no watchdog armed and two jobs hung for 60-75 minutes undetected;
+  fixture-pinned in the validator.
 - **PHASE 0: disagreement is mandatory.** Before building, every job states
   its plan and every disagreement with the spec, citing real files — or what
   it checked before finding none. Silent compliance is a job defect.
@@ -923,7 +941,26 @@ cleanup. Both namespaces are load-bearing in shipped text.)
   solution, in git history before the 2026-07-04 cleanup);
   out-of-workspace temp paths and `asyncio.create_subprocess_exec`-based
   tooling hang under workspace-write — prescribe in-workspace temp/cache
-  paths and sequential check execution.
+  paths and sequential check execution. Superseded 2026-07-07: the default
+  posture is now `danger-full-access` (§4); these substitutions apply only
+  to jobs opted back into a sandbox.
+- **Cacheprovider and live-network hangs; the wrapper bypass (2026-07-07).**
+  Two independent runs, three findings. (1) Four builders across two repos
+  hung *after all tests passed*, py-spy-pinned to the identical frame:
+  `pytest_sessionfinish -> cacheprovider -> tempfile.mkdtemp()` never
+  returns under the sandbox's restricted token; TEMP/TMP/TMPDIR +
+  `--basetemp` + `-o cache_dir` redirects were tried live and did NOT fix
+  it — only `-p no:cacheprovider` does (negative result preserved in
+  dispatch.md `## Sandbox posture`). (2) A third hang class: a live-provider
+  test blocked in asyncio `select()` inside `codex exec`'s sandboxed shell
+  while passing in an unsandboxed one. (3) Both runs had launched builders
+  as raw background tasks without `run-job` or a watchdog — nothing
+  structurally prevented it; hangs sat 60-75 minutes until manual checks.
+  Fixes shipped: full-access default posture, the postflight `job_dir`
+  wrapper gate, and validator pins for all three. CPU-delta was useful
+  manual forensics (hot spin vs idle block) but stays out of the watchdog
+  by ruling — it cannot distinguish a wedged `mkdtemp` from a legitimate
+  long compile; `BLOCKED_ON_TOOL` covers the class deterministically.
 - **Loop-hygiene pre-freeze stress-test catch record (2026-07-04):** 6
   defects before dispatch, including the host-specific finding that bare
   `python` resolves to the Windows Store stub and validator checks must run as

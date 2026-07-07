@@ -79,7 +79,12 @@ report raw evidence only. See [DESIGN.md](DESIGN.md) for the evidence trail and
   must not commit, and must end with one raw `STATUS:` line.
 - Wrapped CLI jobs write `job.meta.json`, `job.heartbeat`, `job.exit.json`,
   `events.jsonl`, and `stderr.log`; exit truth outranks terminal-looking report
-  text.
+  text. Postflight refuses to merge CLI job work without that wrapper exit
+  truth — unwrapped work cannot merge.
+- The OS sandbox is deliberately weak (`danger-full-access`): builders may
+  use the network and the wider filesystem. The real boundaries are the
+  postflight touch-set audit, the never-commit ban, and read-only frozen
+  checks.
 - The watchdog reports typed evidence only. It never kills, nudges, or grades.
   Stuck jobs are reaped with `kill-job.ps1|.sh` and respawned from durable issue
   context.
