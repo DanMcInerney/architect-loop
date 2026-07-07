@@ -23,6 +23,7 @@ import shutil
 import subprocess
 import stat
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -43,6 +44,8 @@ REQUIRED_SIBLINGS = {
         "dispatch.md",
         "research.md",
         "loop.md",
+        "run-job.ps1",
+        "run-job.sh",
         "watchdog.ps1",
         "watchdog.sh",
         "status.ps1",
@@ -163,6 +166,79 @@ ARCHITECT_HANDOFF_FREE_FILES = [
     SKILLS / "architect" / "dispatch.md",
 ]
 errors: list[str] = []
+BASH_FLAVOR_CACHE: str | None = None
+BASH_INNER_PATH_CACHE: str | None = None
+
+
+def bash_flavor() -> str:
+    global BASH_FLAVOR_CACHE
+    if BASH_FLAVOR_CACHE is not None:
+        return BASH_FLAVOR_CACHE
+    bash = shutil.which("bash")
+    if not bash:
+        BASH_FLAVOR_CACHE = ""
+        return BASH_FLAVOR_CACHE
+    probe = (
+        "if command -v cygpath >/dev/null 2>&1; then echo msys; "
+        "elif [ -d /mnt/c ]; then echo wsl; "
+        "else echo posix; fi"
+    )
+    try:
+        result = subprocess.run(
+            [bash, "-lc", probe],
+            text=True,
+            capture_output=True,
+            timeout=5,
+        )
+        BASH_FLAVOR_CACHE = result.stdout.strip() if result.returncode == 0 else "posix"
+    except Exception:
+        BASH_FLAVOR_CACHE = "posix"
+    return BASH_FLAVOR_CACHE
+
+
+def bash_path(path: Path | str) -> str:
+    text = str(path)
+    if os.name == "nt" and re.match(r"^[A-Za-z]:\\", text):
+        rest = text[3:].replace(os.sep, "/")
+        if bash_flavor() == "msys":
+            return f"/{text[0].lower()}/{rest}"
+        if bash_flavor() == "wsl":
+            return f"/mnt/{text[0].lower()}/{rest}"
+    return text
+
+
+def bash_inner_executable() -> str:
+    global BASH_INNER_PATH_CACHE
+    if BASH_INNER_PATH_CACHE is not None:
+        return BASH_INNER_PATH_CACHE
+    bash = shutil.which("bash")
+    if not bash:
+        BASH_INNER_PATH_CACHE = "bash"
+        return BASH_INNER_PATH_CACHE
+    try:
+        result = subprocess.run(
+            [bash, "-lc", "command -v bash"],
+            text=True,
+            capture_output=True,
+            timeout=5,
+        )
+        BASH_INNER_PATH_CACHE = result.stdout.strip() if result.returncode == 0 else "bash"
+    except Exception:
+        BASH_INNER_PATH_CACHE = "bash"
+    return BASH_INNER_PATH_CACHE
+
+
+def bash_command_exists(command: str) -> bool:
+    bash = shutil.which("bash")
+    if not bash:
+        return False
+    result = subprocess.run(
+        [bash, "-lc", f"command -v {command} >/dev/null 2>&1"],
+        text=True,
+        capture_output=True,
+        timeout=5,
+    )
+    return result.returncode == 0
 
 
 def rmtree_with_writable_retry(path: Path) -> None:
@@ -618,6 +694,11 @@ def check_watchdog_contract() -> None:
             "WATCHDOG: INTEGRATED",
             "WATCHDOG: STALL",
             "WATCHDOG: REPEAT",
+            "WATCHDOG: DONE_FAILED",
+            "WATCHDOG: LEGACY_UNWRAPPED",
+            "WATCHDOG: REPORT_READY",
+            "WATCHDOG: ORPHANED",
+            "WATCHDOG: DEAD",
         ):
             if marker not in text:
                 errors.append(f"{path.relative_to(ROOT)}: missing {marker}")
@@ -633,7 +714,12 @@ def check_watchdog_contract() -> None:
         errors.append("skills/architect/dispatch.md: watchdog must re-arm on every dispatch event")
     if "Codex backend from a Claude orchestrator" in dispatch:
         errors.append("skills/architect/dispatch.md: CLI dispatch must not be Claude-orchestrator-specific")
-    for marker in ("`codex exec`, `claude -p`, or equivalent", "Claude Code or Codex orchestrator", "long-lived Bash task", "worktree file mtimes"):
+    for marker in (
+        "`codex exec`, `claude -p`, or a",
+        "Claude Code or Codex orchestrator",
+        "long-lived Bash task",
+        "wrapper-owned files",
+    ):
         if marker not in dispatch:
             errors.append(f"skills/architect/dispatch.md: missing CLI watchdog contract marker {marker!r}")
     if not re.search(r"all\s+in-flight CLI-launched jobs at every dispatch event", loop):
@@ -656,10 +742,10 @@ def check_watchdog_contract() -> None:
     if not codex_json_blocks:
         errors.append("skills/architect/dispatch.md: missing Codex --json dispatch examples")
     for i, block in enumerate(codex_json_blocks, start=1):
-        if not re.search(r"(?m)^\s+- < .+ > .+\.events\.jsonl$", block):
+        if "run-job.sh" not in block or "--stdin-file" not in block:
             errors.append(
                 "skills/architect/dispatch.md: Codex --json dispatch example "
-                f"{i} must redirect stdout to an .events.jsonl file"
+                f"{i} must run through the wrapper with --stdin-file"
             )
         for pin in ('-c service_tier="fast"', "-c features.fast_mode=true"):
             if pin not in block:
@@ -669,6 +755,435 @@ def check_watchdog_contract() -> None:
                 )
     if re.search(r"codex exec[\s\S]*?\|\s*tail", dispatch):
         errors.append("skills/architect/dispatch.md: Codex dispatch examples must not pipe through tail")
+    if re.search(r"(?m)^\s+-\s*<\s+.+>\s+.+\.events\.jsonl", dispatch):
+        errors.append("skills/architect/dispatch.md: wrapper, not the child command, must own event redirection")
+
+
+def watchdog_executor_cases() -> list[tuple[str, list[str], str]]:
+    cases: list[tuple[str, list[str], str]] = []
+    powershell = shutil.which("powershell")
+    if powershell:
+        cases.append(
+            (
+                "powershell",
+                [
+                    powershell,
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    str(SKILLS / "architect" / "watchdog.ps1"),
+                    "-Config",
+                ],
+                "ps1",
+            )
+        )
+    bash = shutil.which("bash")
+    if bash:
+        cases.append(("bash", [bash, bash_path(SKILLS / "architect" / "watchdog.sh"), "-Config"], "sh"))
+    return cases
+
+
+def run_job_prefix(kind: str) -> list[str] | None:
+    if kind == "ps1":
+        powershell = shutil.which("powershell")
+        if not powershell:
+            return None
+        return [
+            powershell,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(SKILLS / "architect" / "run-job.ps1"),
+        ]
+    bash = shutil.which("bash")
+    if not bash:
+        return None
+    return [bash, bash_path(SKILLS / "architect" / "run-job.sh")]
+
+
+def write_watchdog_config(
+    config: Path,
+    job_dir: Path,
+    workdir: Path,
+    report: Path,
+    sweep: int = 1,
+    path_for_config=lambda p: str(p),
+) -> None:
+    cfg = {
+        "sweep_sec": sweep,
+        "stall_after_min": 0.01,
+        "heartbeat_stale_sec": 5,
+        "report_ready_grace_sec": 1,
+        "jobs": [
+            {
+                "id": job_dir.name,
+                "job_dir": path_for_config(job_dir),
+                "events_file": path_for_config(job_dir / "events.jsonl"),
+                "report_path": path_for_config(report),
+                "worktree": path_for_config(workdir),
+                "duration_hint_min": 0,
+            }
+        ],
+    }
+    write_fixture_file(config, json.dumps(cfg))
+
+
+def watchdog_run(prefix: list[str], config: Path, label: str, expected_exit: int, needle: str) -> str:
+    config_arg = bash_path(config) if prefix and Path(prefix[0]).name.lower().startswith("bash") else str(config)
+    result = subprocess.run(
+        [*prefix, config_arg],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        timeout=12,
+    )
+    stdout = result.stdout.replace("\r\n", "\n")
+    stderr = result.stderr.replace("\r\n", "\n")
+    if result.returncode != expected_exit:
+        errors.append(
+            f"watchdog fixture {label}: expected exit {expected_exit} got {result.returncode}\n"
+            f"stdout:\n{stdout}\nstderr:\n{stderr}"
+        )
+    if needle not in stdout:
+        errors.append(f"watchdog fixture {label}: missing {needle!r}\nstdout:\n{stdout}\nstderr:\n{stderr}")
+    return stdout
+
+
+def run_wrapped_fake(
+    kind: str,
+    job_dir: Path,
+    workdir: Path,
+    report: Path,
+    fake: Path,
+    behavior: str,
+    detached: bool = False,
+) -> subprocess.Popen[str]:
+    prefix = run_job_prefix(kind)
+    if prefix is None:
+        raise RuntimeError(f"missing wrapper executor {kind}")
+    if kind == "ps1":
+        child = [sys.executable, str(fake), behavior, str(report)]
+        command = [
+            *prefix,
+            "-JobDir",
+            str(job_dir),
+            "-Workdir",
+            str(workdir),
+            "-Backend",
+            f"fake-{kind}",
+            "-ReportPath",
+            str(report),
+            "-HeartbeatSec",
+            "1",
+            "-ArgvJson",
+            json.dumps(child),
+        ]
+    else:
+        bash = shutil.which("bash")
+        if not bash:
+            raise RuntimeError("missing bash")
+        child = [bash_inner_executable(), bash_path(fake), behavior, bash_path(report)]
+        if detached:
+            if bash_command_exists("setsid"):
+                child = ["setsid", *child]
+            elif bash_command_exists("nohup"):
+                child = ["nohup", *child]
+        command = [
+            *prefix,
+            "--job-dir",
+            bash_path(job_dir),
+            "--workdir",
+            bash_path(workdir),
+            "--backend",
+            f"fake-{kind}",
+            "--report-path",
+            bash_path(report),
+            "--heartbeat-sec",
+            "1",
+            "--",
+            *child,
+        ]
+    return subprocess.Popen(command, cwd=ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
+def finish_wrapped_fake(proc: subprocess.Popen[str], label: str, timeout: int = 8) -> None:
+    try:
+        proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.communicate(timeout=5)
+        errors.append(f"watchdog fixture {label}: wrapper did not finish")
+
+
+def check_watchdog_determinism_fixture() -> None:
+    cases = watchdog_executor_cases()
+    if not cases:
+        errors.append("watchdog fixture: no runnable executor found")
+        return
+
+    base = ROOT / ".architect" / "tmp" / "watchdog-determinism-fixture"
+    if base.exists():
+        rmtree_with_writable_retry(base)
+    base.mkdir(parents=True)
+    fake_py = base / "fake_cli.py"
+    fake_sh = base / "fake_cli.sh"
+    write_fixture_file(
+        fake_py,
+        "\n".join(
+            [
+                "import json, sys, time",
+                "behavior, report = sys.argv[1], sys.argv[2]",
+                "def emit(obj):",
+                "    print(json.dumps(obj), flush=True)",
+                "if behavior == 'phase0':",
+                "    emit({'phase':'plan'})",
+                "    open(report, 'w', encoding='utf-8').write('PHASE 0 plan only\\n')",
+                "    sys.exit(0)",
+                "if behavior == 'die':",
+                "    emit({'phase':'mid-write'})",
+                "    open(report, 'w', encoding='utf-8').write('partial\\n')",
+                "    sys.exit(9)",
+                "if behavior == 'hang':",
+                "    time.sleep(4)",
+                "    sys.exit(0)",
+                "if behavior == 'loop':",
+                "    for _ in range(6):",
+                "        emit({'command':'same-command'})",
+                "        time.sleep(0.2)",
+                "    time.sleep(3)",
+                "    sys.exit(0)",
+                "if behavior == 'happy':",
+                "    emit({'command':'ok'})",
+                "    open(report, 'w', encoding='utf-8').write('done\\nSTATUS: COMPLETE\\n')",
+                "    sys.exit(0)",
+                "if behavior == 'orphan-live':",
+                "    for i in range(20):",
+                "        emit({'command':f'still-writing-{i}'})",
+                "        time.sleep(0.5)",
+                "    sys.exit(0)",
+                "sys.exit(64)",
+            ]
+        )
+        + "\n",
+    )
+    write_fixture_file(
+        fake_sh,
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                "set -u",
+                "behavior=$1",
+                "report=$2",
+                "emit(){ printf '%s\\n' \"$1\"; }",
+                "case \"$behavior\" in",
+                "  phase0)",
+                "    emit '{\"phase\":\"plan\"}'",
+                "    printf 'PHASE 0 plan only\\n' > \"$report\"",
+                "    exit 0",
+                "    ;;",
+                "  die)",
+                "    emit '{\"phase\":\"mid-write\"}'",
+                "    printf 'partial\\n' > \"$report\"",
+                "    exit 9",
+                "    ;;",
+                "  hang)",
+                "    sleep 4",
+                "    exit 0",
+                "    ;;",
+                "  loop)",
+                "    i=0",
+                "    while [ \"$i\" -lt 6 ]; do",
+                "      emit '{\"command\":\"same-command\"}'",
+                "      sleep 0.2",
+                "      i=$((i+1))",
+                "    done",
+                "    sleep 3",
+                "    exit 0",
+                "    ;;",
+                "  happy)",
+                "    emit '{\"command\":\"ok\"}'",
+                "    printf 'done\\nSTATUS: COMPLETE\\n' > \"$report\"",
+                "    exit 0",
+                "    ;;",
+                "  orphan-live)",
+                "    i=0",
+                "    while [ \"$i\" -lt 20 ]; do",
+                "      printf '{\"command\":\"still-writing-%s\"}\\n' \"$i\"",
+                "      sleep 0.5",
+                "      i=$((i+1))",
+                "    done",
+                "    exit 0",
+                "    ;;",
+                "esac",
+                "exit 64",
+            ]
+        )
+        + "\n",
+    )
+    try:
+        fake_sh.chmod(fake_sh.stat().st_mode | stat.S_IXUSR)
+    except OSError:
+        pass
+
+    for runner, watchdog_prefix, kind in cases:
+        wrapper_prefix = run_job_prefix(kind)
+        if wrapper_prefix is None:
+            continue
+        fake = fake_py if kind == "ps1" else fake_sh
+        path_for_config = bash_path if kind == "sh" else (lambda p: str(p))
+        for behavior, expected_exit, needle in (
+            ("phase0", 9, "WATCHDOG: DONE_FAILED"),
+            ("die", 9, "WATCHDOG: DONE_FAILED"),
+            ("happy", 0, "WATCHDOG: ALL_DONE"),
+        ):
+            job_dir = base / f"{runner}-{behavior}"
+            workdir = job_dir / "work"
+            report = job_dir / "report.md"
+            workdir.mkdir(parents=True)
+            proc = run_wrapped_fake(kind, job_dir, workdir, report, fake, behavior)
+            finish_wrapped_fake(proc, f"{runner} {behavior}")
+            config = job_dir / "watchdog.json"
+            write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
+            output = watchdog_run(watchdog_prefix, config, f"{runner} {behavior}", expected_exit, needle)
+            if behavior == "die" and "exit_code=9" not in output:
+                errors.append(f"watchdog fixture {runner} die: missing exit_code=9\nstdout:\n{output}")
+
+        for behavior, expected_exit, needle in (
+            ("hang", 3, "WATCHDOG: STALL"),
+            ("loop", 4, "WATCHDOG: REPEAT"),
+        ):
+            job_dir = base / f"{runner}-{behavior}"
+            workdir = job_dir / "work"
+            report = job_dir / "report.md"
+            workdir.mkdir(parents=True)
+            proc = run_wrapped_fake(kind, job_dir, workdir, report, fake, behavior)
+            config = job_dir / "watchdog.json"
+            write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
+            watchdog_run(watchdog_prefix, config, f"{runner} {behavior}", expected_exit, needle)
+            finish_wrapped_fake(proc, f"{runner} {behavior}")
+
+        job_dir = base / f"{runner}-orphan"
+        workdir = job_dir / "work"
+        report = job_dir / "report.md"
+        workdir.mkdir(parents=True)
+        write_fixture_file(job_dir / "job.meta.json", "{}")
+        write_fixture_file(job_dir / "job.heartbeat", "old\n")
+        os.utime(job_dir / "job.heartbeat", (1, 1))
+        write_fixture_file(job_dir / "events.jsonl", '{"command":"still-growing"}\n')
+        write_fixture_file(job_dir / "job.state.json", '{"last_size":0,"last_growth_epoch":1,"report_ready_epoch":0}\n')
+        config = job_dir / "watchdog.json"
+        write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
+        watchdog_run(watchdog_prefix, config, f"{runner} orphan", 7, "WATCHDOG: ORPHANED")
+
+        job_dir = base / f"{runner}-report-ready"
+        workdir = job_dir / "work"
+        report = job_dir / "report.md"
+        workdir.mkdir(parents=True)
+        write_fixture_file(job_dir / "job.meta.json", "{}")
+        write_fixture_file(job_dir / "job.heartbeat", "fresh\n")
+        write_fixture_file(job_dir / "events.jsonl", "")
+        write_fixture_file(report, "done\nSTATUS: COMPLETE\n")
+        write_fixture_file(job_dir / "job.state.json", '{"last_size":0,"last_growth_epoch":1,"report_ready_epoch":1}\n')
+        config = job_dir / "watchdog.json"
+        write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
+        watchdog_run(watchdog_prefix, config, f"{runner} report-ready", 6, "WATCHDOG: REPORT_READY")
+
+        job_dir = base / f"{runner}-dead"
+        workdir = job_dir / "work"
+        report = job_dir / "report.md"
+        workdir.mkdir(parents=True)
+        write_fixture_file(job_dir / "job.meta.json", "{}")
+        write_fixture_file(job_dir / "job.heartbeat", "old\n")
+        write_fixture_file(job_dir / "events.jsonl", "quiet\n")
+        for old_path in (job_dir / "job.meta.json", job_dir / "job.heartbeat", job_dir / "events.jsonl"):
+            os.utime(old_path, (1, 1))
+        config = job_dir / "watchdog.json"
+        write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
+        watchdog_run(watchdog_prefix, config, f"{runner} dead", 8, "WATCHDOG: DEAD")
+
+        job_dir = base / f"{runner}-legacy"
+        workdir = job_dir / "work"
+        report = job_dir / "report.md"
+        workdir.mkdir(parents=True)
+        write_fixture_file(job_dir / "events.jsonl", "legacy output\n")
+        config = job_dir / "watchdog.json"
+        write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
+        watchdog_run(watchdog_prefix, config, f"{runner} legacy", 10, "WATCHDOG: LEGACY_UNWRAPPED")
+
+        job_dir = base / f"{runner}-missing-workdir"
+        workdir = job_dir / "missing-work"
+        report = job_dir / "report.md"
+        proc = run_wrapped_fake(kind, job_dir, workdir, report, fake, "happy")
+        finish_wrapped_fake(proc, f"{runner} missing-workdir")
+        config = job_dir / "watchdog.json"
+        write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
+        output = watchdog_run(watchdog_prefix, config, f"{runner} missing-workdir", 9, "WATCHDOG: DONE_FAILED")
+        if "LEGACY_UNWRAPPED" in output or "INTEGRATED" in output:
+            errors.append(f"watchdog fixture {runner} missing-workdir: wrapper failure lost exit truth\nstdout:\n{output}")
+
+        job_dir = base / f"{runner}-integrated-worktree"
+        workdir = job_dir / "vanished-work"
+        report = job_dir / "report.md"
+        job_dir.mkdir(parents=True)
+        write_fixture_file(job_dir / "job.meta.json", "{}")
+        write_fixture_file(job_dir / "job.heartbeat", "fresh\n")
+        write_fixture_file(job_dir / "events.jsonl", "evidence remains\n")
+        config = job_dir / "watchdog.json"
+        write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
+        watchdog_run(watchdog_prefix, config, f"{runner} integrated-worktree", 2, "WATCHDOG: INTEGRATED")
+
+        job_dir = base / f"{runner}-integrated-events"
+        workdir = job_dir / "work"
+        report = job_dir / "report.md"
+        workdir.mkdir(parents=True)
+        write_fixture_file(job_dir / "job.meta.json", "{}")
+        write_fixture_file(job_dir / "job.heartbeat", "fresh\n")
+        config = job_dir / "watchdog.json"
+        write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
+        watchdog_run(watchdog_prefix, config, f"{runner} integrated-events", 2, "WATCHDOG: INTEGRATED")
+
+        if kind == "ps1":
+            job_dir = base / f"{runner}-start-failure"
+            workdir = job_dir / "work"
+            report = job_dir / "report.md"
+            workdir.mkdir(parents=True)
+            prefix = run_job_prefix(kind) or []
+            command = [
+                *prefix,
+                "-JobDir",
+                str(job_dir),
+                "-Workdir",
+                str(workdir),
+                "-Backend",
+                "fake-start-failure",
+                "-ReportPath",
+                str(report),
+                "-ArgvJson",
+                json.dumps(["definitely-not-a-real-executable-architect-loop"]),
+            ]
+            proc = subprocess.Popen(command, cwd=ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            finish_wrapped_fake(proc, f"{runner} start-failure")
+            config = job_dir / "watchdog.json"
+            write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
+            output = watchdog_run(watchdog_prefix, config, f"{runner} start-failure", 9, "WATCHDOG: DONE_FAILED")
+            if "LEGACY_UNWRAPPED" in output:
+                errors.append(f"watchdog fixture {runner} start-failure: missing metadata on Start-Process failure\nstdout:\n{output}")
+
+        if kind == "sh":
+            job_dir = base / f"{runner}-real-orphan"
+            workdir = job_dir / "work"
+            report = job_dir / "report.md"
+            workdir.mkdir(parents=True)
+            proc = run_wrapped_fake(kind, job_dir, workdir, report, fake, "orphan-live", detached=True)
+            time.sleep(1.5)
+            proc.kill()
+            proc.communicate(timeout=5)
+            time.sleep(6)
+            config = job_dir / "watchdog.json"
+            write_watchdog_config(config, job_dir, workdir, report, path_for_config=path_for_config)
+            watchdog_run(watchdog_prefix, config, f"{runner} real-orphan", 7, "WATCHDOG: ORPHANED")
 
 
 def check_status_contract() -> None:
@@ -778,7 +1293,7 @@ def git_fixture(repo_root: Path, *args: str, check: bool = True) -> subprocess.C
 
 def write_fixture_file(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
+    path.write_text(text, encoding="utf-8", newline="\n")
 
 
 def configure_fixture_repo(repo_root: Path) -> str | None:
@@ -1759,6 +2274,7 @@ def main() -> int:
     check_agent_definitions()
     check_codex_install_step()
     check_watchdog_contract()
+    check_watchdog_determinism_fixture()
     check_status_contract()
     check_status_run_pinning_fixture()
     check_postflight_lane_fixture()
