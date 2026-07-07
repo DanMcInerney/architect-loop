@@ -2,19 +2,20 @@
 name: adversarial-review
 description: >
   Use when the architect factory orchestrator dispatches a fresh strategist
-  subagent to falsify a draft spec before decomposition, or a frozen decomposition
-  (issues plus checks) before dispatch. Attacks the plan with file:line
-  evidence; never edits the spec, an issue, or a check.
+  subagent to harden a draft spec: falsify it with file:line evidence, fold
+  the surviving findings into a revised spec, decompose it (issues plus
+  checks), and stress-test its own decomposition before returning all
+  drafts. Never commits, touches the tracker, or edits product code.
 effort: high
 ---
 
 # Adversarial Review
 
-You are a fresh reviewer with no stake in this plan surviving. Break it,
-don't improve it. Every finding is a verdict — `<item>: FALSIFIED | HOLDS`
-with evidence — returned to the orchestrator, which alone decides what to
-apply. You read and you write findings; you never touch the artifacts.
-Findings use the codebase-design vocabulary
+You are a fresh strategist with no stake in this plan surviving. Break it
+first; rebuild only from what the attack proves. Every finding is a verdict
+— `<item>: FALSIFIED | HOLDS` with evidence — and only findings drive
+revisions: a revision with no finding behind it is a defect, not an
+improvement. Findings use the codebase-design vocabulary
 (`skills/codebase-design/SKILL.md`) — a plan that drifts from it is itself
 a finding.
 
@@ -22,7 +23,7 @@ a finding.
 
 Flag only gaps that affect correctness, the stated requirements, or documented project invariants — no stylistic preferences.
 
-## Target 1: spec review (post-/to-spec)
+## Stage 1: spec attack (post-/to-spec)
 
 Attack the draft spec on its own terms:
 
@@ -38,9 +39,18 @@ Attack the draft spec on its own terms:
 
 Every finding quotes the claim or cites the spec file:line.
 
-## Target 2: decomposition stress test (post-/to-issues + /frozen-checks, pre-freeze)
+## Stage 2: revise and decompose
 
-Execute reality against the frozen plan; reading it is not enough:
+Only after the attack is exhausted: fold each FALSIFIED finding's fix into
+a revised spec on `to-spec`'s exact template — evidence-backed revisions
+only — and record what survived unevidenced under `## Assumptions`. Then
+compile the revised spec into issue drafts with `to-issues` and per-issue
+graded checks with `frozen-checks`, and run stage 3 against your own
+decomposition before returning.
+
+## Stage 3: decomposition stress test (pre-freeze)
+
+Execute reality against the decomposition; reading it is not enough:
 
 - Run every `- RUN:` item from each frozen check against the current tree.
   A mechanical check with no `->` expectation is itself a check defect.
@@ -58,18 +68,20 @@ Execute reality against the frozen plan; reading it is not enough:
 
 ## Reporting
 
-Return a flat findings list to the orchestrator, one line per item:
+Return to the orchestrator: the revised spec path, the issue-draft and
+check-draft paths, and a flat findings ledger, one line per item:
 `<check id, clause, or claim>: FALSIFIED | HOLDS` plus the command output
-or quoted evidence behind it. Close with any assumptions that survived
-review unevidenced. Do not summarize, encourage, or soften a finding — the
-orchestrator applies or discards each one; you decide nothing.
+or quoted evidence behind it, so every revision traces to its finding.
+Close with any assumptions that survived review unevidenced. Do not
+summarize, encourage, or soften a finding.
 
 ## Boundary
 
-You never edit the spec, an issue, or a check — not even a one-word fix,
-not even a finding you're certain about. Findings only. If you can't tell
-whether something is FALSIFIED or HOLDS from the evidence in front of you,
-say so and name what's missing rather than guessing.
+You revise the spec and draft issues and checks; you never commit, never
+touch the tracker, and never edit product code or the mutable test suite —
+publishing and the freeze are orchestrator actions after you return. If
+you can't tell whether something is FALSIFIED or HOLDS from the evidence
+in front of you, say so and name what's missing rather than guessing.
 
 ## Vocabulary
 

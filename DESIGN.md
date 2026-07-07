@@ -8,7 +8,8 @@ tests, answers blockers, grades every issue's frozen checks through a
 deterministic check-runner, closes with one fresh, read-only strategist review
 over the whole run diff that decomposes any findings into fix issues built by
 a parallel fix wave before the integrate subagent (docs pass first) preps the
-PR, and merges — with exactly one human step, spec approval. This document is the
+PR, and merges — with no approval gate anywhere: every human question resolves
+through the timed-ruling protocol. This document is the
 "why", with citations; the skill files in `skills/architect/` are the "how";
 [CONTEXT.md](CONTEXT.md) is the vocabulary.
 
@@ -75,9 +76,9 @@ wiring them into two installable skills with the failure modes closed.
 | **Builder** | fresh worker agent, one per issue, own worktree | implementation and raw-evidence reporting only |
 | **Judge** *(retired — see note)* | fresh builders-model agent, read-only | checks-integrity review, diff-vs-intent, one graded-check spot-check |
 | **Watchdog** | deterministic script per wave; "monitor" informally | mechanical stall evidence only — never kills, never decides |
-| **Adversarial reviewer** | fresh strategist reviewer, pre-freeze | the stress-test pass (called the *grill* in earlier runs) falsifies the decomposition before it's authorized |
+| **Harden strategist** | fresh strategist, one dispatch pre-freeze | the adversarial attack (called the *grill* in earlier runs), the revised spec, issue decomposition, check drafting, and the self-run decomposition stress test |
 | **Cohesion reviewer** | fresh strategist subagent, once per run | read-only closing review over the whole run diff; verified findings become a review spec cut into fix issues for the fix wave, never a direct edit |
-| **Human** | you | spec approval, hard stops, taste |
+| **Human** | you | hard stops, ruling vetoes, taste |
 
 Note (human-directed, 2026-07): the per-issue Judge role was retired in
 favor of the closing cohesion review alone; the skill-library run removed it
@@ -176,38 +177,30 @@ advice. Tags like D4/P2 refer to the numbered decisions in
 architect-v5 and architect-v5.1 specs, and loop-improvements research
 (evidence: git history before the 2026-07-04 cleanup).
 
-### Intake and spec approval
+### Intake and spec hardening
 
-- **At most ~5 materiality-tested questions, in one batch (D3).** GitHub Spec
-  Kit's `/clarify` is the template: each question must pass "would the answer
-  materially change implementation or validation strategy?"; everything else
-  becomes a recorded `## Assumptions` section the human can veto. This is the
-  established middle path between maximal stress-testing and zero questions
-  ([Spec Kit](https://github.com/github/spec-kit);
-  evidence: autonomous-software-factory research, in git history before the
-  2026-07-04 cleanup).
-- **Spec approval is the one human step (D4).** The human reviews one
-  `docs/spec/<project>.md`, edits or vetoes assumptions, and approves.
-  Approval authorizes the entire plan — after it, the human hears from
-  the factory only through the tracking issue digest or a hard stop. Concentrating
-  human attention at the spec is where misdesign is cheapest to fix
-  ([PEAR](https://arxiv.org/abs/2510.07505): planner errors dominate).
-- **Approval is explicit, durable, and fail-safe.** The two approval forms
-  are in-session approval or an `APPROVE` comment on the tracking issue;
-  an invocation can also pre-authorize a run only when the exact
-  pre-authorization text is recorded verbatim. The evidence is the same shape
-  across deployment systems and agent products: GitHub environments auto-fail
-  unapproved runs after 30 days, Azure timeout-rejects approvals, OWASP
-  fail-safe defaults ban inferred allow, and Copilot treats assignment itself
-  as authorization. The 2026-07-03 human directive in the loop-tuning spec
-  (evidence: git history before the 2026-07-04 cleanup) overrides the earlier
-  park-and-poll product behavior: absent a human answer, wait about 5 minutes,
-  rule with the orchestrator's best judgment, record the ruling for
-  after-the-fact veto, and continue. Carve-out: irreversible or destructive
-  choices resolve to the non-destructive path on silence; `docs/STOP` remains
-  absolute
+- **No question batch and no spec approval (owner directive, 2026-07-07).**
+  Supersedes D3 (the ~5-question intake batch) and D4 (spec approval as the
+  one human step): the goal feeds a fresh strategist's spec draft directly,
+  every open question resolves through the timed-ruling protocol (~5-minute
+  auto-default, recorded, veto-able after the fact), and no approval gate
+  exists in either lane. The human steers by editing the spec, commenting
+  rulings, vetoing digests, or `docs/STOP`. D3/D4's rationale and citations
+  (Spec Kit, PEAR, GitHub environments, Azure, OWASP fail-safe defaults)
+  remain in git history; the timed-ruling carve-out is unchanged —
+  irreversible or destructive choices resolve to the non-destructive path on
+  silence, and `docs/STOP` remains absolute
   (evidence: factory-hardening research, in git history before the
-  2026-07-04 cleanup).
+  2026-07-04 cleanup; owner directive, flow respec, 2026-07-07).
+- **One harden dispatch replaces review–approve–decompose (owner directive,
+  2026-07-07).** A single fresh strategist runs the adversarial attack on
+  the draft, folds the surviving findings into a revised spec, decomposes it
+  with `to-issues`, drafts frozen checks, and stress-tests its own
+  decomposition before returning all drafts; the orchestrator rules,
+  publishes, and freezes. This collapses the former separate adversarial
+  spec review, human approval, strategist decomposition dispatch, and
+  pre-freeze stress pass into one fresh-context dispatch with the
+  orchestrator as the only gate.
 - **Preflight has no fallback.** A GitHub remote, passing `gh auth status`,
   and `gh` ≥ 2.94.0 are hard preconditions; failing any of them fails
   loudly rather than degrading to a local tracker (no silent fallback, P1).
@@ -308,15 +301,16 @@ architect-v5 and architect-v5.1 specs, and loop-improvements research
   [ImpossibleBench](https://arxiv.org/abs/2510.20270)), so builders get no
   iterate-against-the-judge feedback channel.
 - **Freeze → push → dispatch, then verify (v5.1 D2).** The factory branch
-  `factory/<run>` is cut at spec approval; the freeze commit is pushed
+  `factory/<run>` is cut at intake, when the spec draft returns; the freeze commit is pushed
   before any dispatch; after each spawn the orchestrator verifies the
   worktree HEAD equals the freeze commit and spot-checks one frozen file on
   disk. Motivated by a live finding: the first harness-created worktree had
   a fast-forwarded ref but stale files on disk (evidence:
   worktree-stale-snapshot solution, in git history before the 2026-07-04
   cleanup).
-- **One fresh independent adversarial pass attacks the whole decomposition (P2, widened by
-  v5.1 D3).** Before the freeze, a read-only adversarial agent executes
+- **The decomposition stress test executes before the freeze (P2, widened by
+  v5.1 D3; folded into the harden dispatch by the 2026-07-07 owner
+  directive).** The harden strategist executes
   draft check commands against the current tree, attacks acceptance criteria
   for non-falsifiability and repo-name grep collisions, sweeps references to
   files the plan deletes or renames, and checks new artifact paths against
@@ -508,12 +502,14 @@ runner's first live use finished 7/7.
   while the reverse hurt; the skill prefers Claude-reviews-Codex and records
   the direction in the verdict comment
   ([cross-provider review](https://www.mindstudio.ai/blog/openai-codex-plugin-claude-code-cross-provider-review)).
-- **Closing review is human-gated and read-only (review-fanout, 2026-07-06,
-  issue #137).** After the last build issue closes and before integrate, the
-  orchestrator asks through the timed-ruling protocol whether to run
-  a comprehensive review. The default is yes; if it runs, the reviewer is at
-  the resolved strategist model, reads spec -> diff, and edits
-  no product code and no tests. Zero verified findings return a GREEN verdict
+- **Closing review is unconditional and read-only (review-fanout,
+  2026-07-06, issue #137; the entry ruling was removed by the 2026-07-07
+  owner directive).** After the last build issue closes and before
+  integrate, the orchestrator runs the closing test pass — builder-built
+  suites plus every frozen RUN item at the factory branch head — and always
+  dispatches the reviewer with that raw output in its dispatch block. The
+  reviewer is at the resolved strategist model, reads spec -> diff ->
+  test-pass output, and edits no product code and no tests. Zero verified findings return a GREEN verdict
   and the run proceeds straight to integrate. One or more findings become a
   review spec — the findings as requirements — cut into fix issues with draft
   graded checks; the orchestrator freezes the checks, files the issues, and
@@ -571,8 +567,8 @@ runner's first live use finished 7/7.
   at most.
 - **Hard stops (D11).** the `docs/STOP` kill-all switch before any wave;
   `docs/runs/<run>/STOP` for one run; irreversible actions; two consecutive
-  KILLs; a blocker colliding with a recorded assumption (a spec-approval
-  decision surfacing late); scope growth beyond the approved spec;
+  KILLs; a blocker colliding with a recorded assumption (a spec-level
+  decision surfacing late); scope growth beyond the hardened spec;
   unsatisfiable preflight. All of them stop the factory and ask the human.
 
 ### Model routing
@@ -773,21 +769,24 @@ What it drops, and why the drops are safe at the size ceiling (≤3 issues,
 ~≤400 changed lines total):
 
 - **No frozen checks, no check-runner.** Issue-body acceptance criteria
-  plus builder-run tests plus the orchestrator's own review are the gates.
-  At ≤400 lines the orchestrator can hold the whole diff in mind for one
+  plus builder-run tests plus the closing builder review are the gates.
+  At ≤400 lines one reviewer can hold the whole diff in mind for one
   pass — the same line count already gates per-issue review effectiveness
   in `/architect` (§4, Decomposition, "Judged diffs target ≤~400 changed
   lines").
-- **No adversarial spec review.** At small scale the
-  orchestrator's own ≤3 materiality-tested questions plus recorded,
-  vetoable assumptions substitute; the size ceiling is the safety valve —
+- **No adversarial spec review.** At small scale the orchestrator's own
+  spec plus recorded, vetoable timed-ruling assumptions substitute; the
+  size ceiling is the safety valve —
   an honest decomposition needing more than 3 issues stops and recommends
   `/architect` instead of stretching the light lane past where it's safe.
 - **The review doctrine is relaxed, not the docs doctrine.** A deliberate,
-  recorded relaxation of Hard Rules 3 and 4: the orchestrator both reviews
-  its own run's diff (no fresh subagent) and writes the fixes directly (no
-  third-strike gate). The closing PR is the later eyes on that work — the
-  `integrate` subagent verifies mechanically but reviews no code
+  recorded relaxation of Hard Rules 3 and 4, reshaped by the 2026-07-07
+  owner directive: after the orchestrator's closing test pass, one fresh
+  builder subagent reviews the whole run diff with the test output in its
+  dispatch block, records its findings as one fix issue, and fixes them in
+  its own worktree with no check-runner over that work; the orchestrator
+  merges through postflight. The closing PR is the later eyes on that work
+  — the `integrate` subagent verifies mechanically but reviews no code
   correctness. Product docs still land in integrate's docs pass, the same
   never-the-orchestrator path as `/architect` (§4, Run mechanics and
   memory).
@@ -845,9 +844,10 @@ Full flow, the substitution table, and the recorded assumptions:
 - **Not just Goal Mode.** Codex's Goal Mode loops plan→act→test→review
   internally; this design adds what it lacks — frozen external checks, fresh
   cross-model judgment, issue-plan coordination, and repo-resident evidence.
-- **Not human-free.** Autonomy is bounded by spec approval at the front and
-  hard stops throughout; kill/continue authority inside the run belongs to
-  judges and hard-stop rules, and taste stays with the human.
+- **Not human-free.** Autonomy is bounded by timed rulings with recorded,
+  veto-able defaults and hard stops throughout; kill/continue authority
+  inside the run belongs to typed gates and hard-stop rules, and taste
+  stays with the human.
 
 ---
 

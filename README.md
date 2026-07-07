@@ -1,8 +1,9 @@
 # architect-loop
 
-**A spec-approved autonomous software factory for Codex and Claude: one
-orchestrator, fresh-context strategist and builder agents, deterministic gates,
-and a single shipping PR or local finish record.**
+**An autonomous software factory for Codex and Claude: one orchestrator,
+fresh-context strategist and builder agents, deterministic gates,
+and a single shipping PR or local finish record — no approval gates,
+timed rulings all the way down.**
 
 ## Usage
 
@@ -14,7 +15,7 @@ and a single shipping PR or local finish record.**
 
 - `/architect-research` explores a topic and writes an answer-first report.
 - `/architect-fast` ships a small, bounded change through the light lane.
-- `/architect` runs the full multi-hour factory. Approve the spec, then let it work.
+- `/architect` runs the full multi-hour factory. State the goal, then let it work.
 
 ## Installation
 
@@ -63,12 +64,15 @@ report raw evidence only. See [DESIGN.md](DESIGN.md) for the evidence trail and
 
 ![architect flow](assets/architect-flow.svg)
 
-- Intake asks at most five materiality-tested questions, records assumptions,
-  drafts a spec, and runs an adversarial review before approval.
-- Spec approval is the one human gate: in-session approval, tracker `APPROVE`,
-  or timed 5-minute auto-approval with a recorded ruling.
-- The strategist decomposes the approved spec into file-disjoint vertical-slice
-  issues and frozen checks. Checks freeze in git before any builder exists.
+- Intake feeds the goal straight to a fresh strategist that drafts the spec;
+  open questions become timed rulings that auto-default into recorded
+  assumptions. There is no human approval gate anywhere — the human steers
+  by editing the spec, commenting rulings, or `docs/STOP`.
+- One fresh harden strategist attacks the draft, folds surviving findings
+  into a revised spec, decomposes it into file-disjoint vertical-slice
+  issues, drafts frozen checks, and stress-tests its own decomposition.
+- The orchestrator publishes the spec and issues to the tracker and owns the
+  freeze commit. Checks freeze in git before any builder exists.
 - The run manifest pins the tracking issue, tracker mode, factory branch, and
   spec path; every issue carries a run marker.
 - Builders run in fresh worktrees. They must state disagreements before coding,
@@ -82,7 +86,9 @@ report raw evidence only. See [DESIGN.md](DESIGN.md) for the evidence trail and
 - The check-runner grades frozen RUN items with fixed expectations. Postflight
   audits touched files, merges green jobs, and records deferred cleanup if a
   worktree cannot be removed immediately.
-- The final review is one fresh, read-only strategist pass over the whole run.
+- At finish the orchestrator runs the closing test pass — builder-built
+  suites plus every frozen RUN item — and feeds the raw output into the
+  final review: one fresh, read-only strategist pass over the whole run.
   Findings become fix issues and draft checks for a fix wave; zero findings
   short-circuit to integrate.
 - `integrate` is a builder-model stage whose first step is the docs pass. It
@@ -97,13 +103,15 @@ report raw evidence only. See [DESIGN.md](DESIGN.md) for the evidence trail and
   three builder issues and roughly 400 changed lines.
 - No strategist subagents, no adversarial review, no frozen checks, no
   per-issue check-runner, and no watchdog script. Issue-body acceptance
-  criteria, builder-run tests, and the orchestrator review carry the gate.
+  criteria, builder-run tests, and the closing builder review carry the gate.
 - Each job records its dispatch-head SHA; that SHA is the postflight diff base
   in place of a freeze SHA.
 - One per-wave timed fallback wake replaces watchdog monitoring.
-- After all issues merge, the orchestrator reviews code, cohesion, and tests,
-  makes any fixes directly, records the verdict and diffstat, then dispatches
-  `integrate`.
+- After all issues merge, the orchestrator runs the full test suite and hands
+  the output to one fresh builder subagent that reviews code, cohesion, and
+  tests, records its findings as one fix issue, and fixes them in its
+  worktree; the orchestrator merges, records the verdict and diffstat, then
+  dispatches `integrate`.
 - If the work exceeds the size ceiling, the lane stops and recommends
   `/architect`.
 

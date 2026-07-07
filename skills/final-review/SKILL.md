@@ -29,6 +29,7 @@ grades, same as any other issue.
 1. The spec (`docs/spec/<run>.md`): goal, non-goals, validation strategy.
 2. The full run diff: `git diff <pre-run-sha>..HEAD`.
 3. Every shipped issue's published interface contract block.
+4. The closing test-pass output in your dispatch block — builder-built suites plus every frozen RUN item, run by the orchestrator at the head you review.
 
 Dispatch mechanics — worktree from the factory branch head, `docs/checks/`
 read-only, you commit nothing, downstream harvest/freeze/filing/dispatch is
@@ -94,7 +95,7 @@ Severity counts and the per-axis worst finding accompany either line.
 One or more verified findings: write the review spec at
 `docs/runs/<run>/review-spec.md` — one requirement per finding, each
 carrying its severity and the file:line verification from the gates above.
-A run artifact, not a human-approved spec.
+A run artifact, not the run's hardened spec.
 
 Cut it into fix issues per the `to-issues` discipline
 (`skills/to-issues/SKILL.md`): tracer-bullet slices, structural before
