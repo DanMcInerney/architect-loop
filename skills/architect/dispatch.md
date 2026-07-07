@@ -131,47 +131,37 @@ Launch pattern: write the runner config JSON — fields `check_file`, `workdir`,
 
 ## CLI-launched subagent dispatch
 
-The worktree pre-creation and `codex exec` commands in this section are
-Codex-backend builder jobs, regardless of whether the orchestrator is Claude
-Code or Codex. Claude-backend harness jobs never pre-create a worktree — see
-the Per-harness delegation table above.
+Worktree pre-creation and `codex exec` are Codex-backend builder jobs even under Claude Code; Claude-backend harness jobs use the Per-harness delegation table.
 
-For any CLI-launched subagent (`codex exec`, `claude -p`, or equivalent), write
-the prompt block to a file/stdin, redirect the machine event stream directly to
-the watchdog events file; never pipe the stream through `tail` or another
-live-display filter.
+All long-lived CLI builders run through `run-job.ps1|.sh`; the wrapper writes `job.meta.json`, `job.heartbeat`, `job.exit.json`, and `events.jsonl`. It accepts an opaque command, so the child can be `codex exec`, `claude -p`, or a long check-runner under a Claude Code or Codex orchestrator. Never pipe live stdout through display filters such as `tail`; the wrapper owns redirection. Every dispatch event re-arms the watchdog over all in-flight CLI jobs.
 
-Single-job slice in the current checkout, resolved builders `codex/best`:
+Single Codex-backed job:
 
 ```bash
-codex exec -C <repo-root> --sandbox workspace-write \
-  -m gpt-5.5 -c model_reasoning_effort="xhigh" \
-  -c service_tier="fast" -c features.fast_mode=true \
-  --json -o .architect/last-run.md \
-  - < .architect/dispatch-block.md > .architect/last-run.events.jsonl
+<repo-root>/skills/architect/run-job.sh --job-dir <repo-root>/.architect/jobs/<run>/<slice>-<NN> --workdir <repo-root>/.architect/wt/<run>/<slice>-<NN> --backend codex-cli --report-path <repo-root>/docs/jobs/<run>/<slice>-01.md --stdin-file <repo-root>/.architect/jobs/<run>/<slice>-<NN>/block.md -- \
+  codex exec -C <repo-root>/.architect/wt/<run>/<slice>-<NN> --sandbox workspace-write -m gpt-5.5 -c model_reasoning_effort="xhigh" -c service_tier="fast" -c features.fast_mode=true --json -o <repo-root>/.architect/jobs/<run>/<slice>-<NN>/last-run.md \
+  -
 ```
 
-If the effort call resolves to `codex/tier-down`, change only the effort pin:
+Claude-CLI-backed jobs use the same wrapper and change only the child:
 
 ```bash
-codex exec -C <repo-root> --sandbox workspace-write \
-  -m gpt-5.5 -c model_reasoning_effort="high" \
-  -c service_tier="fast" -c features.fast_mode=true \
-  --json -o .architect/last-run.md \
-  - < .architect/dispatch-block.md > .architect/last-run.events.jsonl
+<repo-root>/skills/architect/run-job.sh --job-dir <repo-root>/.architect/jobs/<run>/<slice>-<NN> --workdir <repo-root>/.architect/wt/<run>/<slice>-<NN> --backend claude-cli --report-path <repo-root>/docs/jobs/<run>/<slice>-01.md --stdin-file <repo-root>/.architect/jobs/<run>/<slice>-<NN>/block.md -- \
+  claude -p --model fable --effort high --output-format stream-json --verbose
+```
+
+PowerShell uses `-ArgvJson` so child argv stays opaque:
+
+```powershell
+$argv = @("claude","-p","--model","fable","--effort","high","--output-format","stream-json","--verbose") | ConvertTo-Json -Compress
+& <repo-root>\skills\architect\run-job.ps1 -JobDir <repo-root>\.architect\jobs\<run>\<slice>-<NN> -Workdir <repo-root>\.architect\wt\<run>\<slice>-<NN> -Backend claude-cli -ReportPath <repo-root>\docs\jobs\<run>\<slice>-01.md -StdinFile <repo-root>\.architect\jobs\<run>\<slice>-<NN>\block.md -ArgvJson $argv
 ```
 
 For 2-10 CLI-launched jobs, the orchestrator owns worktree creation and parallelism:
 
 ```bash
-git -C <repo-root> worktree add .architect/wt/<run>/<slice>-<NN> \
-  -b job/<run>/<slice>-<NN> <freeze-sha>
-
-codex exec -C <repo-root>/.architect/wt/<run>/<slice>-<NN> --sandbox workspace-write \
-  -m gpt-5.5 -c model_reasoning_effort="xhigh" \
-  -c service_tier="fast" -c features.fast_mode=true \
-  --json -o .architect/wt/<run>/<slice>-<NN>.last-run.md \
-  - < .architect/wt/<run>/<slice>-<NN>.block.md > .architect/wt/<run>/<slice>-<NN>.events.jsonl
+git -C <repo-root> worktree add <repo-root>/.architect/wt/<run>/<slice>-<NN> -b job/<run>/<slice>-<NN> <freeze-sha>
+<repo-root>/skills/architect/run-job.sh ... -- <codex-or-claude command for that worktree>
 ```
 
 A worktree's `.git` is a pointer file and the resolved git dir is
@@ -340,8 +330,8 @@ Interface contract:
   "sweep_sec": 120,
   "stall_after_min": 10,
   "jobs": [
-    { "id": "issue-31", "events_file": "<path>", "report_path": "<path>",
-      "worktree": "<path>", "duration_hint_min": 0 }
+    { "id": "issue-31", "job_dir": "<path>", "events_file": "<path>",
+      "report_path": "<path>", "worktree": "<path>", "duration_hint_min": 0 }
   ]
 }
 ```
@@ -353,8 +343,14 @@ The watchdog never kills, nudges, or judges. It exits with typed evidence:
 |---|---|---|
 | 0 | `WATCHDOG: ALL_DONE` | every job report exists, with path and byte size evidence |
 | 2 | `WATCHDOG: INTEGRATED` | a job worktree or events file vanished because the orchestrator integrated it mid-sweep |
-| 3 | `WATCHDOG: STALL` | events/report bytes and file mtimes stopped advancing beyond `stall_after_min` plus any duration hint |
+| 3 | `WATCHDOG: STALL` | wrapper heartbeat is fresh but event/report growth stopped beyond `stall_after_min` plus any duration hint |
 | 4 | `WATCHDOG: REPEAT` | the last four parsed command events were identical and need an intentional-vs-stuck ruling |
+| 5 | `WATCHDOG: ERROR` | watchdog config is missing or unreadable |
+| 6 | `WATCHDOG: REPORT_READY` | terminal `STATUS:` exists but `job.exit.json` did not arrive after one sweep |
+| 7 | `WATCHDOG: ORPHANED` | wrapper heartbeat is stale but event/report output still grows |
+| 8 | `WATCHDOG: DEAD` | wrapper heartbeat is stale and no event/report output is growing |
+| 9 | `WATCHDOG: DONE_FAILED` | child exited nonzero, or exited 0 without terminal `STATUS:` |
+| 10 | `WATCHDOG: LEGACY_UNWRAPPED` | job lacks wrapper metadata and cannot provide deterministic exit truth |
 
 Use the LLM fallback only for backends where the orchestrator cannot launch or
 wait on a long-lived Bash task whose exit wakes the loop.
@@ -433,17 +429,22 @@ verification, and config blocks with file tools, never heredocs. Never rely on a
 persisted cwd across commands; run #30 lost three commands to current-directory
 drift before this rule was written down.
 
-Liveness is judged from report/output file growth, worktree file mtimes, and
-the harness task lifecycle — never from process listings:
+Liveness is judged from wrapper-owned files, never cross-session process
+enumeration. On Windows under Claude Code, launch long-lived CLI jobs through
+its Bash wrapper when available; the PowerShell wrapper exists for harnesses
+where Bash is stripped.
 
-- Silent gaps between events are normal model thinking. A low context
-  reading is not wedging; harnesses auto-compact and keep going.
+- `DONE_OK` requires `job.exit.json` exit 0 AND a report whose final nonblank
+  line starts with `STATUS:`; every other child exit is `DONE_FAILED`.
+- `job.state.json` persists growth clocks across watchdog re-arms.
 - A job repeatedly issuing the same command or query with identical
   arguments is stalled even while its event/report file is still growing
   (the monitor's tail-of-output repeat-command check).
-- A job is a genuine liveness concern only once its report/output files and
-  worktree file mtimes have stopped advancing, weighed against any duration
-  hint the issue or check file carries.
+- Stale heartbeat plus growing output is `ORPHANED`, not `DEAD`; the
+  orchestrator rules from artifacts.
+- The PowerShell wrapper redirects stdout live to `events.jsonl` and appends
+  stderr when the child exits; use the Bash wrapper when live merged stderr is
+  required for diagnosis.
 
 On Windows PowerShell 5.1, `>`, `*>`, and `Tee-Object` write UTF-16. Liveness
 and rescue checks over event files must read encoding-aware (`Get-Content`,
