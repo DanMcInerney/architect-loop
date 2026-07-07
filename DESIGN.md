@@ -1094,6 +1094,12 @@ cleanup. Both namespaces are load-bearing in shipped text.)
   keeps head, tail, and pytest short-summary blocks instead of first-N lines,
   and `progress_out` gives killed runners a flushed sidecar naming the in-flight
   RUN item. Evidence: validator fixtures `truncation` and `progress`.
+- **Sandbox environment is wrapper-owned.** The pair-fairness-webui run found
+  pytest's tmpdir `mkdir(mode=0o700)` denied with WinError 5 under the Codex
+  Windows sandbox, even for in-workspace basetemp. The wrapper `--sandbox-env`
+  flag now redirects TEMP/TMP/TMPDIR and `UV_CACHE_DIR` under
+  `.architect/tmp/` for the child only. Evidence: validator fixture
+  `sandbox-env`.
 
 ---
 

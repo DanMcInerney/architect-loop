@@ -8,6 +8,7 @@ report_path=
 events_file=
 stdin_file=
 heartbeat_sec=30
+sandbox_env=false
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -18,6 +19,7 @@ while [ "$#" -gt 0 ]; do
     --events-file) events_file=$2; shift 2;;
     --stdin-file) stdin_file=$2; shift 2;;
     --heartbeat-sec) heartbeat_sec=$2; shift 2;;
+    --sandbox-env) sandbox_env=true; shift;;
     --) shift; break;;
     *) break;;
   esac
@@ -58,6 +60,11 @@ mkdir -p "$job_dir" "$(dirname "$events_file")" || exit 64
   printf '"report_path":"%s",' "$(json_escape "$report_path")"
   printf '"job_dir":"%s",' "$(json_escape "$job_dir")"
   printf '"wrapper_pid":%s,' "$$"
+  printf '"sandbox_env":%s,' "$sandbox_env"
+  if [ "$sandbox_env" = true ]; then
+    printf '"sandbox_tmp":"%s",' "$(json_escape "$workdir/.architect/tmp/env")"
+    printf '"sandbox_uv_cache":"%s",' "$(json_escape "$workdir/.architect/tmp/uv-cache")"
+  fi
   printf '"started_at":"%s"' "$(now_iso)"
   printf '}\n'
 ) > "$job_dir/job.meta.json"
@@ -72,6 +79,9 @@ if [ -n "$stdin_file" ] && [ ! -f "$stdin_file" ]; then
   printf 'RUNJOB: ERROR missing stdin file\n'
   exit 127
 fi
+if [ "$sandbox_env" = true ]; then
+  mkdir -p "$workdir/.architect/tmp/env" "$workdir/.architect/tmp/uv-cache" || exit 64
+fi
 
 wait_file="$job_dir/job.wait"
 wait_tmp="$job_dir/job.wait.tmp"
@@ -82,6 +92,12 @@ rm -f "$wait_file" "$wait_tmp" "$child_pid_file" "$child_pid_tmp" "$kill_request
 use_setsid=false
 command -v setsid >/dev/null 2>&1 && use_setsid=true
 (
+  if [ "$sandbox_env" = true ]; then
+    export TEMP="$workdir/.architect/tmp/env"
+    export TMP="$workdir/.architect/tmp/env"
+    export TMPDIR="$workdir/.architect/tmp/env"
+    export UV_CACHE_DIR="$workdir/.architect/tmp/uv-cache"
+  fi
   if [ "$use_setsid" = true ]; then
     launcher=$(command -v bash 2>/dev/null || printf bash)
     if [ -n "$stdin_file" ]; then

@@ -884,6 +884,7 @@ def run_wrapped_fake(
     fake: Path,
     behavior: str,
     detached: bool = False,
+    sandbox_env: bool = False,
 ) -> subprocess.Popen[str]:
     prefix = run_job_prefix(kind)
     if prefix is None:
@@ -902,9 +903,10 @@ def run_wrapped_fake(
             str(report),
             "-HeartbeatSec",
             "1",
-            "-ArgvJson",
-            json.dumps(child),
         ]
+        if sandbox_env:
+            command.append("-SandboxEnv")
+        command += ["-ArgvJson", json.dumps(child)]
     else:
         bash = shutil.which("bash")
         if not bash:
@@ -927,9 +929,10 @@ def run_wrapped_fake(
             bash_path(report),
             "--heartbeat-sec",
             "1",
-            "--",
-            *child,
         ]
+        if sandbox_env:
+            command.append("--sandbox-env")
+        command += ["--", *child]
     # Detached children survive the wrapper and would hold PIPE handles open,
     # deadlocking communicate() (the documented grandchild-holds-pipes class).
     stdio = subprocess.DEVNULL if detached else subprocess.PIPE
@@ -967,7 +970,7 @@ def check_watchdog_determinism_fixture() -> None:
         fake_py,
         "\n".join(
             [
-                "import json, sys, time",
+                "import json, os, sys, time",
                 "behavior, report = sys.argv[1], sys.argv[2]",
                 "def emit(obj):",
                 "    print(json.dumps(obj), flush=True)",
@@ -984,6 +987,9 @@ def check_watchdog_determinism_fixture() -> None:
                 "    sys.exit(0)",
                 "if behavior == 'kill-hang':",
                 "    time.sleep(20)",
+                "    sys.exit(0)",
+                "if behavior == 'env-check':",
+                "    emit({'TEMP':os.environ.get('TEMP'),'TMP':os.environ.get('TMP'),'TMPDIR':os.environ.get('TMPDIR'),'UV_CACHE_DIR':os.environ.get('UV_CACHE_DIR')})",
                 "    sys.exit(0)",
                 "if behavior == 'loop':",
                 "    for _ in range(6):",
@@ -1043,6 +1049,10 @@ def check_watchdog_determinism_fixture() -> None:
                 "    ;;",
                 "  kill-hang)",
                 "    sleep 20",
+                "    exit 0",
+                "    ;;",
+                "  env-check)",
+                "    printf '{\"TEMP\":\"%s\",\"TMP\":\"%s\",\"TMPDIR\":\"%s\",\"UV_CACHE_DIR\":\"%s\"}\\n' \"${TEMP:-}\" \"${TMP:-}\" \"${TMPDIR:-}\" \"${UV_CACHE_DIR:-}\"",
                 "    exit 0",
                 "    ;;",
                 "  loop)",
@@ -1119,6 +1129,27 @@ def check_watchdog_determinism_fixture() -> None:
             output = watchdog_run(watchdog_prefix, config, f"{runner} {behavior}", expected_exit, needle)
             if behavior == "die" and "exit_code=9" not in output:
                 errors.append(f"watchdog fixture {runner} die: missing exit_code=9\nstdout:\n{output}")
+
+        job_dir = base / f"{runner}-sandbox-env"
+        workdir = job_dir / "work"
+        report = job_dir / "report.md"
+        workdir.mkdir(parents=True)
+        proc = run_wrapped_fake(kind, job_dir, workdir, report, fake, "env-check", sandbox_env=True)
+        finish_wrapped_fake(proc, f"{runner} sandbox-env")
+        meta_path = job_dir / "job.meta.json"
+        events_text = read_text(job_dir / "events.jsonl") if (job_dir / "events.jsonl").exists() else ""
+        if meta_path.exists():
+            try:
+                meta = json.loads(read_text(meta_path))
+                if meta.get("sandbox_env") is not True:
+                    errors.append(f"watchdog fixture {runner} sandbox-env: metadata missing sandbox_env=true")
+            except Exception as exc:
+                errors.append(f"watchdog fixture {runner} sandbox-env: unreadable metadata {exc!r}")
+        else:
+            errors.append(f"watchdog fixture {runner} sandbox-env: missing metadata")
+        for needle in (".architect", "tmp", "uv-cache"):
+            if needle not in events_text:
+                errors.append(f"watchdog fixture {runner} sandbox-env: missing {needle!r} in child env\nstdout:\n{events_text}")
 
         job_dir = base / f"{runner}-misreport"
         workdir = job_dir / "work"

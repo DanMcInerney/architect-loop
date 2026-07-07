@@ -130,7 +130,7 @@ All long-lived CLI subagents — builders, cross-family strategists, verificatio
 Single Codex-backed job:
 
 ```bash
-<repo-root>/skills/architect/run-job.sh --job-dir <repo-root>/.architect/jobs/<run>/<slice>-<NN> --workdir <repo-root>/.architect/wt/<run>/<slice>-<NN> --backend codex-cli --report-path <repo-root>/docs/jobs/<run>/<slice>-01.md --stdin-file <repo-root>/.architect/jobs/<run>/<slice>-<NN>/block.md -- \
+<repo-root>/skills/architect/run-job.sh --job-dir <repo-root>/.architect/jobs/<run>/<slice>-<NN> --workdir <repo-root>/.architect/wt/<run>/<slice>-<NN> --backend codex-cli --report-path <repo-root>/docs/jobs/<run>/<slice>-01.md --stdin-file <repo-root>/.architect/jobs/<run>/<slice>-<NN>/block.md --sandbox-env -- \
   codex exec -C <repo-root>/.architect/wt/<run>/<slice>-<NN> --sandbox workspace-write -m gpt-5.5 -c model_reasoning_effort="xhigh" -c service_tier="fast" -c features.fast_mode=true --json -o <repo-root>/.architect/jobs/<run>/<slice>-<NN>/last-run.md \
   -
 ```
@@ -395,6 +395,8 @@ not stalls. Issue bodies and check files may carry duration *hints* (e.g.
 "full suite ~ 20m") so the monitor does not flag a job early; a hint is
 informative context for the monitor, never a ceiling anything enforces.
 
+Builder edits, orchestrator exercises: spawn-heavy checks that cannot run in the sandbox are named as orchestrator-side bounded RUN evidence; the builder performs edits plus static/local verification only.
+
 Sanctioned substitutions:
 
 Executor truth for sandboxed jobs: MSYS2/Cygwin-runtime binaries (Git for
@@ -412,6 +414,7 @@ everything else.
 |---|---|---|
 | Git Bash CreateFileMapping Win32 error 5 in Codex Windows sandbox | PowerShell + native git same-pattern, recorded per check | evidence: factory-hardening research, git history |
 | `uv` AppData cache denial (os error 5) | `UV_CACHE_DIR=.architect/tmp/uv-cache`, recorded | evidence: uv-cache sandbox redirect, git history |
+| pytest tmpdir `mkdir(mode=0o700)` WinError 5 in Codex Windows sandbox | wrapper `--sandbox-env` TEMP/TMP/TMPDIR redirect | evidence: pair-fairness-webui-2026-07 probes |
 | Tracker posting unavailable in sandbox | `MIRROR: ORCHESTRATOR` in the report | evidence: subagent shell-strip codex fallback, git history |
 
 ## Orchestrator shell hygiene

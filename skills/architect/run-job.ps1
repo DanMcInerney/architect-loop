@@ -7,6 +7,7 @@ param(
     [string]$ArgvJson = "",
     [string]$StdinFile = "",
     [int]$HeartbeatSec = 30,
+    [switch]$SandboxEnv,
     [Parameter(ValueFromRemainingArguments=$true)][string[]]$Command
 )
 
@@ -57,6 +58,21 @@ function ResolveExecutable($Name) {
         if ($cmd.Path) { return [string]$cmd.Path }
     } catch {}
     return $text
+}
+
+function SetChildEnv($Values) {
+    $old = @{}
+    foreach ($k in $Values.Keys) {
+        $old[$k] = [Environment]::GetEnvironmentVariable($k, "Process")
+        [Environment]::SetEnvironmentVariable($k, [string]$Values[$k], "Process")
+    }
+    return $old
+}
+
+function RestoreChildEnv($Old) {
+    foreach ($k in $Old.Keys) {
+        [Environment]::SetEnvironmentVariable($k, $Old[$k], "Process")
+    }
 }
 
 function SafeName($Text) {
@@ -167,6 +183,8 @@ $metaPath = Join-Path $JobDir "job.meta.json"
 $heartbeatPath = Join-Path $JobDir "job.heartbeat"
 $exitPath = Join-Path $JobDir "job.exit.json"
 $stderrFile = $EventsFile + ".stderr"
+$sandboxTmp = Join-Path $Workdir ".architect\tmp\env"
+$sandboxUv = Join-Path $Workdir ".architect\tmp\uv-cache"
 $jobObjectName = JobObjectName $JobDir
 $jobObjectHandle = [IntPtr]::Zero
 $jobObjectAssigned = $false
@@ -187,6 +205,9 @@ function WriteMeta($ChildPid) {
         job_dir = $JobDir
         wrapper_pid = $PID
         child_pid = $ChildPid
+        sandbox_env = [bool]$SandboxEnv
+        sandbox_tmp = $(if ($SandboxEnv) { $sandboxTmp } else { "" })
+        sandbox_uv_cache = $(if ($SandboxEnv) { $sandboxUv } else { "" })
         job_object = $jobObjectName
         job_object_assigned = $jobObjectAssigned
         job_object_error = $jobObjectError
@@ -209,6 +230,10 @@ if ($StdinFile -and -not (Test-Path -LiteralPath $StdinFile -PathType Leaf)) {
     Write-Output "RUNJOB: ERROR missing stdin file"
     exit 127
 }
+if ($SandboxEnv) {
+    New-Item -ItemType Directory -Path $sandboxTmp -Force | Out-Null
+    New-Item -ItemType Directory -Path $sandboxUv -Force | Out-Null
+}
 
 $exe = ResolveExecutable $Command[0]
 $childArgs = @()
@@ -228,7 +253,15 @@ try {
         PassThru = $true
     }
     if ($StdinFile) { $startArgs.RedirectStandardInput = $StdinFile }
-    $p = Start-Process @startArgs
+    $oldEnv = @{}
+    if ($SandboxEnv) {
+        $oldEnv = SetChildEnv @{ TEMP = $sandboxTmp; TMP = $sandboxTmp; TMPDIR = $sandboxTmp; UV_CACHE_DIR = $sandboxUv }
+    }
+    try {
+        $p = Start-Process @startArgs
+    } finally {
+        if ($SandboxEnv) { RestoreChildEnv $oldEnv }
+    }
     $null = $p.Handle
     if ($jobObjectHandle -ne [IntPtr]::Zero) {
         if ([ArchitectJobNative]::AssignProcessToJobObject($jobObjectHandle, $p.Handle)) {
