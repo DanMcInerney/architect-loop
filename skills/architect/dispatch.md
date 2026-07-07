@@ -117,8 +117,7 @@ or reports the check BLOCKED — never silently skips a check or invents output.
 Graded RUN grammar is normative from the shipped s1 runner in `skills/architect/check-runner.ps1`: first backtick span is the command; expectation begins immediately after the closing backtick as ``-> exit:<n>`` with optional `match:"<substring>"`. `match:` is a fixed, case-sensitive stdout substring check, never regex. Text after the expectation is judge-facing prose; non-RUN items are judge-only. A RUN item without an expectation exits 5 with `CHECKRUN: ERROR missing RUN expectation`, and no partial evidence is kept.
 Example line: ``- RUN: `git grep -F -c "needle" -- path/to/file.md` -> exit:0 match:"needle"``
 
-Evidence contains per-item `expected:` and `verdict:` lines, then `CHECKRUN SUMMARY: run_items=<n> pass=<n> fail=<n>`.
-Typed exits: 0 = all RUN items pass; 2 = any RUN item fails; 5 = error, no partial evidence file left behind.
+Evidence contains per-item `expected:`/`verdict:` lines, then `CHECKRUN SUMMARY: run_items=<n> pass=<n> fail=<n>`; typed exits: 0 all pass, 2 any fail, 5 error with no partial evidence.
 Launch pattern: write the runner config JSON — fields `check_file`, `workdir`, `freeze_sha`, `evidence_out`, `executor` (`powershell`|`bash`), `max_output_lines` (default 60) — then run `skills/architect/check-runner.ps1 -Config <path>` or `check-runner.sh <path>` as a foreground child of a long-lived Bash task; on exit 0 commit `docs/jobs/<run>/<issue-slug>-checkrun.md`, then merge through postflight. Exit 2 routes to the failure ladder; `loop.md` owns the full rule.
 
 Long RUN output keeps head, tail, and any pytest short-summary block; optional `progress_out` writes flushed `RUN_START`/`RUN_END`/`RUNNER_ERROR` sidecar events for forensics only.
@@ -288,6 +287,7 @@ checkrun result + decisive reason at close. The final review's verdict plus
 fix-issue list and the batched escalation digest go on the tracking issue
 only. The reviewer's dispatch block cites the installed user-level
 `final-review` skill text by explicit path, never the repo or worktree copy.
+When a recorded ruling replaces a checkrun, append `GRADED-BY-RULING:` to `docs/jobs/<run>/<issue-slug>-rulings.md`; `ground.ps1|.sh` treats that report as graded.
 On findings, the orchestrator harvests the review spec, fix-issue drafts, and
 check drafts out of the reviewer worktree before discarding it, commits them
 as the fix-wave freeze, and updates the tracking-issue body's freeze record

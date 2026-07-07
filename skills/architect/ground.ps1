@@ -268,6 +268,11 @@ if (Test-Path -LiteralPath $jobsDir -PathType Container) {
         $slug = $base -replace '-[0-9][0-9]$', ''
         $checkrun = J $jobsDir "$slug-checkrun.md"
         if (-not (Test-Path -LiteralPath $checkrun -PathType Leaf)) {
+            $rulings = J $jobsDir "$slug-rulings.md"
+            if ((Test-Path -LiteralPath $rulings -PathType Leaf) -and ((ReadText $rulings) -match '(?m)^GRADED-BY-RULING:')) {
+                Write-Output "GRADED: $slug graded_by_ruling=$slug"
+                continue
+            }
             Write-Output "UNGRADED: $slug"
             $ungradedFound = $true
         }

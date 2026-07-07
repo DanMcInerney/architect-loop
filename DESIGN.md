@@ -1103,6 +1103,10 @@ cleanup. Both namespaces are load-bearing in shipped text.)
   jobs on 2026-07-07 completed with bare idle notifications, so every
   Claude-native dispatch now requires a report path plus greppable verdict; a
   delivered final message is only an optimization.
+- **Grounding knows ruling-graded work.** Reports closed by standing gates or
+  recorded rulings now carry `GRADED-BY-RULING:` in their rulings file, and
+  ground emits `graded_by_ruling=<slug>` instead of DRIFT. Evidence: ground
+  fixture `graded-by-ruling`.
 
 ---
 

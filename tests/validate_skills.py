@@ -1995,6 +1995,26 @@ def check_ground_contract() -> None:
         if "GROUND: DRIFT" not in drift_stdout:
             errors.append(f"ground fixture {label} drift: missing 'GROUND: DRIFT'\nstdout:\n{drift_stdout}")
 
+        ruled = fixture_repo / "docs" / "jobs" / "fixrun" / "slice-c-01.md"
+        rulings = fixture_repo / "docs" / "jobs" / "fixrun" / "slice-c-rulings.md"
+        write_fixture_file(ruled, "# report\nSTATUS: COMPLETE\n")
+        write_fixture_file(rulings, "GRADED-BY-RULING: standing-browser-gate\n")
+        try:
+            ruled_result = subprocess.run(command, cwd=ROOT, env=run_env, text=True, capture_output=True, timeout=20)
+        except Exception as exc:
+            errors.append(f"ground fixture {label} graded-by-ruling: raised {exc!r}")
+            continue
+        finally:
+            ruled.unlink(missing_ok=True)
+            rulings.unlink(missing_ok=True)
+        ruled_stdout = ruled_result.stdout.replace("\r\n", "\n")
+        if ruled_result.returncode != 0:
+            errors.append(
+                f"ground fixture {label} graded-by-ruling: expected exit 0 got {ruled_result.returncode}\nstdout:\n{ruled_stdout}"
+            )
+        if "graded_by_ruling=slice-c" not in ruled_stdout:
+            errors.append(f"ground fixture {label} graded-by-ruling: missing evidence\nstdout:\n{ruled_stdout}")
+
         # Typed exit 3, freeze rail: a recorded freeze SHA that resolves to no
         # commit must DRIFT with a typed line on BOTH executors - the
         # final-review of the ground-scripts run caught ground.ps1 dying with

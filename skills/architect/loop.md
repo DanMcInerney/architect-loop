@@ -80,7 +80,7 @@ detection-only boundary and per-job evidence requirements.
 ## Verdict comments
 
 Grading is recorded on the issue, not in a file. At each job close, one comment is posted on the job's issue with: the check-runner typed summary (`CHECKRUN SUMMARY` line plus typed exit), the postflight result, the slice call KILL/CONTINUE, and the decisive reason tied to raw evidence; exact tracker comment format lives in `dispatch.md` "## Issue conventions". The orchestrator posts the final review's verdict — `REVIEW: GREEN` or `REVIEW: FINDINGS n=<count>` plus the fix-issue list — as the run-level digest on the tracking issue; per-fix-issue verdicts follow the normal issue-conventions comment.
-The checkrun artifact `docs/jobs/<run>/<issue-slug>-checkrun.md` and the rulings file `docs/jobs/<run>/<issue-slug>-rulings.md` are local run artifacts (gitignored); the rulings file is orchestrator-owned and append-only, and if it is absent there are no post-freeze rulings. The closing review receives every rulings file verbatim in its dispatch block rather than thread prose.
+The checkrun artifact `docs/jobs/<run>/<issue-slug>-checkrun.md` and the rulings file `docs/jobs/<run>/<issue-slug>-rulings.md` are local run artifacts (gitignored); the rulings file is orchestrator-owned and append-only, and if it contains `GRADED-BY-RULING:` ground counts the report as graded. The closing review receives every rulings file verbatim in its dispatch block rather than thread prose.
 The issue is closed on merge. No checkrun-result comment on an issue means the
 next factory block must not build on it as accepted; the orchestrator may re-run
 the check-runner if evidence is missing, but may not fill in a result from memory.
