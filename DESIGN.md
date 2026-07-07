@@ -1107,6 +1107,10 @@ cleanup. Both namespaces are load-bearing in shipped text.)
   recorded rulings now carry `GRADED-BY-RULING:` in their rulings file, and
   ground emits `graded_by_ruling=<slug>` instead of DRIFT. Evidence: ground
   fixture `graded-by-ruling`.
+- **Deferred cleanup is sweepable state.** Postflight now appends deferred
+  worktree cleanup paths to `docs/runs/<run>/deferred-cleanup.txt`, and
+  `sweep-deferred.ps1|.sh` removes run-scoped debris with typed OK/PARTIAL/ERROR
+  output. Evidence: validator fixture `sweep-deferred`.
 
 ---
 

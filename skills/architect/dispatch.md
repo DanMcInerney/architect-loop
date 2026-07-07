@@ -433,9 +433,7 @@ where Bash is stripped.
 
 - `DONE_OK` requires `job.exit.json` exit 0 AND a report whose final nonblank line starts with `STATUS:`; every other child exit is `DONE_FAILED`; terminal-looking report text never outranks a fresh wrapper heartbeat.
 - `job.state.json` persists growth clocks across watchdog re-arms.
-- A job repeatedly issuing the same command or query with identical
-  arguments is stalled even while its event/report file is still growing
-  (the monitor's tail-of-output repeat-command check).
+- A job repeatedly issuing the same command or query with identical arguments is stalled even while output grows (the tail repeat-command check).
 - Stale heartbeat plus growing output is `ORPHANED`, not `DEAD`; the
   orchestrator rules from artifacts.
 - The PowerShell wrapper redirects stdout live to `events.jsonl` and appends

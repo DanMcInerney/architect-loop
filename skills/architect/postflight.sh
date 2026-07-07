@@ -146,6 +146,9 @@ if [ -n "$worktree" ]; then
         if ! git_repo worktree remove --force "$wt" >/dev/null 2>&1; then
           cleanup_deferred=true
           cleanup_path=$wt
+          run_slug=$(basename "$(dirname "$wt")")
+          mkdir -p "$repo_root/docs/runs/$run_slug"
+          printf '%s\n' "$cleanup_path" >> "$repo_root/docs/runs/$run_slug/deferred-cleanup.txt"
         fi
       fi
     fi

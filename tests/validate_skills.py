@@ -58,6 +58,8 @@ REQUIRED_SIBLINGS = {
         "preflight.sh",
         "postflight.ps1",
         "postflight.sh",
+        "sweep-deferred.ps1",
+        "sweep-deferred.sh",
         "tracker.md",
     ],
     "architect-research": ["tactics.md"],
@@ -1492,6 +1494,55 @@ def run_postflight_fixture(config: Path, cwd: Path) -> subprocess.CompletedProce
         return None
 
 
+def sweep_deferred_cases() -> list[tuple[str, list[str], str]]:
+    cases: list[tuple[str, list[str], str]] = []
+    powershell = shutil.which("powershell")
+    if powershell:
+        cases.append(
+            (
+                "powershell",
+                [
+                    powershell,
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    str(SKILLS / "architect" / "sweep-deferred.ps1"),
+                ],
+                "-RepoRoot",
+            )
+        )
+    bash = shutil.which("bash")
+    if bash and os.name != "nt":
+        cases.append(("bash", [bash, str(SKILLS / "architect" / "sweep-deferred.sh")], "--repo-root"))
+    return cases
+
+
+def check_sweep_deferred_fixture() -> None:
+    cases = sweep_deferred_cases()
+    if not cases:
+        errors.append("sweep-deferred fixture: no runnable executor found")
+        return
+    base = ROOT / ".architect" / "tmp" / "sweep-deferred-fixture"
+    if base.exists():
+        rmtree_with_writable_retry(base)
+    repo = base / "repo"
+    debris = repo / ".architect" / "wt" / "sweeprun" / "slice-a"
+    debris.mkdir(parents=True)
+    write_fixture_file(debris / "file.txt", "debris\n")
+    write_fixture_file(repo / "docs" / "runs" / "sweeprun" / "deferred-cleanup.txt", str(debris) + "\n")
+    git_fixture(repo, "init")
+    for label, prefix, flag in cases:
+        result = subprocess.run([*prefix, "sweeprun", flag, str(repo)], cwd=ROOT, text=True, capture_output=True, timeout=30)
+        stdout = result.stdout.replace("\r\n", "\n")
+        if result.returncode != 0:
+            errors.append(f"sweep-deferred fixture {label}: expected exit 0 got {result.returncode}\nstdout:\n{stdout}\nstderr:\n{result.stderr}")
+        if "SWEEP: OK" not in stdout:
+            errors.append(f"sweep-deferred fixture {label}: missing OK\nstdout:\n{stdout}")
+        if debris.exists():
+            errors.append(f"sweep-deferred fixture {label}: debris still exists")
+
+
 def write_postflight_config(
     path: Path,
     repo_root: Path,
@@ -2521,6 +2572,7 @@ def main() -> int:
     check_status_contract()
     check_status_run_pinning_fixture()
     check_postflight_lane_fixture()
+    check_sweep_deferred_fixture()
     check_check_runner_fixture()
     check_ground_contract()
     check_run_isolation()
