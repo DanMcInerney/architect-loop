@@ -31,7 +31,7 @@ Unchanged from `/architect`: the tracking issue is the coordination log;
 builders are fresh, worktree-isolated, and never commit; the orchestrator
 owns commits, merges, and closure; tier is set at decomposition, never
 moved by a failure; the timed-ruling protocol times every human question
-and no approval gate exists anywhere; disagreement is mandatory at PHASE 0;
+and no approval gate exists anywhere; execution-conflict checks are mandatory at PHASE 0;
 no silent fallback — every precondition, blocker, and substitution is
 recorded.
 
@@ -76,7 +76,7 @@ recorded.
 
 4. **Factory loop.** Dispatch every ready issue as a fresh
    worktree-isolated builder — same agent def, preloads, model resolution,
-   never-commit rule, PHASE-0 disagreements, raw-evidence reports
+   never-commit rule, PHASE-0 execution conflicts, raw-evidence reports
    (`skills/architect/dispatch.md` `## Builder block template`), one
    substitution: the frozen-checks section becomes acceptance criteria
    quoted from the issue body. At dispatch, record each job's

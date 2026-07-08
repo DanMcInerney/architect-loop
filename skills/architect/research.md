@@ -74,5 +74,5 @@ OUTPUT FORMAT — a markdown report, ≤ ~2,500 tokens (~10 KB) total:
    strategist's dispatch context at intake, or the amended issue/check text
    during re-planning. Raw findings stay in `.architect/research/`
    (gitignored); only distilled, cited claims become repo memory.
-4. Builders' PHASE 0 is expected to challenge research claims like
-   anything else.
+4. Builders' PHASE 0 execution-conflict check is expected to challenge
+   research claims like anything else.

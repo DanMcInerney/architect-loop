@@ -51,7 +51,7 @@ file for frozen check. Consistent language is the whole point.
 - **Worktree** - the isolated git checkout a builder or reviewer works in, verified against the freeze commit.
 - **Job report** - a builder's raw-evidence artifact, ending in one STATUS line.
 - **Verdict** - the grading record posted on an issue at close: checkrun summary plus typed exit, postflight result, slice call, decisive reason; the closing review's run-level verdict goes on the tracking issue.
-- **Ruling** - an orchestrator decision recorded post-freeze: a PHASE-0 disagreement, boundary amendment, or respawn answer.
+- **Ruling** - an orchestrator decision recorded post-freeze: a PHASE-0 execution conflict, boundary amendment, or respawn answer.
 - **Digest** - the shipped-issues, diffstat, rulings, and domain-language summary handed to the integrate subagent's docs pass.
 - **Hard stop** - an irreversible or destructive action the loop refuses without a human ruling.
 

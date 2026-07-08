@@ -151,7 +151,7 @@ Why the move:
   job's lifecycle wanted a row in it, which fought the disjoint-file-set
   rule that makes parallel jobs safe. Issues give each unit of work its own
   thread; comments are the append-only log.
-- **The tracker is the human-visible dashboard.** PHASE-0 disagreements,
+- **The tracker is the human-visible dashboard.** PHASE-0 execution conflicts,
   blocker answers, verdicts, and the tracking issue digest are readable from GitHub
   without opening the repo — the audit trail is where humans already look.
 - **Precedent for the delivery-channel split.** GitHub's own Copilot coding
@@ -354,13 +354,15 @@ architect-v5 and architect-v5.1 specs, and loop-improvements research
   the bypass where an orchestrator launched raw background builders with
   no watchdog armed and two jobs hung for 60-75 minutes undetected;
   fixture-pinned in the validator.
-- **PHASE 0: disagreement is mandatory.** Before building, every job states
-  its plan and every disagreement with the spec, citing real files — or what
-  it checked before finding none. Silent compliance is a job defect.
-  Rationale: prescriptive specs are followed literally by the builder-class
-  models, so spec errors are only caught *before* execution; PHASE 0 caught
-  a live orchestrator defect during the v5.1 run (§7). Every disagreement
-  gets an explicit ACCEPT/REJECT/MODIFY ruling.
+- **PHASE 0: execution conflicts are mandatory.** Before building, every job
+  states its plan and any execution conflict with the slice's spec, checks,
+  boundaries, or live dependencies, citing real files or command output — or
+  what it checked before finding none. Silent compliance with an impossible
+  slice is a job defect. Rationale: adversarial review catches pre-freeze
+  spec and decomposition failures, but builders run in the final slice
+  worktree and are the last defense against stale maps, dependency mismatches,
+  and boundary defects; PHASE 0 caught a live orchestrator defect during the
+  v5.1 run (§7). Every conflict gets an explicit ACCEPT/REJECT/MODIFY ruling.
 - **Raw evidence only; every status claim audited against tool output.**
   Builders report tables, numbers, and command output — no "promising", no
   verdicts. Anthropic's testing found status-audit instructions "nearly

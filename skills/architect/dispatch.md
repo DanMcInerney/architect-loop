@@ -318,7 +318,7 @@ normal. Builder comments on its own issue are exactly four kinds, never
 one per commit:
 
 ```bash
-gh issue comment <n> --body "PHASE 0: <disagreements, or what I checked>"
+gh issue comment <n> --body "PHASE 0: <execution conflicts, or what I checked>"
 gh issue comment <n> --body "BLOCKED: <exact blocker> + <what I tried>"
 gh issue comment <n> --body "MILESTONE: <what completed so far>"
 gh issue comment <n> --body "STATUS: <the report's exact status line>"
@@ -537,12 +537,15 @@ from the worktree root and rule on its typed exit before any other step: 0
 `FFCHECK: OK` proceed, 2 `FFCHECK: DIVERGED` stop and report, 5
 `FFCHECK: ERROR` stop and report.
 
-PHASE 0 - Before any code: reply with your plan and EVERY disagreement you have
-with this spec, with reasons, citing real files in this repo. Silent compliance
-is a failure. Silent scope additions are a failure. If you have no
-disagreements, state what you checked before concluding the spec is sound.
-Verify the named APIs/formats/versions against the live dependencies before
-planning around them.
+PHASE 0 - Before any code: reply with your plan and any execution conflict
+with this slice's spec, checks, boundaries, or live dependencies. Cite real
+repo file:line evidence or command output. Include nonexistent APIs,
+dependency/version mismatches, impossible check expectations, stale paths,
+and boundary conflicts. Silent compliance is a failure. Silent scope additions
+are a failure. If you find no conflicts, state what files, APIs, and commands
+you checked before concluding the slice is executable. Do not relitigate
+product/design preferences or add scope. Verify named APIs/formats/versions
+against the live dependencies before planning around them.
 
 PHASE 1 - The files under docs/checks/ are read-only at all times - editing
 them fails the slice regardless of results.

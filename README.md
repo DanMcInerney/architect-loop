@@ -75,8 +75,8 @@ report raw evidence only. See [DESIGN.md](DESIGN.md) for the evidence trail and
   freeze commit. Checks freeze in git before any builder exists.
 - The run manifest pins the tracking issue, tracker mode, factory branch, and
   spec path; every issue carries a run marker.
-- Builders run in fresh worktrees. They must state disagreements before coding,
-  must not commit, and must end with one raw `STATUS:` line.
+- Builders run in fresh worktrees. They must state execution conflicts before
+  coding, must not commit, and must end with one raw `STATUS:` line.
 - Wrapped CLI jobs write `job.meta.json`, `job.heartbeat`, `job.exit.json`,
   `events.jsonl`, and `stderr.log`; exit truth outranks terminal-looking report
   text. Postflight refuses to merge CLI job work without that wrapper exit
