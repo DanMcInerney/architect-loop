@@ -34,7 +34,9 @@ State transitions and comment appends are orchestrator commits.
 Run manifests live at `docs/runs/<run>/manifest.md`; first frontmatter
 block keys are exactly `run`, `tracking-issue`, `factory-branch`,
 `tracker`, `spec`, `state`, `created`; `state` is `ACTIVE` or `FINISHED`.
-The pinned `tracking-issue` is the run's tracking issue.
+The optional `lane` key is `architect` or `architect-fast` and defaults to
+`architect` when absent. The pinned `tracking-issue` is the run's tracking
+issue.
 
 ## TSV emission
 

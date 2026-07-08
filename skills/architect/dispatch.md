@@ -416,11 +416,14 @@ mode reserves one slot.
 
 ## Status display
 
-`skills/architect/status.ps1 [<run-slug>] [-RepoRoot <path>]` and
-`skills/architect/status.sh [<run-slug>] [--repo-root <path>]` read only
-run artifacts plus tracker state; the first positional is always a run
-slug. Output is plain text by design; print it verbatim, never
-hand-compose status.
+`skills/architect/status.ps1 [<run-slug>] [-RepoRoot <path>] [-Compact]` and
+`skills/architect/status.sh [<run-slug>] [--repo-root <path>] [--compact]`
+read only run artifacts plus tracker state; the first positional is always a
+run slug. Default single-run output is the README-style workflow map with
+builder cards; compact mode preserves the legacy line tree. Output is plain
+text by design; print it verbatim, never hand-compose status. Stage nodes may
+be refined by local `docs/runs/<run>/status-events.jsonl` breadcrumbs with
+`time`, `stage`, `state`, and optional `note`.
 
 ## Duration hints and liveness
 

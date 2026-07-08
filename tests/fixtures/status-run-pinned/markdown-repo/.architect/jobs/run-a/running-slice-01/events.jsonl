@@ -1,0 +1,1 @@
+{"command":"pytest tests/status -q"}

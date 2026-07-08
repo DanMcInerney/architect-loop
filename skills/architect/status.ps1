@@ -1,7 +1,8 @@
 param(
     [Parameter(Position = 0)]
     [string]$RunSlug,
-    [string]$RepoRoot = (Get-Location).Path
+    [string]$RepoRoot = (Get-Location).Path,
+    [switch]$Compact
 )
 
 $ErrorActionPreference = "Stop"
@@ -45,11 +46,22 @@ function SpecName($Manifest) {
     if ($Manifest -and $Manifest.Spec) { return [System.IO.Path]::GetFileName($Manifest.Spec) }
     return NewestSpec
 }
+function JobDir($Run, $Slug) { return (J (J (J $root ".architect/jobs") $Run) "$Slug-01") }
+function LastCommandValue($Run, $Slug) {
+    $candidates = @(
+        (J (JobDir $Run $Slug) "events.jsonl"),
+        (J (J (J $root ".architect/wt") $Run) "$Slug-01.events.jsonl")
+    )
+    foreach ($events in $candidates) {
+        $m = [regex]::Matches((TailText $events), '"command"\s*:\s*"((?:\\.|[^"\\])*)"')
+        if ($m.Count -gt 0) { return $m[$m.Count - 1].Groups[1].Value.Replace('\"', '"').Replace('\\', '\') }
+    }
+    return ""
+}
 function LastCommand($Run, $Slug) {
-    $events = J (J (J $root ".architect/wt") $Run) "$Slug-01.events.jsonl"
-    $m = [regex]::Matches((TailText $events), '"command"\s*:\s*"((?:\\.|[^"\\])*)"')
-    if ($m.Count -eq 0) { return "" }
-    return "    last: " + $m[$m.Count - 1].Groups[1].Value.Replace('\"', '"').Replace('\\', '\') + " age: unknown"
+    $cmd = LastCommandValue $Run $Slug
+    if (-not $cmd) { return "" }
+    return "    last: " + $cmd + " age: unknown"
 }
 function StatusLine($Path) {
     if (-not (Test-Path -LiteralPath $Path)) { return "" }
@@ -73,6 +85,34 @@ function ArtifactSlugs($Run) {
         }
     }
     return @($set.Keys | Sort-Object)
+}
+function ReadJsonObj($Path) {
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
+    try { return (ReadText $Path | ConvertFrom-Json) } catch { return $null }
+}
+function ParseUtc($Text) {
+    if (-not $Text) { return $null }
+    try { return ([DateTimeOffset]::Parse([string]$Text)).UtcDateTime } catch { return $null }
+}
+function FormatDuration($Seconds) {
+    if ($Seconds -lt 0) { $Seconds = 0 }
+    $m = [int][Math]::Floor($Seconds / 60)
+    if ($m -lt 1) { return "<1m" }
+    if ($m -lt 60) { return "${m}m" }
+    $h = [int][Math]::Floor($m / 60)
+    $r = $m % 60
+    return ("{0}h{1:00}m" -f $h, $r)
+}
+function JobRuntime($Run, $Slug, $PhaseName) {
+    if ($PhaseName -in @("READY", "QUEUED")) { return "" }
+    $job = JobDir $Run $Slug
+    $meta = ReadJsonObj (J $job "job.meta.json")
+    $start = ParseUtc $(if ($meta) { $meta.started_at } else { "" })
+    if (-not $start) { return "" }
+    $exit = ReadJsonObj (J $job "job.exit.json")
+    $end = ParseUtc $(if ($exit) { $exit.ended_at } else { "" })
+    if (-not $end) { $end = (Get-Date).ToUniversalTime() }
+    return (FormatDuration (($end - $start).TotalSeconds))
 }
 function Phase($Run, $Slug, $State, $Blockers) {
     if ($State -eq "CLOSED") { return @($G.Merged, "MERGED") }
@@ -120,6 +160,7 @@ function ManifestFromPath($Path) {
         Spec = $h["spec"]
         State = $h["state"]
         Created = $h["created"]
+        Lane = $(if ($h.ContainsKey("lane") -and $h["lane"]) { $h["lane"] } else { "architect" })
         Path = $Path
     }
 }
@@ -260,9 +301,253 @@ $G = @{
     Judging = ColorGlyph ([char]0x25D0) "36"
     Blocked = ColorGlyph "!" "31"
     Reported = ColorGlyph ([char]0x25A3) "35"
-    Building = ColorGlyph ([char]0x25CF) "34"
+    Building = ColorGlyph ([char]0x25C9) "34"
     Queued = ColorGlyph ([char]0x2298) "33"
     Ready = ColorGlyph ([char]0x25CB) "37"
+}
+function GForState($State) {
+    switch ($State) {
+        "DONE" { return $G.Merged }
+        "RUNNING" { return $G.Building }
+        "JUDGING" { return $G.Judging }
+        "BLOCKED" { return $G.Blocked }
+        "QUEUED" { return $G.Queued }
+        default { return $G.Ready }
+    }
+}
+function Clip($Text, $Width) {
+    $s = [string]$Text
+    if ($s.Length -le $Width) { return $s }
+    if ($Width -le 1) { return $s.Substring(0, $Width) }
+    return $s.Substring(0, $Width - 1) + "~"
+}
+function PadCell($Text, $Width) {
+    $s = Clip $Text $Width
+    return $s + (" " * [Math]::Max(0, $Width - $s.Length))
+}
+function EventState($Stage) {
+    if (-not $run) { return "" }
+    $path = J (J (J $root "docs/runs") $run) "status-events.jsonl"
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return "" }
+    $state = ""
+    foreach ($line in ((ReadText $path) -split "\r?\n")) {
+        if (-not $line.Trim()) { continue }
+        try {
+            $obj = $line | ConvertFrom-Json
+            if ($obj.stage -eq $Stage -and $obj.state) { $state = [string]$obj.state }
+        } catch {}
+    }
+    return $state.ToLowerInvariant()
+}
+function StageGlyph($Stage, $DefaultState) {
+    $event = EventState $Stage
+    if ($event -in @("complete", "completed", "done", "skipped")) { return $G.Merged }
+    if ($event -in @("running", "started", "in_progress", "in-progress")) { return $G.Building }
+    if ($event -in @("judging", "reviewing")) { return $G.Judging }
+    if ($event -eq "blocked") { return $G.Blocked }
+    return (GForState $DefaultState)
+}
+function StageNote($Stage, $DefaultNote) {
+    if (-not $run) { return $DefaultNote }
+    $path = J (J (J $root "docs/runs") $run) "status-events.jsonl"
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return $DefaultNote }
+    $note = ""
+    foreach ($line in ((ReadText $path) -split "\r?\n")) {
+        if (-not $line.Trim()) { continue }
+        try {
+            $obj = $line | ConvertFrom-Json
+            if ($obj.stage -eq $Stage -and $obj.note) { $note = [string]$obj.note }
+        } catch {}
+    }
+    if ($note) { return $note }
+    return $DefaultNote
+}
+function BuildIssueRows {
+    $rows = @()
+    if ($subIssues.Count -eq 0) {
+        foreach ($slug in $slugs) {
+            $p = Phase $run $slug "" ""
+            if ($p[1] -notin @("BUILDING", "BLOCKED", "JUDGING", "REPORTED")) { continue }
+            $rows += [pscustomobject]@{
+                Icon = $p[0]
+                Number = "-"
+                Title = $slug
+                Slug = $slug
+                Phase = $p[1]
+                Runtime = (JobRuntime $run $slug $p[1])
+                Detail = ".architect/wt/$run/$slug-01"
+            }
+        }
+        return $rows
+    }
+    foreach ($issue in $subIssues) {
+        $slug = Slugify $issue.Title
+        $p = Phase $run $slug $issue.State $issue.Blockers
+        $phaseName = $p[1]
+        $runtime = JobRuntime $run $slug $phaseName
+        $detail = switch ($phaseName) {
+            "MERGED" { "merged" }
+            "QUEUED" { "blocked by #$($issue.Blockers)" }
+            "JUDGING" { "check-runner" }
+            "BLOCKED" { "blocked" }
+            "REPORTED" { "reported" }
+            "BUILDING" {
+                $last = LastCommandValue $run $slug
+                if ($last) { "last: " + (Clip $last 28) } else { "running" }
+            }
+            default { "not launched" }
+        }
+        $rows += [pscustomobject]@{
+            Icon = $p[0]
+            Number = $issue.Number
+            Title = $issue.Title
+            Slug = $slug
+            Phase = $phaseName
+            Runtime = $runtime
+            Detail = $detail
+        }
+    }
+    return $rows
+}
+function WriteNode {
+    param($Glyph, $Label, $Note, [switch]$Last)
+    Write-Output ("                         {0} {1}" -f $Glyph, $Label)
+    if ($Note) { Write-Output ("          {0}" -f (Clip $Note 72)) }
+    if (-not $Last) {
+        Write-Output ((" " * 27) + [char]0x2502)
+        Write-Output ((" " * 27) + [char]0x25BC)
+    }
+}
+function WriteBuilderBand($Rows) {
+    if ($Rows.Count -eq 0) {
+        Write-Output ("     {0} BUILDER ISSUES" -f $G.Ready)
+        Write-Output "       no builder issues published yet"
+        return
+    }
+    $width = 24
+    for ($i = 0; $i -lt $Rows.Count; $i += 5) {
+        $group = @($Rows[$i..([Math]::Min($Rows.Count - 1, $i + 4))])
+        $line1 = ""
+        $line2 = ""
+        $line3 = ""
+        foreach ($r in $group) {
+            $line1 += " " + (PadCell ("$($r.Icon) #$($r.Number) $($r.Title)") $width)
+            $rt = if ($r.Runtime) { $r.Runtime } else { "-" }
+            $line2 += " " + (PadCell ("$($r.Phase) $rt") $width)
+            $line3 += " " + (PadCell $r.Detail $width)
+        }
+        Write-Output $line1.TrimEnd()
+        Write-Output $line2.TrimEnd()
+        Write-Output $line3.TrimEnd()
+        if ($i + 5 -lt $Rows.Count) { Write-Output "" }
+    }
+}
+function WriteCompactStatus {
+    Write-Output "STATUS TREE spec: $(SpecName $manifest) branch: $branch"
+    if ($trackerReachable -and $tracking) {
+        Write-Output "tracker: #$tracking"
+    } elseif ($trackerReachable) {
+        Write-Output "tracker: no open run"
+    } else {
+        $err = ""
+        if ($trackerData.ContainsKey("Error") -and $trackerData.Error) { $err = ": " + $trackerData.Error }
+        Write-Output "tracker: unavailable (local view)$err"
+    }
+    Write-Output "ORCHESTRATOR: local view"
+    Write-Output "WATCHDOG: config=$($wdCfg.Count)"
+    if ($trackerReachable -and $tracking) {
+        foreach ($issue in $subIssues) {
+            $slug = Slugify $issue.Title
+            $p = Phase $run $slug $issue.State $issue.Blockers
+            $extra = ""
+            if ($p[1] -eq "QUEUED") { $extra = " blocked-by: " + $issue.Blockers }
+            Write-Output "$($p[0]) #$($issue.Number) $($issue.Title) .architect/wt/$run/$slug-01$extra"
+            if ($p[1] -eq "BUILDING") {
+                $last = LastCommand $run $slug
+                if ($last) { Write-Output $last }
+            }
+        }
+    } else {
+        foreach ($slug in $slugs) {
+            $p = Phase $run $slug "" ""
+            if ($p[1] -in @("BUILDING", "BLOCKED", "JUDGING", "REPORTED")) {
+                Write-Output "$($p[0]) $slug .architect/wt/$run/$slug-01"
+                if ($p[1] -eq "BUILDING") {
+                    $last = LastCommand $run $slug
+                    if ($last) { Write-Output $last }
+                }
+            }
+        }
+    }
+}
+function WriteGraphStatus {
+    $lane = if ($manifest -and $manifest.Lane) { [string]$manifest.Lane } else { "architect" }
+    if ($lane -eq "fast") { $lane = "architect-fast" }
+    $issues = @(BuildIssueRows)
+    $total = $issues.Count
+    $closed = @($issues | Where-Object { $_.Phase -eq "MERGED" }).Count
+    $running = @($issues | Where-Object { $_.Phase -in @("BUILDING", "REPORTED") }).Count
+    $judging = @($issues | Where-Object { $_.Phase -eq "JUDGING" }).Count
+    $blocked = @($issues | Where-Object { $_.Phase -eq "BLOCKED" }).Count
+    $started = @($issues | Where-Object { $_.Phase -notin @("READY", "QUEUED") }).Count
+    $allClosed = ($total -gt 0 -and $closed -eq $total)
+    $checksDir = J (J (J $root "docs/checks") $run) ""
+    $checksExist = (Test-Path -LiteralPath $checksDir -PathType Container) -and @(Get-ChildItem -LiteralPath $checksDir -Filter "*.md" -File -ErrorAction SilentlyContinue).Count -gt 0
+    $trackerText = if ($tracking) { "tracker: #$tracking" } elseif ($trackerReachable) { "tracker: no open run" } else { "tracker: unavailable (local view)" }
+    $finishDone = ($manifest -and $manifest.State -eq "FINISHED")
+
+    if ($lane -eq "architect-fast") {
+        Write-Output "/architect-fast"
+        Write-Output "spec -> publish -> <=3 issues -> builders -> timed wake -> test pass -> builder review -> integrate -> PR"
+    } else {
+        Write-Output "/architect"
+        Write-Output "spec -> harden -> frozen checks -> wrapped builders -> typed gates -> test pass -> final review -> fix wave -> integrate -> PR"
+    }
+    Write-Output ""
+    Write-Output "run: $run  spec: $(SpecName $manifest)  branch: $branch  $trackerText"
+    Write-Output ""
+
+    if ($lane -eq "architect-fast") {
+        $publishState = if ($tracking) { "DONE" } else { "WAITING" }
+        $issueState = if ($total -gt 0) { "DONE" } elseif ($tracking) { "RUNNING" } else { "WAITING" }
+        $dispatchState = if ($started -gt 0) { "DONE" } else { "WAITING" }
+        $builderState = if ($allClosed) { "DONE" } elseif ($blocked -gt 0) { "BLOCKED" } elseif (($running + $judging) -gt 0) { "RUNNING" } elseif ($total -gt 0) { "QUEUED" } else { "WAITING" }
+        WriteNode (StageGlyph "spec" $(if ($manifest) { "DONE" } else { "WAITING" })) "SPEC" (StageNote "spec" "orchestrator writes it; no question batch")
+        WriteNode (StageGlyph "publish" $publishState) "PUBLISH" (StageNote "publish" "tracking issue + manifest; no approval gate")
+        WriteNode (StageGlyph "issues" $issueState) "ISSUES (<=3)" (StageNote "issues" "acceptance criteria; no frozen-check path")
+        WriteNode (StageGlyph "dispatch-head" $dispatchState) "DISPATCH-HEAD SHA" (StageNote "dispatch-head" "job diff base and postflight merge guard")
+        WriteBuilderBand $issues
+        Write-Output ((" " * 27) + [char]0x2502)
+        Write-Output ((" " * 27) + [char]0x25BC)
+        WriteNode (StageGlyph "timed-wake" $(if (($running + $judging) -gt 0) { "RUNNING" } else { "WAITING" })) "TIMED FALLBACK WAKE" (StageNote "timed-wake" "per wave; no watchdog script")
+        WriteNode (StageGlyph "closing-test" $(if ($allClosed) { "RUNNING" } else { "WAITING" })) "TEST PASS + BUILDER REVIEW" (StageNote "closing-test" "orchestrator runs the suite; fresh builder reviews + fixes")
+        WriteNode (StageGlyph "integrate" "WAITING") "INTEGRATE" (StageNote "integrate" "docs pass, validation, PR or markdown finish")
+        WriteNode (StageGlyph "finish" $(if ($finishDone) { "DONE" } else { "WAITING" })) "PR OR MARKDOWN FINISH RECORD" (StageNote "finish" "ship digest and final handoff") -Last
+        return
+    }
+
+    $hardenState = if ($checksExist -or $total -gt 0) { "DONE" } elseif ($manifest) { "RUNNING" } else { "WAITING" }
+    $issueCheckState = if ($total -gt 0 -and $checksExist) { "DONE" } elseif ($total -gt 0 -or $checksExist) { "RUNNING" } else { "WAITING" }
+    $wrapperState = if ($allClosed) { "DONE" } elseif ($started -gt 0) { "RUNNING" } else { "WAITING" }
+    $builderWaveState = if ($allClosed) { "DONE" } elseif ($blocked -gt 0) { "BLOCKED" } elseif (($running + $judging) -gt 0) { "RUNNING" } elseif ($total -gt 0) { "QUEUED" } else { "WAITING" }
+    $watchdogState = if ($allClosed) { "DONE" } elseif (($running + $judging) -gt 0 -and $wdCfg.Count -gt 0) { "RUNNING" } else { "WAITING" }
+    $checkState = if ($allClosed) { "DONE" } elseif (($judging + @($issues | Where-Object { $_.Phase -eq "REPORTED" }).Count) -gt 0) { "JUDGING" } else { "WAITING" }
+    $postflightState = if ($allClosed) { "DONE" } elseif ($closed -gt 0 -or $checkState -eq "JUDGING") { "RUNNING" } else { "WAITING" }
+    WriteNode (StageGlyph "spec" $(if ($manifest) { "DONE" } else { "WAITING" })) "SPEC" (StageNote "spec" "strategist draft; assumptions recorded")
+    WriteNode (StageGlyph "harden" $hardenState) "HARDEN" (StageNote "harden" "fresh strategist attacks, revises, decomposes")
+    WriteNode (StageGlyph "freeze" $issueCheckState) "ISSUES + FROZEN CHECKS" (StageNote "freeze" "orchestrator publishes; checks frozen in git")
+    WriteNode (StageGlyph "wrapper" $wrapperState) "PREFLIGHT + WRAPPER" (StageNote "wrapper" "run-job owns heartbeat, exit truth, stderr, sandbox env")
+    WriteBuilderBand $issues
+    Write-Output ((" " * 27) + [char]0x2502)
+    Write-Output ((" " * 27) + [char]0x25BC)
+    WriteNode (StageGlyph "watchdog" $watchdogState) "WATCHDOG EVIDENCE" (StageNote "watchdog" "config=$($wdCfg.Count); detection only")
+    WriteNode (StageGlyph "check-runner" $checkState) "CHECK-RUNNER" (StageNote "check-runner" "graded RUN items; head/tail/pytest evidence")
+    WriteNode (StageGlyph "postflight" $postflightState) "POSTFLIGHT + MERGE" (StageNote "postflight" "touch-set audit; merge; cleanup or deferred cleanup")
+    WriteNode (StageGlyph "closing-test" $(if ($allClosed) { "RUNNING" } else { "WAITING" })) "CLOSING TEST PASS" (StageNote "closing-test" "builder-built suites plus every frozen RUN item")
+    WriteNode (StageGlyph "final-review" "WAITING") "FINAL REVIEW" (StageNote "final-review" "read-only strategist fed the closing test pass; GREEN or FINDINGS")
+    WriteNode (StageGlyph "fix-wave" "WAITING") "FIX WAVE" (StageNote "fix-wave" "FINDINGS become fix issues; GREEN skips this node")
+    WriteNode (StageGlyph "integrate" "WAITING") "INTEGRATE" (StageNote "integrate" "docs pass first; verify; sweep; PR handoff")
+    WriteNode (StageGlyph "finish" $(if ($finishDone) { "DONE" } else { "WAITING" })) "PR OR MARKDOWN FINISH RECORD" (StageNote "finish" "ship digest and final handoff") -Last
 }
 if (Test-Path -LiteralPath (J $root ".git")) { $branch = (& git -C $root branch --show-current 2>$null) } else { $branch = "" }
 if (-not $branch) { $branch = "unknown" }
@@ -287,42 +572,7 @@ if ((-not $RunSlug) -and ((-not $trackerReachable) -or ($trackerReachable -and -
     Write-Output "spec: $(NewestSpec)"
     exit 0
 }
-Write-Output "STATUS TREE spec: $(SpecName $manifest) branch: $branch"
-if ($trackerReachable -and $tracking) {
-    Write-Output "tracker: #$tracking"
-} elseif ($trackerReachable) {
-    Write-Output "tracker: no open run"
-} else {
-    $err = ""
-    if ($trackerData.ContainsKey("Error") -and $trackerData.Error) { $err = ": " + $trackerData.Error }
-    Write-Output "tracker: unavailable (local view)$err"
-}
-Write-Output "ORCHESTRATOR: local view"
 $wdDir = J $root ".architect/tmp"
 $wdCfg = @()
 if (Test-Path -LiteralPath $wdDir -PathType Container) { $wdCfg = @(Get-ChildItem -LiteralPath $wdDir -Filter "wd-*.json") }
-Write-Output "WATCHDOG: config=$($wdCfg.Count)"
-if ($trackerReachable -and $tracking) {
-    foreach ($issue in $subIssues) {
-        $slug = Slugify $issue.Title
-        $p = Phase $run $slug $issue.State $issue.Blockers
-        $extra = ""
-        if ($p[1] -eq "QUEUED") { $extra = " blocked-by: " + $issue.Blockers }
-        Write-Output "$($p[0]) #$($issue.Number) $($issue.Title) .architect/wt/$run/$slug-01$extra"
-        if ($p[1] -eq "BUILDING") {
-            $last = LastCommand $run $slug
-            if ($last) { Write-Output $last }
-        }
-    }
-} else {
-    foreach ($slug in $slugs) {
-        $p = Phase $run $slug "" ""
-        if ($p[1] -in @("BUILDING", "BLOCKED", "JUDGING", "REPORTED")) {
-            Write-Output "$($p[0]) $slug .architect/wt/$run/$slug-01"
-            if ($p[1] -eq "BUILDING") {
-                $last = LastCommand $run $slug
-                if ($last) { Write-Output $last }
-            }
-        }
-    }
-}
+if ($Compact) { WriteCompactStatus } else { WriteGraphStatus }

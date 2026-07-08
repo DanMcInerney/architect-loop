@@ -58,7 +58,8 @@ recorded.
    `## Preflight per mode`). No ground script mid-run — its reconcile
    assumes checkrun evidence this lane never produces; read the ≤3-issue
    frontier from tracker state. `skills/architect/status.ps1|.sh` works
-   unchanged.
+   unchanged; the manifest sets `lane: architect-fast` so status renders the
+   light-lane graph.
 
 2. **Intake.** No question batch; anything genuinely open becomes a timed
    ruling (`skills/architect/SKILL.md` `## Timed-ruling protocol`) recorded
@@ -66,7 +67,10 @@ recorded.
    `to-spec` on its exact template, one named substitution: `## Validation
    strategy` names this lane's gates — builder-run tests plus the closing
    builder review-and-fix — never the check-runner or closing review.
-   Create the tracking issue and manifest; cut the factory branch.
+   Create the tracking issue and manifest; cut the factory branch. Append
+   status breadcrumbs to `docs/runs/<run>/status-events.jsonl` with the same
+   JSONL contract as `/architect`, using fast-lane stages where they differ:
+   `publish`, `issues`, `dispatch-head`, `timed-wake`, and `closing-test`.
 
 3. **Decompose.** `to-issues` cuts at most 3 tracer-bullet vertical-slice
    issues with a file-disjoint frontier and producer interface contracts,
