@@ -52,7 +52,7 @@ and what replaces it (the substitution table in Implementation decisions).
    (hard stop, human ruling): the size ceiling.
 5. Factory loop: dispatch all ready issues as fresh worktree-isolated
    builders (same agent def, preloads, model resolution, never-commit rule,
-   PHASE-0 disagreements, raw-evidence reports). The builder block template
+   PHASE-0 execution conflicts, raw-evidence reports). The builder block template
    is reused with one named substitution: its frozen-checks section becomes
    acceptance criteria quoted from the issue body, graded by builder-run
    tests and the orchestrator review. At dispatch the orchestrator records

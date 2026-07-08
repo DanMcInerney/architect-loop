@@ -43,8 +43,9 @@ invokes a peer. Mechanics: `dispatch.md` (templates, routing), `loop.md`
    Failure never moves builder tier.
 7. **Builders never commit.** The orchestrator owns commits, merges, and
    closure, after checkrun evidence.
-8. **Disagreement is mandatory.** PHASE 0 states the plan and every
-   disagreement with file evidence, or what was checked before finding none.
+8. **Execution-conflict check is mandatory.** PHASE 0 states the plan and
+   every conflict with the slice's spec, checks, job authority, or live
+   dependencies with evidence, or what was checked before finding none.
 9. **No silent fallback.** Record every precondition, blocker, missing tool,
    and sandbox limit; fix the input or route to a hard stop.
 

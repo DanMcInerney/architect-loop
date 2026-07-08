@@ -77,7 +77,7 @@ the spec, the decomposition skeletons, and every builder.
   carry a compact change-skeleton grounded in the map: ≤~30 lines per issue
   of files, signatures, data flow, and invariants — structure only, no
   bodies. The skeleton is a contract, not a line-by-line mandate; PHASE 0
-  disagreement governs conflicts with reality. Decomposition computes the
+  execution-conflict checks govern conflicts with reality. Decomposition computes the
   parallel frontier from skeleton file-ownership so disjointness is proved
   before dispatch, not discovered as a merge conflict.
 - **G5 — Human-gated closing review.** After the last build issue closes and
