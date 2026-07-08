@@ -1,0 +1,3 @@
+# Frozen Check Fixture
+
+placeholder

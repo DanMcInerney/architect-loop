@@ -1,7 +1,7 @@
 #!/bin/sh
 set -u
 
-# Glyph marker comments for the validator: [char]0x2713 [char]0x25D0 [char]0x25A3 [char]0x25CF [char]0x2298 [char]0x25CB
+# Glyph marker comments for the validator: [char]0x2713 [char]0x25D0 [char]0x25A3 [char]0x25C9 [char]0x2298 [char]0x25CB
 # STATUS_GH_STUB points to raw pre-filter ISSUE TSV records:
 # ISSUE <number> <state> <parent-number> <open-blockers> <author-login> <title>
 # STATUS_GH_LOGIN_STUB overrides the authenticated gh login for offline tests.
@@ -11,8 +11,13 @@ j(){ printf '%s/%s' "$1" "$2"; }
 
 run_slug=
 root=$(pwd)
+compact=false
 while [ "$#" -gt 0 ]; do
   case "$1" in
+    --compact)
+      compact=true
+      shift
+      ;;
     --repo-root)
       [ "$#" -ge 2 ] || die 'missing value for --repo-root'
       root=$2
@@ -47,7 +52,7 @@ g_merged=$(color_glyph "$(printf '\342\234\223')" 32)
 g_judging=$(color_glyph "$(printf '\342\227\220')" 36)
 g_blocked=$(color_glyph '!' 31)
 g_reported=$(color_glyph "$(printf '\342\226\243')" 35)
-g_building=$(color_glyph "$(printf '\342\227\217')" 34)
+g_building=$(color_glyph "$(printf '\342\227\211')" 34)
 g_queued=$(color_glyph "$(printf '\342\212\230')" 33)
 g_ready=$(color_glyph "$(printf '\342\227\213')" 37)
 
@@ -69,9 +74,15 @@ newest_spec(){
 }
 tail_text(){ [ -f "$1" ] && tail -c 4096 "$1" | tr -d '\000'; }
 status_line(){ tail_text "$1" | sed 's/^\xEF\xBB\xBF//' | awk '/^STATUS:/{sub(/^STATUS:[[:space:]]*/,""); s=$0} END{print s}'; }
+job_dir(){ printf '%s/.architect/jobs/%s/%s-01' "$root" "$1" "$2"; }
+last_command_value(){
+  for ev in "$root/.architect/jobs/$1/$2-01/events.jsonl" "$root/.architect/wt/$1/$2-01.events.jsonl"; do
+    cmd=$(tail_text "$ev" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | tail -n 1)
+    [ -n "$cmd" ] && { printf '%s' "$cmd"; return; }
+  done
+}
 last_command(){
-  ev="$root/.architect/wt/$1/$2-01.events.jsonl"
-  cmd=$(tail_text "$ev" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | tail -n 1)
+  cmd=$(last_command_value "$1" "$2")
   [ -n "$cmd" ] && printf '    last: %s age: unknown\n' "$cmd"
 }
 report_path(){
@@ -79,6 +90,38 @@ report_path(){
   in_repo="$root/docs/jobs/$1/$2-01.md"
   [ -f "$in_wt" ] && { printf '%s' "$in_wt"; return; }
   printf '%s' "$in_repo"
+}
+json_field(){
+  [ -f "$1" ] || return 0
+  sed -n 's/.*"'"$2"'"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$1" | tail -n 1
+}
+epoch_from_iso(){
+  iso=$1
+  [ -n "$iso" ] || return 1
+  date -u -d "$iso" +%s 2>/dev/null && return 0
+  clean=$(printf '%s' "$iso" | sed 's/\.[0-9][0-9]*Z$/Z/')
+  date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$clean" +%s 2>/dev/null && return 0
+  return 1
+}
+format_duration(){
+  sec=$1
+  case "$sec" in ''|*[!0-9]*) sec=0;; esac
+  [ "$sec" -lt 0 ] && sec=0
+  mins=$((sec / 60))
+  if [ "$mins" -lt 1 ]; then printf '<1m'; return; fi
+  if [ "$mins" -lt 60 ]; then printf '%sm' "$mins"; return; fi
+  printf '%sh%02dm' $((mins / 60)) $((mins % 60))
+}
+job_runtime(){
+  case "$3" in READY|QUEUED) return 0;; esac
+  jd=$(job_dir "$1" "$2")
+  start=$(json_field "$jd/job.meta.json" started_at)
+  [ -n "$start" ] || return 0
+  start_epoch=$(epoch_from_iso "$start") || return 0
+  end=$(json_field "$jd/job.exit.json" ended_at)
+  if [ -n "$end" ]; then end_epoch=$(epoch_from_iso "$end" || printf ''); else end_epoch=$(date -u +%s); fi
+  case "$end_epoch" in ''|*[!0-9]*) end_epoch=$(date -u +%s);; esac
+  format_duration $((end_epoch - start_epoch))
 }
 slugify(){ printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g;s/--*/-/g;s/^-//;s/-$//'; }
 artifact_slugs(){
@@ -101,6 +144,7 @@ phase(){
 }
 fm(){
   awk -v key="$2" '
+    { sub(/\r$/, "") }
     NR==1 { sub(/^\357\273\277/,""); if ($0 != "---") exit 2 }
     NR>1 {
       if ($0 == "---") exit
@@ -129,6 +173,8 @@ load_manifest(){
   selected_tracker=$(fm "$selected_manifest" tracker)
   selected_spec=$(fm "$selected_manifest" spec)
   selected_state=$(fm "$selected_manifest" state)
+  selected_lane=$(fm "$selected_manifest" lane)
+  [ -n "$selected_lane" ] || selected_lane=architect
 }
 spec_name(){
   [ -n "${selected_spec:-}" ] && { basename "$selected_spec"; return; }
@@ -142,6 +188,7 @@ selected_track=
 selected_tracker=
 selected_spec=
 selected_state=
+selected_lane=architect
 if [ -n "$run_slug" ]; then
   manifest="$root/docs/runs/$run_slug/manifest.md"
   if [ -f "$manifest" ]; then
@@ -278,6 +325,244 @@ tracker_lines(){
     *) printf 'ERROR\tunknown tracker mode in manifest: %s\n' "$selected_tracker"; return 1;;
   esac
 }
+state_icon(){
+  case "$1" in
+    DONE) printf '%s' "$g_merged";;
+    RUNNING) printf '%s' "$g_building";;
+    JUDGING) printf '%s' "$g_judging";;
+    BLOCKED) printf '%s' "$g_blocked";;
+    QUEUED) printf '%s' "$g_queued";;
+    *) printf '%s' "$g_ready";;
+  esac
+}
+event_state(){
+  f="$root/docs/runs/$selected_run/status-events.jsonl"
+  [ -f "$f" ] || return 0
+  sed -n '/"stage"[[:space:]]*:[[:space:]]*"'"$1"'"/s/.*"state"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$f" | tail -n 1 | tr '[:upper:]' '[:lower:]'
+}
+stage_icon(){
+  ev=$(event_state "$1")
+  case "$ev" in
+    complete|completed|done|skipped) printf '%s' "$g_merged";;
+    running|started|in_progress|in-progress) printf '%s' "$g_building";;
+    judging|reviewing) printf '%s' "$g_judging";;
+    blocked) printf '%s' "$g_blocked";;
+    *) state_icon "$2";;
+  esac
+}
+stage_note(){
+  f="$root/docs/runs/$selected_run/status-events.jsonl"
+  note=
+  if [ -f "$f" ]; then
+    note=$(sed -n '/"stage"[[:space:]]*:[[:space:]]*"'"$1"'"/s/.*"note"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$f" | tail -n 1)
+  fi
+  [ -n "$note" ] && printf '%s' "$note" || printf '%s' "$2"
+}
+clip_text(){
+  awk -v s="$1" -v w="$2" 'BEGIN { if (length(s) <= w) print s; else print substr(s, 1, w - 1) "~" }'
+}
+node(){
+  icon=$1
+  label=$2
+  note=$3
+  last=${4:-}
+  printf '                         %s %s\n' "$icon" "$label"
+  [ -n "$note" ] && printf '          %s\n' "$(clip_text "$note" 72)"
+  if [ "$last" != last ]; then
+    printf '                           \342\224\202\n'
+    printf '                           \342\226\274\n'
+  fi
+}
+build_issue_rows(){
+  if [ "$tracker" -eq 1 ] && [ -n "$tracking" ]; then
+    printf '%s\n' "$tracker_tsv" | while IFS= read -r line; do
+      kind=$(printf '%s\n' "$line" | awk -F '	' '{print $1}')
+      [ "$kind" = SUB ] || continue
+      num=$(printf '%s\n' "$line" | awk -F '	' '{print $2}')
+      state=$(printf '%s\n' "$line" | awk -F '	' '{print $3}')
+      blockers=$(printf '%s\n' "$line" | awk -F '	' '{print $4}')
+      title=$(printf '%s\n' "$line" | awk -F '	' '{print $5}')
+      slug=$(slugify "$title")
+      set -- $(phase "$selected_run" "$slug" "$state" "$blockers")
+      icon=$1
+      phase_name=$2
+      rt=$(job_runtime "$selected_run" "$slug" "$phase_name")
+      case "$phase_name" in
+        MERGED) detail=merged;;
+        QUEUED) detail="blocked by #$blockers";;
+        JUDGING) detail=check-runner;;
+        BLOCKED) detail=blocked;;
+        REPORTED) detail=reported;;
+        BUILDING)
+          last=$(last_command_value "$selected_run" "$slug")
+          [ -n "$last" ] && detail="last: $(clip_text "$last" 28)" || detail=running
+          ;;
+        *) detail='not launched';;
+      esac
+      printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$icon" "$phase_name" "$num" "$title" "$rt" "$detail"
+    done
+  else
+    for slug in $slugs; do
+      set -- $(phase "$selected_run" "$slug")
+      case "$2" in
+        BUILDING|BLOCKED|JUDGING|REPORTED)
+          rt=$(job_runtime "$selected_run" "$slug" "$2")
+          printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$1" "$2" "-" "$slug" "$rt" ".architect/wt/$selected_run/$slug-01"
+          ;;
+      esac
+    done
+  fi
+}
+builder_band(){
+  rows=$1
+  if [ -z "$rows" ]; then
+    printf '     %s BUILDER ISSUES\n' "$g_ready"
+    printf '       no builder issues published yet\n'
+    return
+  fi
+  printf '%s\n' "$rows" | awk -F '	' -v w=24 '
+    function clip(s) { return length(s) <= w ? s : substr(s, 1, w - 1) "~" }
+    function pad(s,   c) { s = clip(s); c = w - length(s); while (c-- > 0) s = s " "; return s }
+    NF >= 6 {
+      line1 = line1 " " pad($1 " #" $3 " " $4)
+      rt = $5 == "" ? "-" : $5
+      line2 = line2 " " pad($2 " " rt)
+      line3 = line3 " " pad($6)
+      n++
+      if (n % 5 == 0) {
+        print substr(line1, 2); print substr(line2, 2); print substr(line3, 2); print ""
+        line1 = line2 = line3 = ""
+      }
+    }
+    END {
+      if (line1 != "") { print substr(line1, 2); print substr(line2, 2); print substr(line3, 2) }
+    }
+  '
+}
+count_rows(){ printf '%s\n' "$1" | awk -F '	' 'NF >= 6 { n++ } END { print n + 0 }'; }
+count_phase(){ printf '%s\n' "$1" | awk -F '	' -v p="$2" 'NF >= 6 && $2 == p { n++ } END { print n + 0 }'; }
+count_started(){ printf '%s\n' "$1" | awk -F '	' 'NF >= 6 && $2 != "READY" && $2 != "QUEUED" { n++ } END { print n + 0 }'; }
+compact_status(){
+  printf 'STATUS TREE spec: %s branch: %s\n' "$(spec_name)" "$branch"
+  if [ "$tracker" -eq 1 ] && [ -n "$tracking" ]; then
+    printf 'tracker: #%s\n' "$tracking"
+  elif [ "$tracker" -eq 1 ]; then
+    printf 'tracker: no open run\n'
+  else
+    err=$(printf '%s' "$tracker_tsv" | sed 's/^ERROR	//;q')
+    [ -n "$err" ] && printf 'tracker: unavailable (local view): %s\n' "$err" || printf 'tracker: unavailable (local view)\n'
+  fi
+  printf 'ORCHESTRATOR: local view\n'
+  printf 'WATCHDOG: config=%s\n' "$cfg"
+  if [ "$tracker" -eq 1 ] && [ -n "$tracking" ]; then
+    printf '%s\n' "$tracker_tsv" | while IFS= read -r line; do
+      kind=$(printf '%s\n' "$line" | awk -F '	' '{print $1}')
+      [ "$kind" = SUB ] || continue
+      num=$(printf '%s\n' "$line" | awk -F '	' '{print $2}')
+      state=$(printf '%s\n' "$line" | awk -F '	' '{print $3}')
+      blockers=$(printf '%s\n' "$line" | awk -F '	' '{print $4}')
+      title=$(printf '%s\n' "$line" | awk -F '	' '{print $5}')
+      slug=$(slugify "$title")
+      set -- $(phase "$selected_run" "$slug" "$state" "$blockers")
+      extra=
+      [ "$2" = QUEUED ] && extra=" blocked-by: $blockers"
+      printf '%s #%s %s .architect/wt/%s/%s-01%s\n' "$1" "$num" "$title" "$selected_run" "$slug" "$extra"
+      [ "$2" = BUILDING ] && last_command "$selected_run" "$slug"
+    done
+  else
+    for slug in $slugs; do
+      set -- $(phase "$selected_run" "$slug")
+      case "$2" in
+        BUILDING|BLOCKED|JUDGING|REPORTED)
+          printf '%s %s .architect/wt/%s/%s-01\n' "$1" "$slug" "$selected_run" "$slug"
+          [ "$2" = BUILDING ] && last_command "$selected_run" "$slug"
+          ;;
+      esac
+    done
+  fi
+}
+graph_status(){
+  issue_rows_cache=$(build_issue_rows)
+  total=$(count_rows "$issue_rows_cache")
+  closed=$(count_phase "$issue_rows_cache" MERGED)
+  running=$(count_phase "$issue_rows_cache" BUILDING)
+  reported=$(count_phase "$issue_rows_cache" REPORTED)
+  judging=$(count_phase "$issue_rows_cache" JUDGING)
+  blocked=$(count_phase "$issue_rows_cache" BLOCKED)
+  started=$(count_started "$issue_rows_cache")
+  all_closed=false
+  [ "$total" -gt 0 ] && [ "$closed" -eq "$total" ] && all_closed=true
+  checks_exist=false
+  [ -d "$root/docs/checks/$selected_run" ] && find "$root/docs/checks/$selected_run" -maxdepth 1 -type f -name '*.md' 2>/dev/null | grep -q . && checks_exist=true
+  finish_state=WAITING
+  [ "$selected_state" = FINISHED ] && finish_state=DONE
+  tracker_text='tracker: unavailable (local view)'
+  [ "$tracker" -eq 1 ] && tracker_text='tracker: no open run'
+  [ -n "$tracking" ] && tracker_text="tracker: #$tracking"
+  lane=$selected_lane
+  [ "$lane" = fast ] && lane=architect-fast
+
+  if [ "$lane" = architect-fast ]; then
+    printf '/architect-fast\n'
+    printf 'spec -> publish -> <=3 issues -> builders -> timed wake -> test pass -> builder review -> integrate -> PR\n\n'
+  else
+    printf '/architect\n'
+    printf 'spec -> harden -> frozen checks -> wrapped builders -> typed gates -> test pass -> final review -> fix wave -> integrate -> PR\n\n'
+  fi
+  printf 'run: %s  spec: %s  branch: %s  %s\n\n' "$selected_run" "$(spec_name)" "$branch" "$tracker_text"
+
+  if [ "$lane" = architect-fast ]; then
+    spec_state=WAITING; [ -n "$selected_manifest" ] && spec_state=DONE
+    publish_state=WAITING; [ -n "$tracking" ] && publish_state=DONE
+    issue_state=WAITING; [ "$total" -gt 0 ] && issue_state=DONE; [ "$total" -eq 0 ] && [ -n "$tracking" ] && issue_state=RUNNING
+    dispatch_state=WAITING; [ "$started" -gt 0 ] && dispatch_state=DONE
+    builder_state=WAITING
+    [ "$total" -gt 0 ] && builder_state=QUEUED
+    [ $((running + reported + judging)) -gt 0 ] && builder_state=RUNNING
+    [ "$blocked" -gt 0 ] && builder_state=BLOCKED
+    [ "$all_closed" = true ] && builder_state=DONE
+    node "$(stage_icon spec "$spec_state")" SPEC "$(stage_note spec 'orchestrator writes it; no question batch')"
+    node "$(stage_icon publish "$publish_state")" PUBLISH "$(stage_note publish 'tracking issue + manifest; no approval gate')"
+    node "$(stage_icon issues "$issue_state")" 'ISSUES (<=3)' "$(stage_note issues 'acceptance criteria; no frozen-check path')"
+    node "$(stage_icon dispatch-head "$dispatch_state")" 'DISPATCH-HEAD SHA' "$(stage_note dispatch-head 'job diff base and postflight merge guard')"
+    builder_band "$issue_rows_cache"
+    printf '                           \342\224\202\n'
+    printf '                           \342\226\274\n'
+    wake_state=WAITING; [ $((running + reported + judging)) -gt 0 ] && wake_state=RUNNING
+    review_state=WAITING; [ "$all_closed" = true ] && review_state=RUNNING
+    node "$(stage_icon timed-wake "$wake_state")" 'TIMED FALLBACK WAKE' "$(stage_note timed-wake 'per wave; no watchdog script')"
+    node "$(stage_icon closing-test "$review_state")" 'TEST PASS + BUILDER REVIEW' "$(stage_note closing-test 'orchestrator runs the suite; fresh builder reviews + fixes')"
+    node "$(stage_icon integrate WAITING)" INTEGRATE "$(stage_note integrate 'docs pass, validation, PR or markdown finish')"
+    node "$(stage_icon finish "$finish_state")" 'PR OR MARKDOWN FINISH RECORD' "$(stage_note finish 'ship digest and final handoff')" last
+    return
+  fi
+
+  spec_state=WAITING; [ -n "$selected_manifest" ] && spec_state=DONE
+  harden_state=WAITING; [ -n "$selected_manifest" ] && harden_state=RUNNING; { [ "$checks_exist" = true ] || [ "$total" -gt 0 ]; } && harden_state=DONE
+  issue_check_state=WAITING
+  { [ "$total" -gt 0 ] || [ "$checks_exist" = true ]; } && issue_check_state=RUNNING
+  [ "$total" -gt 0 ] && [ "$checks_exist" = true ] && issue_check_state=DONE
+  wrapper_state=WAITING; [ "$started" -gt 0 ] && wrapper_state=RUNNING; [ "$all_closed" = true ] && wrapper_state=DONE
+  watchdog_state=WAITING; [ $((running + reported + judging)) -gt 0 ] && [ "$cfg" -gt 0 ] && watchdog_state=RUNNING; [ "$all_closed" = true ] && watchdog_state=DONE
+  check_state=WAITING; [ $((judging + reported)) -gt 0 ] && check_state=JUDGING; [ "$all_closed" = true ] && check_state=DONE
+  postflight_state=WAITING; { [ "$closed" -gt 0 ] || [ "$check_state" = JUDGING ]; } && postflight_state=RUNNING; [ "$all_closed" = true ] && postflight_state=DONE
+  closing_state=WAITING; [ "$all_closed" = true ] && closing_state=RUNNING
+  node "$(stage_icon spec "$spec_state")" SPEC "$(stage_note spec 'strategist draft; assumptions recorded')"
+  node "$(stage_icon harden "$harden_state")" HARDEN "$(stage_note harden 'fresh strategist attacks, revises, decomposes')"
+  node "$(stage_icon freeze "$issue_check_state")" 'ISSUES + FROZEN CHECKS' "$(stage_note freeze 'orchestrator publishes; checks frozen in git')"
+  node "$(stage_icon wrapper "$wrapper_state")" 'PREFLIGHT + WRAPPER' "$(stage_note wrapper 'run-job owns heartbeat, exit truth, stderr, sandbox env')"
+  builder_band "$issue_rows_cache"
+  printf '                           \342\224\202\n'
+  printf '                           \342\226\274\n'
+  node "$(stage_icon watchdog "$watchdog_state")" 'WATCHDOG EVIDENCE' "$(stage_note watchdog "config=$cfg; detection only")"
+  node "$(stage_icon check-runner "$check_state")" CHECK-RUNNER "$(stage_note check-runner 'graded RUN items; head/tail/pytest evidence')"
+  node "$(stage_icon postflight "$postflight_state")" 'POSTFLIGHT + MERGE' "$(stage_note postflight 'touch-set audit; merge; cleanup or deferred cleanup')"
+  node "$(stage_icon closing-test "$closing_state")" 'CLOSING TEST PASS' "$(stage_note closing-test 'builder-built suites plus every frozen RUN item')"
+  node "$(stage_icon final-review WAITING)" 'FINAL REVIEW' "$(stage_note final-review 'read-only strategist fed the closing test pass; GREEN or FINDINGS')"
+  node "$(stage_icon fix-wave WAITING)" 'FIX WAVE' "$(stage_note fix-wave 'FINDINGS become fix issues; GREEN skips this node')"
+  node "$(stage_icon integrate WAITING)" INTEGRATE "$(stage_note integrate 'docs pass first; verify; sweep; PR handoff')"
+  node "$(stage_icon finish "$finish_state")" 'PR OR MARKDOWN FINISH RECORD' "$(stage_note finish 'ship digest and final handoff')" last
+}
 
 branch=
 [ -e "$root/.git" ] && branch=$(git -C "$root" branch --show-current 2>/dev/null || true)
@@ -298,42 +583,7 @@ if [ -z "$run_slug" ] && { [ "$tracker" -eq 0 ] || [ -z "$tracking" ]; } && [ -z
   printf 'NO ACTIVE FACTORY RUN\nspec: %s\n' "$(newest_spec)"
   exit 0
 fi
-printf 'STATUS TREE spec: %s branch: %s\n' "$(spec_name)" "$branch"
-if [ "$tracker" -eq 1 ] && [ -n "$tracking" ]; then
-  printf 'tracker: #%s\n' "$tracking"
-elif [ "$tracker" -eq 1 ]; then
-  printf 'tracker: no open run\n'
-else
-  err=$(printf '%s' "$tracker_tsv" | sed 's/^ERROR	//;q')
-  [ -n "$err" ] && printf 'tracker: unavailable (local view): %s\n' "$err" || printf 'tracker: unavailable (local view)\n'
-fi
-printf 'ORCHESTRATOR: local view\n'
 cfg=0
 [ -d "$root/.architect/tmp" ] && cfg=$(find "$root/.architect/tmp" -maxdepth 1 -type f -name 'wd-*.json' 2>/dev/null | wc -l | tr -d ' ')
-printf 'WATCHDOG: config=%s\n' "$cfg"
-if [ "$tracker" -eq 1 ] && [ -n "$tracking" ]; then
-  printf '%s\n' "$tracker_tsv" | while IFS= read -r line; do
-    kind=$(printf '%s\n' "$line" | awk -F '	' '{print $1}')
-    [ "$kind" = SUB ] || continue
-    num=$(printf '%s\n' "$line" | awk -F '	' '{print $2}')
-    state=$(printf '%s\n' "$line" | awk -F '	' '{print $3}')
-    blockers=$(printf '%s\n' "$line" | awk -F '	' '{print $4}')
-    title=$(printf '%s\n' "$line" | awk -F '	' '{print $5}')
-    slug=$(slugify "$title")
-    set -- $(phase "$selected_run" "$slug" "$state" "$blockers")
-    extra=
-    [ "$2" = QUEUED ] && extra=" blocked-by: $blockers"
-    printf '%s #%s %s .architect/wt/%s/%s-01%s\n' "$1" "$num" "$title" "$selected_run" "$slug" "$extra"
-    [ "$2" = BUILDING ] && last_command "$selected_run" "$slug"
-  done
-else
-  for slug in $slugs; do
-    set -- $(phase "$selected_run" "$slug")
-    case "$2" in
-      BUILDING|BLOCKED|JUDGING|REPORTED)
-        printf '%s %s .architect/wt/%s/%s-01\n' "$1" "$slug" "$selected_run" "$slug"
-        [ "$2" = BUILDING ] && last_command "$selected_run" "$slug"
-        ;;
-    esac
-  done
-fi
+if [ "$compact" = true ]; then compact_status; else graph_status; fi
+exit 0

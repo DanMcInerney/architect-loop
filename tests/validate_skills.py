@@ -1452,7 +1452,7 @@ def check_status_contract() -> None:
         ("JUDGING", 0x25D0, "[char]0x25D0"),
         ("BLOCKED", 0x21, '"!"'),
         ("REPORTED", 0x25A3, "[char]0x25A3"),
-        ("BUILDING", 0x25CF, "[char]0x25CF"),
+        ("BUILDING", 0x25C9, "[char]0x25C9"),
         ("QUEUED", 0x2298, "[char]0x2298"),
         ("READY", 0x25CB, "[char]0x25CB"),
     )
@@ -1473,6 +1473,9 @@ def check_status_contract() -> None:
             "STATUS_GH_STUB",
             "--jq",
             "blockedBy.nodes",
+            "ISSUES + FROZEN CHECKS",
+            "PR OR MARKDOWN FINISH RECORD",
+            "status-events.jsonl",
         ):
             if marker not in text:
                 errors.append(f"skills/architect/{name}: missing {marker}")
@@ -1487,7 +1490,7 @@ def check_status_contract() -> None:
                 errors.append("skills/architect/status.sh: NewestSpec must not select spec by lexical sort")
 
 
-def platform_status_command(repo_root: Path, run_slug: str | None) -> list[str]:
+def platform_status_command(repo_root: Path, run_slug: str | None, compact: bool = False) -> list[str]:
     if os.name == "nt":
         command = [
             "powershell",
@@ -1500,16 +1503,20 @@ def platform_status_command(repo_root: Path, run_slug: str | None) -> list[str]:
         if run_slug is not None:
             command.append(run_slug)
         command.extend(["-RepoRoot", str(repo_root)])
+        if compact:
+            command.append("-Compact")
         return command
     command = ["sh", str(SKILLS / "architect" / "status.sh")]
     if run_slug is not None:
         command.append(run_slug)
+    if compact:
+        command.append("--compact")
     command.extend(["--repo-root", str(repo_root)])
     return command
 
 
-def run_status_fixture(repo_root: Path, run_slug: str | None, env: dict[str, str]) -> str | None:
-    command = platform_status_command(repo_root, run_slug)
+def run_status_fixture(repo_root: Path, run_slug: str | None, env: dict[str, str], compact: bool = False) -> str | None:
+    command = platform_status_command(repo_root, run_slug, compact=compact)
     run_env = os.environ.copy()
     run_env.update(env)
     try:
@@ -1518,6 +1525,8 @@ def run_status_fixture(repo_root: Path, run_slug: str | None, env: dict[str, str
             cwd=ROOT,
             env=run_env,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             capture_output=True,
             timeout=20,
         )
@@ -2542,6 +2551,8 @@ def check_status_run_pinning_fixture() -> None:
     if run_a is not None:
         require_status_contains("status fixture run-a", run_a, "tracker: #10")
         require_status_contains("status fixture run-a", run_a, "#11 Run A Slice")
+        require_status_contains("status fixture run-a", run_a, "ISSUES + FROZEN CHECKS")
+        require_status_contains("status fixture run-a", run_a, "PR OR MARKDOWN FINISH RECORD")
         require_status_excludes("status fixture run-a", run_a, "#12")
         require_status_excludes("status fixture run-a", run_a, "#999")
         require_status_excludes("status fixture run-a", run_a, "#1000")
@@ -2563,8 +2574,29 @@ def check_status_run_pinning_fixture() -> None:
     if markdown is not None:
         require_status_contains("status fixture markdown", markdown, "tracker: #10")
         require_status_contains("status fixture markdown", markdown, "#11 Markdown Child")
+        require_status_contains("status fixture markdown", markdown, "#13 Running Slice")
+        require_status_contains("status fixture markdown", markdown, "BUILDING")
+        require_status_contains("status fixture markdown", markdown, "#14 Blocked Slice")
+        require_status_contains("status fixture markdown", markdown, "BLOCKED")
+        require_status_contains("status fixture markdown", markdown, "#15 Judging Slice")
+        require_status_contains("status fixture markdown", markdown, "JUDGING")
+        require_status_contains("status fixture markdown", markdown, "#16 Merged Slice")
+        require_status_contains("status fixture markdown", markdown, "MERGED")
+        require_status_contains("status fixture markdown", markdown, "#17 Queued Slice")
+        require_status_contains("status fixture markdown", markdown, "blocked by #11")
+        require_status_contains("status fixture markdown", markdown, "reviewer reading closing test pass")
+        require_status_contains("status fixture markdown", markdown, "/architect")
+        require_status_contains("status fixture markdown", markdown, "WATCHDOG EVIDENCE")
         require_status_excludes("status fixture markdown", markdown, "#12")
         require_status_excludes("status fixture markdown", markdown, "Wrong Run Markdown Child")
+
+    markdown_compact = run_status_fixture(markdown_repo, "run-a", {"NO_COLOR": "1"}, compact=True)
+    if markdown_compact is not None:
+        require_status_contains("status fixture markdown compact", markdown_compact, "STATUS TREE spec: run-a.md branch: unknown")
+        require_status_contains("status fixture markdown compact", markdown_compact, "WATCHDOG: config=0")
+        require_status_contains("status fixture markdown compact", markdown_compact, "#11 Markdown Child")
+        require_status_contains("status fixture markdown compact", markdown_compact, "#13 Running Slice")
+        require_status_contains("status fixture markdown compact", markdown_compact, "blocked-by: 11")
 
     markdown_default = run_status_fixture(markdown_repo, None, {"NO_COLOR": "1"})
     if markdown_default is not None:

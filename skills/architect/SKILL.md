@@ -100,7 +100,11 @@ until the closing PR. One run per checkout; concurrent runs get their own
 worktrees (`.architect/runs/<slug>`). Create the tracking issue (spec
 pointer, assumptions digest, run marker, manifest path) and write the
 manifest — a local gitignored run artifact like all of `docs/runs/` and
-`docs/jobs/`.
+`docs/jobs/`. Append status breadcrumbs to
+`docs/runs/<run>/status-events.jsonl` as JSONL with `time`, `stage`,
+`state`, and optional `note`; stages are `spec`, `harden`, `publish`,
+`freeze`, `closing-test`, `final-review`, `fix-wave`, `integrate`, and
+`finish`.
 
 ### 2. Harden
 
@@ -132,7 +136,8 @@ through postflight, ladder failures, respawn blocked jobs fresh. Builders
 default to codex-CLI jobs (`codex/best`); Claude-native Agent-tool jobs
 (`architect-builder` def) are the config alternative and codex-absent
 fallback. Status requests: run `skills/architect/status.ps1|.sh <run>` and
-print verbatim. Post-freeze rulings are append-only in
+print verbatim; use `-Compact` / `--compact` only for debugging or scripts
+that need the legacy line tree. Post-freeze rulings are append-only in
 `docs/jobs/<run>/<issue-slug>-rulings.md`, mirrored to the issue. Calibrate
 open-ended reviews verbatim: "Flag only gaps that affect correctness, the
 stated requirements, or documented project invariants -- cite file:line

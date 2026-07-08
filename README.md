@@ -177,15 +177,20 @@ reports and check evidence under `docs/jobs/<run>/`, wrapper files under
 `.architect/jobs/<run>/`, builder worktrees under `.architect/wt/<run>/`, and
 temporary sandbox/cache paths under `.architect/tmp/`.
 
-Status is scripted:
+Status is scripted. By default it renders the README-style workflow map with
+live stage glyphs and builder cards; pass `--compact` / `-Compact` for the
+legacy line tree:
 
 ```bash
-skills/architect/status.sh <run>
+skills/architect/status.sh <run> [--compact]
 ```
 
 ```powershell
-skills\architect\status.ps1 <run>
+skills\architect\status.ps1 <run> [-Compact]
 ```
+
+Stage-only progress that cannot be inferred from tracker or job artifacts can
+be recorded in local `docs/runs/<run>/status-events.jsonl` breadcrumbs.
 
 An empty `docs/STOP` file halts every run at the next dispatch boundary. An
 empty `docs/runs/<run>/STOP` halts only that run.
