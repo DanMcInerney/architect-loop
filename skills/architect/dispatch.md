@@ -531,21 +531,19 @@ record it in the verdict comment.
 ```text
 Execute the architect spec below. Operating rules:
 
+NONINTERACTIVE - Work through every phase continuously. Do not stop after
+planning or ask for approval; run to completion unless blocked.
+
 FIRST ACTION - run `bash skills/architect/ffcheck.sh <dispatch-head-sha>`
 (PowerShell: `powershell -File skills/architect/ffcheck.ps1 <dispatch-head-sha>`)
 from the worktree root and rule on its typed exit before any other step: 0
 `FFCHECK: OK` proceed, 2 `FFCHECK: DIVERGED` stop and report, 5
 `FFCHECK: ERROR` stop and report.
 
-PHASE 0 - Before any code: reply with your plan and any execution conflict
-with this slice's spec, checks, boundaries, or live dependencies. Cite real
-repo file:line evidence or command output. Include nonexistent APIs,
-dependency/version mismatches, impossible check expectations, stale paths,
-and boundary conflicts. Silent compliance is a failure. Silent scope additions
-are a failure. If you find no conflicts, state what files, APIs, and commands
-you checked before concluding the slice is executable. Do not relitigate
-product/design preferences or add scope. Verify named APIs/formats/versions
-against the live dependencies before planning around them.
+PHASE 0 - Before code: state your plan and any execution conflict with the
+slice spec, checks, BOUNDARIES, or live dependencies. Cite file:line evidence
+or command output. If none, state what you checked. Do not relitigate design
+or add scope. Verify named APIs/formats/versions against live dependencies.
 
 PHASE 1 - The files under docs/checks/ are read-only at all times - editing
 them fails the slice regardless of results.
