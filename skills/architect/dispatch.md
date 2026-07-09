@@ -547,9 +547,15 @@ PHASE 0 - Before code: state your plan and any execution conflict with the
 slice spec, checks, BOUNDARIES, or live dependencies. Cite file:line evidence
 or command output. If none, state what you checked. Do not relitigate design
 or add scope. Verify named APIs/formats/versions against live dependencies.
+If a conflict makes the spec or a frozen check unexecutable as written, stop
+and report STATUS: BLOCKED with the evidence instead of building around it.
 
 PHASE 1 - The files under docs/checks/ are read-only at all times - editing
-them fails the slice regardless of results.
+them fails the slice regardless of results. The files a frozen RUN command
+executes (test files, validators, scripts) are check infrastructure even
+when BOUNDARIES lists them: record every edit to one in your job report
+under CHECK-DEPENDENCY EDITS with the exact diff and reason - an undisclosed
+edit there fails the job.
 
 PHASE 2 - Build YOUR JOB ONLY: exactly the files listed in BOUNDARIES. Job shape is ship.
 Job identity: you are job <run>/<slice>-<NN>; if the spec
@@ -561,8 +567,10 @@ swallow an error to make output look right. No unrequested backwards-
 compatibility shims or dead compatibility code. Fail loudly, with context.
 Exception: fallbacks or compat code are allowed only when the spec explicitly
 requests them. Verify your work by running the job's check commands and
-record the verbatim output. Do NOT commit - the sandbox protects .git by
-design; the architect commits and merges after verification. Do NOT delete lock
+record the verbatim output. Do NOT commit or mutate git state - commits are
+the orchestrator's alone; postflight diffs the full freeze->job range and
+audits for builder commits, so any commit, amend, or history edit fails your
+job regardless of results. Do NOT delete lock
 files or escalate privileges if a git command fails; record the exact error and
 continue.
 
