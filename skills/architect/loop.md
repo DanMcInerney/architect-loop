@@ -38,6 +38,8 @@ typed line:
 | 2 | `WATCHDOG: INTEGRATED` | A worktree or event file vanished; inspect before continuing. |
 | 3 | `WATCHDOG: STALL` | Output growth and process activity stopped beyond the hint. |
 | 4 | `WATCHDOG: REPEAT` | The last parsed commands repeated mechanically. |
+| 6 | `WATCHDOG: REPORT_READY` | A terminal report exists, wrapper exit truth is absent, and heartbeat/grace checks say the wrapper is no longer progressing. |
+| 9 | `WATCHDOG: DONE_FAILED` | The wrapper recorded a non-zero child exit. |
 
 ## Failure Ladder
 

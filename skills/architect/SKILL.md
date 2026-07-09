@@ -3,7 +3,7 @@ name: architect
 description: >
   Run the local Architect Loop: Claude Opus 4.8 is the architect/orchestrator
   for judgment, planning, arbitration, frozen gates, and kill/continue calls.
-  GPT-5.5 via codex exec at xhigh is the executor. All loop artifacts,
+  GPT-5.5 via wrapper-owned codex exec at xhigh is the executor. All loop artifacts,
   planning files, reports, patches, and research live under .scratch; the skill
   does not create issues, branches, commits, PRs, or committed docs.
 effort: high
@@ -30,7 +30,7 @@ dispatch mechanics and templates: `dispatch.md`. Slice-scale research:
 3. **Never write implementation code.** Anything that must change goes in the
    slice spec or builder prompt. The architect may write only `.scratch`
    artifacts and patch/evidence files.
-4. **Artifacts stay ignored.** PRDs, issue slices, specs, gates, prompts,
+4. **Artifacts stay ignored.** Specs, issue slices, gates, prompts,
    reports, run logs, research, check evidence, watchdog configs, and patch
    bundles stay under `.scratch/architect-loop/`. Never stage or commit them.
 5. **Git is for inspection and isolation, not publication.** It is acceptable
@@ -52,7 +52,7 @@ dispatch mechanics and templates: `dispatch.md`. Slice-scale research:
    broken lane is discarded and respawned from updated inputs.
 10. **Local planning artifacts are required.** A prompt, handoff, or research
     report is input, not an executable slice. Before dispatch, create or select
-    a local PRD and at least one issue-slice file under `.scratch`.
+    a local `SPEC.md` and at least one issue-slice file under `.scratch`.
 11. **Verification gates are exact and non-mutating.** A gate is PASS only when
     the frozen command, or a frozen allowed variant, ran with recorded cwd/env
     and did not rewrite undeclared source files. Ad hoc command/env changes,
@@ -88,11 +88,11 @@ dispatch mechanics and templates: `dispatch.md`. Slice-scale research:
 
 Before dispatch, make sure the work is backed by local planning artifacts:
 
-- PRD: `.scratch/architect-loop/planning/<feature-slug>/PRD.md`
+- Spec: `.scratch/architect-loop/planning/<feature-slug>/SPEC.md`
 - Issue slices:
   `.scratch/architect-loop/planning/<feature-slug>/issues/<NN>-<slug>.md`
 
-If the work is not already backed by an approved local PRD and issue slice,
+If the work is not already backed by an approved local spec and issue slice,
 run a compact `/grill-with-docs` style phase:
 
 - Ask only material questions whose answers would change implementation or
@@ -127,7 +127,7 @@ Create:
   verdict.md
 ```
 
-The manifest records slice id, feature slug, source PRD/issue paths, base SHA,
+The manifest records slice id, feature slug, source spec/issue paths, base SHA,
 lane names, allowed file sets, gate commands, required local skills, skill-read
 evidence, artifact paths, and the final patch path.
 
@@ -136,7 +136,7 @@ evidence, artifact paths, and the final patch path.
 Write a self-contained spec to `state/<slice>/spec.md`:
 
 - Objective and why.
-- Source PRD/issue paths.
+- Source spec/issue paths.
 - Required local skills and read evidence.
 - Output format: raw tables, numbers, command output paths, SHAs.
 - Tool guidance: exact verification commands and versions/APIs to verify.
@@ -174,7 +174,9 @@ Follow `dispatch.md`.
 
 - Use detached scratch worktrees; do not create job branches.
 - Give each worktree a copy of the slice packet under its own `.scratch`.
-- Capture builder stdout JSONL, stderr, and final message separately.
+- Run CLI builders through `run-job.sh` so `job.meta.json`, heartbeat,
+  `stderr.log`, and `job.exit.json` are captured separately from the Codex
+  JSONL stream and final message.
 - Use the script watchdog when a dispatch wave is running unattended.
 - Do not block on long runs. A lane is a liveness concern only when output
   stops growing and process activity also stops beyond the recorded duration

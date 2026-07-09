@@ -17,8 +17,8 @@ their repository history or PRs.
 
 1. **The architect does not write implementation code.** It writes specs,
    gates, prompts, verdicts, and local planning artifacts.
-2. **All loop artifacts are ignored.** PRDs, issues, gates, prompts, reports,
-   run logs, handoffs, and worktrees live under `.scratch`.
+2. **All loop artifacts are ignored.** Specs, issue slices, gates, prompts,
+   reports, run logs, handoffs, and worktrees live under `.scratch`.
 3. **Git remains the code-diff authority.** Implementation changes are reviewed
    with `git diff`, `git status`, and `git ls-files`. SHA-256 checks only
    protect frozen local artifacts.
@@ -33,18 +33,18 @@ their repository history or PRs.
    slices, so generated state and source edits stay isolated.
 8. **No publication side effects.** The skills do not create issues, branches,
    commits, PRs, or committed docs. They stop at local evidence and patch files.
-9. **Only local planning files exist by default.** PRDs and issue slices are
+9. **Only local planning files exist by default.** Specs and issue slices are
    `.scratch` files; there is no external issue tracker path in this fork.
 10. **Grilling precedes slicing when scope is not already settled.** The
     architect asks one question at a time, inspects code when possible, updates
-    glossary/ADRs only when warranted, then distills to local PRD and issues.
+    glossary/ADRs only when warranted, then distills to local spec and issue slices.
 11. **No builder fallback.** GPT-5.5 through Codex is required for builders and
     researchers. Missing Codex is a blocker, not a Claude-subagent fallback.
 
 ## Artifact Layout
 
 ```text
-.scratch/architect-loop/planning/<feature-slug>/PRD.md
+.scratch/architect-loop/planning/<feature-slug>/SPEC.md
 .scratch/architect-loop/planning/<feature-slug>/issues/<NN>-<slug>.md
 
 .scratch/architect-loop/state/<slice>/

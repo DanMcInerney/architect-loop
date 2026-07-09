@@ -10,8 +10,8 @@ scratch worktrees.
 ## What Changed In This Fork
 
 - Loop artifacts live under `.scratch/architect-loop/`.
-- Generated PRDs, issues, gates, prompts, reports, run logs, and worktrees are
-  not staged or committed.
+- Generated specs, issue slices, gates, prompts, reports, run logs, and
+  worktrees are not staged or committed.
 - Git remains the authority for implementation diffs.
 - Frozen gate integrity uses local snapshots and SHA-256 checks, not committed
   `docs/gates/` files.
@@ -19,7 +19,7 @@ scratch worktrees.
 - Finalization writes patch bundles under `.scratch/architect-loop`; it does
   not apply, stage, branch, commit, push, or open a PR.
 - The design phase incorporates a `/grill-with-docs` style interrogation before
-  local PRD and issue-slice artifacts are produced.
+  local spec and issue-slice artifacts are produced.
 - No external issue tracker is used.
 
 ## Skills
@@ -32,8 +32,8 @@ scratch worktrees.
 `/architect` runs the build loop:
 
 1. Ground in project docs and `.scratch` context.
-2. Grill the design if no approved PRD/issues exist.
-3. Write local PRD and issue slices under
+2. Grill the design if no approved spec/issues exist.
+3. Write local `SPEC.md` and issue slices under
    `.scratch/architect-loop/planning/<feature-slug>/`.
 4. Select one issue as the current slice.
 5. Freeze gates under `.scratch/architect-loop/state/<slice>/`.
@@ -69,7 +69,7 @@ normal workflow is project opt-in through a skills manifest.
 Typical project artifacts:
 
 ```text
-.scratch/architect-loop/planning/<feature-slug>/PRD.md
+.scratch/architect-loop/planning/<feature-slug>/SPEC.md
 .scratch/architect-loop/planning/<feature-slug>/issues/<NN>-<slug>.md
 
 .scratch/architect-loop/state/<slice>/manifest.json

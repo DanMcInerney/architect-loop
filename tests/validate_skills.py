@@ -20,6 +20,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -27,9 +28,12 @@ SKILLS = ROOT / "skills"
 MAX_DESC = 1024
 REQUIRED_SIBLINGS = {
     "architect": [
+        "DESIGN.md",
         "dispatch.md",
         "research.md",
         "loop.md",
+        "run-job.sh",
+        "kill-job.sh",
         "check-runner.sh",
         "watchdog.sh",
         "status.sh",
@@ -72,7 +76,7 @@ def check_siblings(skill_dir: Path) -> None:
     skill_md = (skill_dir / "SKILL.md").read_text(encoding="utf-8")
     for ref in re.findall(r"`([\w][\w.-]*\.md)`", skill_md):
         if ref in ("SKILL.md", "AGENTS.md", "CLAUDE.md", "HANDOFF.md", "CONVENTIONS.md",
-                   "PLAN.md", "MEMORY.md", "README.md", "GEMINI.md", "verdict.md"):
+                   "PLAN.md", "MEMORY.md", "README.md", "GEMINI.md", "SPEC.md", "verdict.md"):
             continue  # repo-of-use files, not siblings of the skill
         if ref == "DESIGN.md" and (ROOT / "DESIGN.md").exists():
             continue  # lives at the skill repo root, referenced as such
@@ -119,6 +123,8 @@ def check_local_architect_contract() -> None:
         ".scratch/architect-loop",
         "final.patch",
         "worktree add --detach",
+        "run-job.sh",
+        "job.exit.json",
         "does not create issues, branches, commits",
         "no default Claude builder fallback",
     ):
@@ -133,6 +139,7 @@ def check_local_architect_contract() -> None:
         "git checkout -b",
         "git commit -F",
         "git add -A",
+        "PRD.md",
         ".scratch/<feature-slug>",
     )
     for needle in forbidden:
@@ -157,7 +164,7 @@ def check_research_contract() -> None:
 
 
 def check_script_contracts() -> None:
-    for name in ("check-runner.sh", "watchdog.sh", "status.sh"):
+    for name in ("check-runner.sh", "watchdog.sh", "status.sh", "run-job.sh", "kill-job.sh"):
         path = SKILLS / "architect" / name
         if not path.exists():
             errors.append(f"architect: missing {name}")
@@ -175,12 +182,30 @@ def check_script_contracts() -> None:
         if required not in check_runner:
             errors.append(f"check-runner.sh missing {required!r}")
     watchdog = read(SKILLS / "architect" / "watchdog.sh")
-    for required in ("WATCHDOG: ALL_DONE", "WATCHDOG: STALL", "WATCHDOG: REPEAT", "WATCHDOG: INTEGRATED"):
+    for required in (
+        "WATCHDOG: ALL_DONE",
+        "WATCHDOG: STALL",
+        "WATCHDOG: REPEAT",
+        "WATCHDOG: INTEGRATED",
+        "WATCHDOG: REPORT_READY",
+        "WATCHDOG: DONE_FAILED",
+        "heartbeat_stale_sec",
+        "report_ready_grace_sec",
+        "stderr_file",
+    ):
         if required not in watchdog:
             errors.append(f"watchdog.sh missing {required!r}")
     status = read(SKILLS / "architect" / "status.sh")
     if "gh " in status or "docs/runs" in status:
         errors.append("status.sh must stay local-only; found gh or docs/runs")
+    run_job = read(SKILLS / "architect" / "run-job.sh")
+    for required in ("job.meta.json", "job.heartbeat", "job.exit.json", "job.kill", "--sandbox-env", "UV_CACHE_DIR"):
+        if required not in run_job:
+            errors.append(f"run-job.sh missing {required!r}")
+    kill_job = read(SKILLS / "architect" / "kill-job.sh")
+    for required in ("KILLJOB: OK", "job.kill", "job.exit.json"):
+        if required not in kill_job:
+            errors.append(f"kill-job.sh missing {required!r}")
 
 
 def check_runner_fixture() -> None:
@@ -235,6 +260,135 @@ def check_runner_fixture() -> None:
         shutil.rmtree(temp, ignore_errors=True)
 
 
+def check_run_job_fixture() -> None:
+    script = SKILLS / "architect" / "run-job.sh"
+    if not script.exists():
+        return
+    temp = Path(tempfile.mkdtemp(prefix="architect-runjob-"))
+    try:
+        job_dir = temp / "job"
+        workdir = temp / "work"
+        events = temp / "events.jsonl"
+        report = temp / "report.md"
+        stdin_file = temp / "prompt.txt"
+        workdir.mkdir()
+        stdin_file.write_text("ignored\n", encoding="utf-8")
+        command = "printf '{\"type\":\"done\"}\\n'; printf 'STATUS: COMPLETE\\n' > \"$1\""
+        result = subprocess.run(
+            [
+                "bash",
+                str(script),
+                "--job-dir",
+                str(job_dir),
+                "--workdir",
+                str(workdir),
+                "--backend",
+                "fixture",
+                "--report-path",
+                str(report),
+                "--events-file",
+                str(events),
+                "--stdin-file",
+                str(stdin_file),
+                "--sandbox-env",
+                "--",
+                "bash",
+                "-c",
+                command,
+                "fixture",
+                str(report),
+            ],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            timeout=20,
+        )
+        if result.returncode != 0:
+            errors.append(
+                "run-job fixture expected exit 0 "
+                f"got {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+            )
+            return
+        for path in (job_dir / "job.meta.json", job_dir / "job.heartbeat", job_dir / "job.exit.json", events, report):
+            if not path.exists():
+                errors.append(f"run-job fixture missing {path.name}")
+        exit_text = (job_dir / "job.exit.json").read_text(encoding="utf-8")
+        if '"exit_code":0' not in exit_text:
+            errors.append("run-job fixture did not record exit_code 0")
+        meta_text = (job_dir / "job.meta.json").read_text(encoding="utf-8")
+        if '"sandbox_env":true' not in meta_text:
+            errors.append("run-job fixture did not record sandbox_env true")
+        if not (workdir / ".architect" / "tmp" / "env").is_dir():
+            errors.append("run-job fixture did not create sandbox temp dir")
+        if not (workdir / ".architect" / "tmp" / "uv-cache").is_dir():
+            errors.append("run-job fixture did not create sandbox uv cache dir")
+    finally:
+        shutil.rmtree(temp, ignore_errors=True)
+
+
+def check_watchdog_fixture() -> None:
+    script = SKILLS / "architect" / "watchdog.sh"
+    if not script.exists():
+        return
+    temp = Path(tempfile.mkdtemp(prefix="architect-watchdog-"))
+    try:
+        job_dir = temp / "job"
+        worktree = temp / "worktree"
+        events = temp / "events.jsonl"
+        report = temp / "report.md"
+        heartbeat = job_dir / "job.heartbeat"
+        cfg = temp / "watchdog.json"
+        job_dir.mkdir()
+        worktree.mkdir()
+        events.write_text('{"type":"thinking"}\n', encoding="utf-8")
+        report.write_text("STATUS: COMPLETE\n", encoding="utf-8")
+        heartbeat.write_text("old\n", encoding="utf-8")
+        old = time.time() - 10
+        os.utime(heartbeat, (old, old))
+        cfg.write_text(
+            json.dumps(
+                {
+                    "sweep_sec": 1,
+                    "stall_after_min": 10,
+                    "heartbeat_stale_sec": 1,
+                    "report_ready_grace_sec": 0,
+                    "jobs": [
+                        {
+                            "id": "fixture-01",
+                            "events_file": str(events),
+                            "report_path": str(report),
+                            "job_dir": str(job_dir),
+                            "heartbeat_file": str(heartbeat),
+                            "stderr_file": str(job_dir / "stderr.log"),
+                            "worktree": str(worktree),
+                            "duration_hint_min": 0,
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        result = subprocess.run(
+            ["bash", str(script), str(cfg)],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            timeout=5,
+        )
+        if result.returncode != 6:
+            errors.append(
+                "watchdog fixture expected REPORT_READY exit 6 "
+                f"got {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+            )
+            return
+        if "WATCHDOG: REPORT_READY fixture-01" not in result.stdout:
+            errors.append("watchdog fixture missing REPORT_READY output")
+        if "heartbeat_age_sec=" not in result.stdout:
+            errors.append("watchdog fixture missing heartbeat age evidence")
+    finally:
+        shutil.rmtree(temp, ignore_errors=True)
+
+
 def main() -> int:
     skill_dirs = sorted(d for d in SKILLS.iterdir() if d.is_dir())
     if not skill_dirs:
@@ -255,6 +409,8 @@ def main() -> int:
     check_research_contract()
     check_script_contracts()
     check_runner_fixture()
+    check_run_job_fixture()
+    check_watchdog_fixture()
     if errors:
         print(f"FAIL — {len(errors)} problem(s):")
         for e in errors:

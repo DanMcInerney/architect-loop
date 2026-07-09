@@ -62,6 +62,6 @@ OUTPUT FORMAT:
 3. Verify each against a second independent source or the live dependency.
 4. Discard single-source low-confidence claims or mark them open.
 5. Write distilled decisions into:
-   - `.scratch/architect-loop/planning/<feature-slug>/PRD.md` for feature/product scope; or
+   - `.scratch/architect-loop/planning/<feature-slug>/SPEC.md` for feature/product scope; or
    - `.scratch/architect-loop/state/<slice>/research.md` for slice-local facts.
-6. Do not commit research files, PRDs, raw findings, or reports.
+6. Do not commit research files, specs, raw findings, or reports.

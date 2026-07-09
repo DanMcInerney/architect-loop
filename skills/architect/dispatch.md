@@ -56,6 +56,9 @@ Per slice:
   runs/<lane>.jsonl
   runs/<lane>.stderr.log
   runs/<lane>.last.md
+  jobs/<lane>/job.meta.json
+  jobs/<lane>/job.heartbeat
+  jobs/<lane>/job.exit.json
   checks/<lane>-checkrun.md
   judges/<lane>.md
   patches/<lane>.patch
@@ -172,7 +175,7 @@ Run before builder dispatch, after the draft spec and gates exist.
 ```text
 Draft spec path: <.scratch/architect-loop/state/<slice>/spec.md>
 Draft gate path: <.scratch/architect-loop/state/<slice>/gates.md>
-Source PRD/issue paths: <paths>
+Source spec/issue paths: <paths>
 
 Task: try to falsify this draft. Execute each draft RUN command against the
 current tree when safe, verify every referenced path/SHA/anchor resolves,
@@ -198,10 +201,13 @@ SLICE=<slice>
 LANE=<NN>
 BASE=<base-sha>
 STATE="$REPO/.scratch/architect-loop/state/$SLICE"
+SKILL_DIR="$REPO/.claude/skills/architect"
+[ -d "$SKILL_DIR" ] || SKILL_DIR="$REPO/.agents/skills/architect"
 WT="$REPO/.scratch/architect-loop/worktrees/$SLICE-$LANE"
 RUN_JSONL="$WT/.scratch/architect-loop/runs/$SLICE-$LANE.jsonl"
-STDERR_LOG="$WT/.scratch/architect-loop/runs/$SLICE-$LANE.stderr.log"
 LAST_MSG="$WT/.scratch/architect-loop/runs/$SLICE-$LANE.last.md"
+REPORT="$WT/.scratch/architect-loop/reports/$SLICE-$LANE.md"
+JOB="$STATE/jobs/$LANE"
 
 git -C "$REPO" worktree add --detach "$WT" "$BASE"
 
@@ -211,16 +217,28 @@ command cp "$STATE/gates.md" "$WT/.scratch/architect-loop/packet/$SLICE/gates.md
 command cp "$STATE/freeze/gates.md" "$WT/.scratch/architect-loop/packet/$SLICE/frozen-gates.md"
 command cp "$STATE/manifest.json" "$WT/.scratch/architect-loop/packet/$SLICE/manifest.json"
 
-mkdir -p "$WT/.scratch/architect-loop/reports" "$WT/.scratch/architect-loop/runs"
+mkdir -p "$WT/.scratch/architect-loop/reports" "$WT/.scratch/architect-loop/runs" "$JOB"
 
-codex exec -C "$WT" --sandbox workspace-write \
+"$SKILL_DIR/run-job.sh" \
+  --job-dir "$JOB" \
+  --workdir "$WT" \
+  --backend codex-cli \
+  --report-path "$REPORT" \
+  --events-file "$RUN_JSONL" \
+  --stdin-file "$STATE/dispatch/$LANE.prompt.md" \
+  --sandbox-env \
+  -- \
+  codex exec -C "$WT" --sandbox workspace-write \
   -m gpt-5.5 -c model_reasoning_effort="xhigh" \
   --json -o "$LAST_MSG" \
-  - < "$STATE/dispatch/$LANE.prompt.md" > "$RUN_JSONL" 2> "$STDERR_LOG"
+  -
 ```
 
 `--json` is the event stream and must be captured from stdout. `-o` is only the
-last assistant message; do not name it `.jsonl`.
+last assistant message; do not name it `.jsonl`. The wrapper writes
+`job.meta.json`, `job.heartbeat`, `stderr.log`, and `job.exit.json` under
+`$STATE/jobs/$LANE`; use that wrapper exit truth when judging a lane and when
+configuring the watchdog.
 
 ## Post-Flight Checks
 
@@ -237,9 +255,10 @@ WT="$REPO/.scratch/architect-loop/worktrees/$SLICE-$LANE"
 mkdir -p "$STATE/reports" "$STATE/runs" "$STATE/checks" "$STATE/patches"
 command cp "$WT/.scratch/architect-loop/reports/$SLICE-$LANE.md" "$STATE/reports/$LANE.md"
 command cp "$WT/.scratch/architect-loop/runs/$SLICE-$LANE.jsonl" "$STATE/runs/$LANE.jsonl"
-command cp "$WT/.scratch/architect-loop/runs/$SLICE-$LANE.stderr.log" "$STATE/runs/$LANE.stderr.log"
+command cp "$STATE/jobs/$LANE/stderr.log" "$STATE/runs/$LANE.stderr.log"
 command cp "$WT/.scratch/architect-loop/runs/$SLICE-$LANE.last.md" "$STATE/runs/$LANE.last.md"
 test -s "$STATE/runs/$LANE.jsonl"
+test -s "$STATE/jobs/$LANE/job.exit.json"
 python3 -c 'import json,sys; lines=[l for l in open(sys.argv[1]) if l.strip()]; [json.loads(l) for l in lines]; assert lines' "$STATE/runs/$LANE.jsonl"
 
 (cd "$STATE/freeze" && shasum -a 256 -c gates.sha256)
@@ -294,11 +313,17 @@ Use the script watchdog for unattended waves. It is detection-only.
 {
   "sweep_sec": 120,
   "stall_after_min": 10,
+  "heartbeat_stale_sec": 240,
+  "report_ready_grace_sec": 120,
   "jobs": [
     {
       "id": "<slice-lane>",
       "events_file": "<worktree>/.scratch/architect-loop/runs/<slice-lane>.jsonl",
       "report_path": "<worktree>/.scratch/architect-loop/reports/<slice-lane>.md",
+      "job_dir": ".scratch/architect-loop/state/<slice>/jobs/<lane>",
+      "exit_file": ".scratch/architect-loop/state/<slice>/jobs/<lane>/job.exit.json",
+      "heartbeat_file": ".scratch/architect-loop/state/<slice>/jobs/<lane>/job.heartbeat",
+      "stderr_file": ".scratch/architect-loop/state/<slice>/jobs/<lane>/stderr.log",
       "worktree": "<worktree>",
       "duration_hint_min": 0
     }
@@ -313,15 +338,16 @@ skills/architect/watchdog.sh .scratch/architect-loop/watchdog/<slice>.json
 ```
 
 Typed exits: `0 WATCHDOG: ALL_DONE`, `2 WATCHDOG: INTEGRATED`, `3 WATCHDOG:
-STALL`, `4 WATCHDOG: REPEAT`.
+STALL`, `4 WATCHDOG: REPEAT`, `6 WATCHDOG: REPORT_READY`, `9 WATCHDOG:
+DONE_FAILED`.
 
 The watchdog never kills, nudges, judges, edits files, or changes Git state.
 
 ## Stall Detection And Rescue
 
-A dispatched run is STALLED when its JSONL output and report stop growing, the
-process tree shows no activity beyond the duration hint, or the last parsed
-commands repeat mechanically. Silent gaps are normal model thinking.
+A dispatched run is STALLED when its JSONL output, stderr, and report stop
+growing, the process tree shows no activity beyond the duration hint, or the
+last parsed commands repeat mechanically. Silent gaps are normal model thinking.
 
 Diagnose before killing. If a child process is stuck, kill the narrowest child,
 not the whole Codex run. Kill the whole lane only after the same hang repeats or

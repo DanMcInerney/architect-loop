@@ -134,6 +134,6 @@ Report shape:
 ### 7. Hand Off
 
 If this feeds `/architect`, distill the report into
-`.scratch/architect-loop/planning/<feature-slug>/PRD.md` or
+`.scratch/architect-loop/planning/<feature-slug>/SPEC.md` or
 `.scratch/architect-loop/state/<slice>/research.md`. Raw findings stay in
 `.scratch/architect-loop/research/<topic>/`.
