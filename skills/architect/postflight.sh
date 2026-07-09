@@ -55,7 +55,9 @@ is_allowed(){
   path=$1
   # docs/checks/ is always a violation, regardless of configured globs.
   case "$path" in docs/checks/*) return 1;; esac
-  for rule in "${may_touch[@]}" "${exempt[@]}"; do
+  # ${arr[@]+...} guards: bash 3.2 (stock macOS) treats an empty array as
+  # unset under `set -u`, killing the script here.
+  for rule in ${may_touch[@]+"${may_touch[@]}"} ${exempt[@]+"${exempt[@]}"}; do
     if rule_match "$path" "$rule"; then return 0; fi
   done
   return 1
