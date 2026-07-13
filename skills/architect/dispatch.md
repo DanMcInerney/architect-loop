@@ -177,8 +177,10 @@ git -C <repo-root> worktree add <repo-root>/.architect/wt/<run>/<slice>-<NN> -b 
 <repo-root>/skills/architect/run-job.sh ... -- <codex-or-claude command for that worktree>
 ```
 
-Builders still never commit — a prose ban audited by postflight; nothing
-reaches a branch until orchestrator checks pass.
+Builders still never commit — a prose ban; postflight enforces paths, not
+commit authorship, so run `git log <freeze-sha>..<job-branch>` before
+merging (any builder-authored commit there is a job FAIL). Nothing reaches
+a branch until orchestrator checks pass.
 
 ## Sandbox posture
 
@@ -202,10 +204,12 @@ under full access). Researchers stay `--sandbox read-only`
 (`research.md`); they write nothing.
 
 The constraints that matter are enforced downstream, not by the OS
-sandbox: builders never commit (prose ban, postflight-audited); MAY TOUCH
-is enforced by postflight's touch-set diff over the full freeze->job
-range; a `docs/checks/` edit is an automatic FAIL; and unwrapped work
-cannot merge (postflight `job_dir` gate below).
+sandbox: builders never commit (prose ban — postflight checks paths, not
+commit authorship; the orchestrator's pre-merge `git log
+<freeze-sha>..<job-branch>` is the audit until postflight grows one);
+MAY TOUCH is enforced by postflight's touch-set diff over the full
+freeze->job range; a `docs/checks/` edit is an automatic FAIL; and
+unwrapped work cannot merge (postflight `job_dir` gate below).
 
 Opting a job back into a sandbox (not recommended): every pytest
 invocation needs `-p no:cacheprovider`; pass the wrapper's `--sandbox-env`
@@ -567,10 +571,10 @@ swallow an error to make output look right. No unrequested backwards-
 compatibility shims or dead compatibility code. Fail loudly, with context.
 Exception: fallbacks or compat code are allowed only when the spec explicitly
 requests them. Verify your work by running the job's check commands and
-record the verbatim output. Do NOT commit or mutate git state - commits are
-the orchestrator's alone; postflight diffs the full freeze->job range and
-audits for builder commits, so any commit, amend, or history edit fails your
-job regardless of results. Do NOT delete lock
+record the verbatim output. Do NOT commit or mutate git state - commits,
+merges, and history belong to the orchestrator alone; postflight diffs the
+full freeze->job range, and any out-of-bounds path or docs/checks/ edit
+fails your job regardless of results. Do NOT delete lock
 files or escalate privileges if a git command fails; record the exact error and
 continue.
 
