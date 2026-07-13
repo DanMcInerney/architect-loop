@@ -76,7 +76,10 @@ not-yet-written implementation.
 Every issue carries: acceptance criteria; MAY TOUCH / MUST NOT TOUCH file
 sets; its check path; its raw job-report path; blocked-by and parent edges;
 a compact change-skeleton (≤30 lines — files, signatures, data flow,
-invariants; a contract, not a line mandate). Close every issue body with the
+invariants; a contract, not a line mandate). Keep the linked check's RUN
+dependencies (the test files, validators, and scripts its commands execute)
+out of MAY TOUCH unless the issue explicitly owns them; when it does, name
+them in the body as check dependencies. Close every issue body with the
 run marker comment: `<!-- architect-run: <run> -->`.
 
 ## 7. Draft in publish order; the orchestrator publishes

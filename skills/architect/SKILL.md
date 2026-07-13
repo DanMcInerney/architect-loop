@@ -27,7 +27,10 @@ invokes a peer. Mechanics: `dispatch.md` (templates, routing), `loop.md`
    coordination log; job reports and git evidence mirror there.
 2. **Checks freeze in git before dispatch.** Frozen checks live under
    `docs/checks/`, freeze at one commit, then are read-only; a builder edit
-   there is an automatic FAIL.
+   there is an automatic FAIL. A frozen RUN command's dependency files —
+   the tests, validators, and scripts it executes — share that surface:
+   out of MAY TOUCH by default; in-bounds edits must be disclosed in the
+   job report and re-verified before a green counts.
 3. **Nobody grades their own work.** Builders report raw evidence; the
    check-runner grades every frozen RUN item; one fresh strategist runs the
    final review — the loop's only model review — reporting and decomposing,
