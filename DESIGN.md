@@ -22,11 +22,15 @@ their repository history or PRs.
 3. **Git remains the code-diff authority.** Implementation changes are reviewed
    with `git diff`, `git status`, and `git ls-files`. SHA-256 checks only
    protect frozen local artifacts.
-4. **Gates freeze before results exist.** The architect snapshots gates under
-   `.scratch/architect-loop/state/<slice>/freeze/` and records a checksum
-   before dispatch.
-5. **Builders never grade their own work.** They report raw command output; the
-   architect runs gates and reads the implementation diff.
+4. **Full-lane gates freeze before results exist.** `/architect` snapshots
+   gates under `.scratch/architect-loop/state/<slice>/freeze/` and records a
+   checksum before dispatch. `/architect-fast` deliberately substitutes a
+   checksum-protected acceptance packet, builder-run tests, and one fresh
+   closing review-and-fix.
+5. **Builders do not normally grade their own work.** They report raw command
+   output; the architect runs gates and reads the implementation diff. The
+   fast lane's one fresh closing builder may review and fix the combined work,
+   after which the architect reruns validation and inspects the final diff.
 6. **Disagreement is mandatory.** Builders must challenge the spec before
    coding, citing real files.
 7. **Every builder runs in a fresh worktree.** This applies even to one-lane
@@ -102,3 +106,24 @@ SHA, accepted/rejected lanes, gate ledger, changed files, and patch paths.
 The loop stops after reporting the patch bundle and evidence paths. Applying,
 staging, committing, pushing, opening issues, opening a PR, or publishing docs
 requires a separate explicit human instruction after the patch is reviewed.
+
+## Architect Fast Policy
+
+`/architect-fast` is a deliberate light-lane exception for one bounded goal:
+at most 3 file-disjoint Codex builder lanes and roughly 400 expected changed
+lines. It preserves the Opus/Codex role split, detached ignored worktrees,
+wrapper-owned run evidence, strict touch sets, and local patch-bundle finish.
+
+It omits frozen gate files, the deterministic check-runner, per-lane judges,
+the stress-test dispatch, and the watchdog. Because this fork has no immutable
+tracker issue bodies, it snapshots and checksums the local spec/slices as a
+stable acceptance packet without turning them into executable gates.
+Builder-run focused tests and the combined full-suite run provide mechanical
+evidence. One fresh Codex builder then reviews and fixes the combined candidate
+in a new closing worktree; the architect reruns validation, checks the final
+boundaries and size, and produces `final.patch` plus `verdict.md`.
+
+This differs from original upstream's tracker/branch/merge/PR factory. The
+local fast lane creates no external issues, durable branches, commits, merges,
+PRs, or committed documentation. If the ceiling or risk is exceeded, it stops
+before dispatch and recommends `/architect`.

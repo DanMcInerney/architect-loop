@@ -26,6 +26,7 @@ scratch worktrees.
 
 ```text
 /architect
+/architect-fast
 /architect-research
 ```
 
@@ -40,6 +41,19 @@ scratch worktrees.
 6. Dispatch one Codex builder per lane in ignored worktrees.
 7. Verify frozen gates, run the deterministic check-runner, inspect Git diffs,
    and write `patches/<lane>.patch`, `final.patch`, and `verdict.md` under
+   `.scratch/architect-loop/state/<slice>/`.
+
+`/architect-fast` runs the light build loop for one small bounded goal:
+
+1. Enforce a ceiling of at most 3 disjoint builder lanes and roughly 400
+   expected changed lines; redirect larger or riskier work to `/architect`.
+2. Write one compact local spec and vertical slice with acceptance criteria and
+   exact validation commands.
+3. Dispatch fresh Codex builders in ignored worktrees without the full lane's
+   frozen gates, check-runner, per-lane judge, or watchdog.
+4. Apply accepted lane patches to a fresh closing worktree, run the full suite,
+   and dispatch one fresh Codex builder to review and fix the combined result.
+5. Verify the final diff and write `final.patch` plus `verdict.md` under
    `.scratch/architect-loop/state/<slice>/`.
 
 `/architect-research` runs discovery-scale research:
@@ -58,6 +72,7 @@ personal skills repo. Prefer symlinking the skills from:
 
 ```text
 skills/architect
+skills/architect-fast
 skills/architect-research
 ```
 

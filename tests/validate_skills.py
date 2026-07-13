@@ -76,8 +76,12 @@ def check_siblings(skill_dir: Path) -> None:
     skill_md = (skill_dir / "SKILL.md").read_text(encoding="utf-8")
     for ref in re.findall(r"`([\w][\w.-]*\.md)`", skill_md):
         if ref in ("SKILL.md", "AGENTS.md", "CLAUDE.md", "HANDOFF.md", "CONVENTIONS.md",
-                   "PLAN.md", "MEMORY.md", "README.md", "GEMINI.md", "SPEC.md", "verdict.md"):
+                   "PLAN.md", "MEMORY.md", "README.md", "GEMINI.md", "SPEC.md", "spec.md", "verdict.md"):
             continue  # repo-of-use files, not siblings of the skill
+        if skill_dir.name == "architect-fast" and ref == "dispatch.md":
+            if not (SKILLS / "architect" / ref).exists():
+                errors.append(f"architect-fast: required sibling architect file {ref} missing")
+            continue
         if ref == "DESIGN.md" and (ROOT / "DESIGN.md").exists():
             continue  # lives at the skill repo root, referenced as such
         if re.match(r"(docs|lane|gate|prd|research)", ref):
@@ -161,6 +165,41 @@ def check_research_contract() -> None:
     ):
         if required not in text:
             errors.append(f"architect-research contract missing {required!r}")
+
+
+def check_fast_contract() -> None:
+    skill = SKILLS / "architect-fast" / "SKILL.md"
+    if not skill.exists():
+        errors.append("architect-fast: missing SKILL.md")
+        return
+    text = read(skill)
+    for required in (
+        "at most 3",
+        "400",
+        "Opus 4.8",
+        "GPT-5.5",
+        ".scratch/architect-loop",
+        "closing review-and-fix",
+        "acceptance.sha256",
+        "candidate.patch",
+        "final.patch",
+        "No public side effects.",
+        "recommend `/architect`",
+    ):
+        if required not in text:
+            errors.append(f"architect-fast contract missing {required!r}")
+    for forbidden in (
+        "gh issue create",
+        "factory branch",
+        "single PR",
+        "docs/runs",
+        "git commit -F",
+        "git add -A",
+    ):
+        if forbidden in text:
+            errors.append(
+                f"architect-fast contract contains forbidden upstream pattern {forbidden!r}"
+            )
 
 
 def check_script_contracts() -> None:
@@ -407,6 +446,7 @@ def main() -> int:
             errors.append(f"{doc} missing")
     check_local_architect_contract()
     check_research_contract()
+    check_fast_contract()
     check_script_contracts()
     check_runner_fixture()
     check_run_job_fixture()
