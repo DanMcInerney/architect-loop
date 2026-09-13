@@ -1,3 +1,5 @@
+Note: orchflows now replaces this hardcoded workflow with a library that can build any kind of workflow like this with only 2 skills. https://github.com/DanMcInerney/orchflows/
+
 # architect-loop
 
 **An autonomous software factory for Codex and Claude: one orchestrator,
