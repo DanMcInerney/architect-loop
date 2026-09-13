@@ -44,6 +44,17 @@ Attack-list, run before freeze:
 - New artifact paths — run `git check-ignore <path>`; a gitignored path
   never gets graded no matter what the check says.
 
+## Dependency surface
+
+A RUN command's dependency set — the test files, validators, and scripts it
+executes — is part of the check's enforcement surface: agents that game a
+check edit the test, not the criteria file. Name that set in the check
+header. Decomposition keeps those files out of MAY TOUCH by default; when an
+issue legitimately owns one (a job writing the tests a RUN item runs), every
+builder edit to it must be disclosed in the job report, and the orchestrator
+re-verifies intent before trusting a green — the edited dependency must
+still fail a known-bad input.
+
 ## Freeze protocol
 
 All check files for a run commit to the factory branch before any builder is
